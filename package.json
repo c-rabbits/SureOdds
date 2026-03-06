@@ -1,0 +1,17 @@
+{
+  "name": "sureodds",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SureOdds - Sports arbitrage betting platform",
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:collector": "cd backend && npm run collector",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "build": "cd frontend && npm run build"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
