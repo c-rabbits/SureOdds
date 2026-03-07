@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-950 text-gray-100;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-gray-900 border border-gray-800 rounded-xl p-4;
+  }
+
+  .badge-sure-bet {
+    @apply inline-flex items-center gap-1 bg-green-500/20 text-green-400 border border-green-500/30 text-xs font-semibold px-2 py-0.5 rounded-full;
+  }
+
+  .odds-pill {
+    @apply inline-block bg-gray-800 text-white text-sm font-mono font-semibold px-2.5 py-1 rounded-lg;
+  }
+
+  .btn-primary {
+    @apply bg-green-600 hover:bg-green-500 text-white font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold px-4 py-2 rounded-lg transition-colors;
+  }
+}
