@@ -1,159 +1,166 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Match, Odds, ArbitrageOpportunity } from '@/types';
-import { getMatches, getOdds, getArbitrage } from '@/lib/api';
-import MatchCard from '@/components/MatchCard';
-import StatsBar from '@/components/StatsBar';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { MatchWithOdds, TableRow, QuotaInfo } from '@/types';
+import { getMatchesWithOdds, getArbitrage, triggerCollection, getApiQuota } from '@/lib/api';
+import { flattenMatchesToRows } from '@/lib/utils';
+import { getAlertService } from '@/lib/alertService';
+import { useFilters } from '@/hooks/useFilters';
+import Toolbar from '@/components/Toolbar';
+import MatchTable from '@/components/MatchTable';
+import DetailPanel from '@/components/DetailPanel';
+import AlertSettings from '@/components/AlertSettings';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
-const SPORTS = [
-  { key: '', label: 'All' },
-  { key: 'soccer_epl', label: 'Premier League' },
-  { key: 'soccer_spain_la_liga', label: 'La Liga' },
-  { key: 'soccer_germany_bundesliga', label: 'Bundesliga' },
-  { key: 'soccer_italy_serie_a', label: 'Serie A' },
-  { key: 'soccer_france_ligue_one', label: 'Ligue 1' },
-];
-
 export default function HomePage() {
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [oddsMap, setOddsMap] = useState<Record<string, Odds[]>>({});
-  const [arbitrage, setArbitrage] = useState<ArbitrageOpportunity[]>([]);
+  const [matches, setMatches] = useState<MatchWithOdds[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSport, setSelectedSport] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [selectedRow, setSelectedRow] = useState<TableRow | null>(null);
+  const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
+  const [quota, setQuota] = useState<QuotaInfo | null>(null);
 
-  const arbMatchIds = new Set(arbitrage.map((a) => a.match_id));
-  const arbProfitMap = Object.fromEntries(arbitrage.map((a) => [a.match_id, a.profit_percent]));
+  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort } = useFilters();
 
-  const load = useCallback(async () => {
+  // Flatten matches to table rows
+  const rows = useMemo(() => flattenMatchesToRows(matches), [matches]);
+
+  // Stats
+  const arbCount = useMemo(() => rows.filter((r) => r.isArbitrage).length, [rows]);
+  const topProfit = useMemo(() => {
+    const arbRows = rows.filter((r) => r.isArbitrage && r.profitPercent !== null);
+    return arbRows.length > 0 ? Math.max(...arbRows.map((r) => r.profitPercent!)) : 0;
+  }, [rows]);
+  const uniqueMatches = useMemo(() => new Set(rows.map((r) => r.matchId)).size, [rows]);
+
+  // Load data
+  const loadData = useCallback(async () => {
     try {
-      const [matchData, arbData] = await Promise.all([
-        getMatches({ sport: selectedSport || undefined, limit: 30 }),
-        getArbitrage({ limit: 50 }),
+      const [matchData, quotaData] = await Promise.all([
+        getMatchesWithOdds({ limit: 100 }),
+        getApiQuota().catch(() => null),
       ]);
 
-      setMatches(matchData);
-      setArbitrage(arbData);
+      setMatches(matchData || []);
+      if (quotaData) setQuota(quotaData);
       setLastUpdated(new Date());
 
-      // Fetch odds for top 10 matches
-      const oddsResults = await Promise.all(
-        matchData.slice(0, 10).map(async (m) => ({ id: m.id, odds: await getOdds(m.id) }))
-      );
-      const newOddsMap: Record<string, Odds[]> = {};
-      for (const r of oddsResults) newOddsMap[r.id] = r.odds;
-      setOddsMap(newOddsMap);
+      // Check for new arbitrage alerts
+      const arbOpps = (matchData || []).flatMap((m) => m.arbitrage_opportunities || []);
+      if (arbOpps.length > 0) {
+        try {
+          const alertSvc = getAlertService();
+          alertSvc.checkNewOpportunities(arbOpps);
+        } catch {
+          // Alert service may fail on SSR
+        }
+      }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedSport]);
+  }, []);
 
   useEffect(() => {
-    setLoading(true);
-    load();
-  }, [load]);
+    loadData();
+  }, [loadData]);
 
   // Auto-refresh every 60s
   useEffect(() => {
-    const timer = setInterval(load, 60000);
+    const timer = setInterval(loadData, 60000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [loadData]);
 
-  const sureBetMatches = matches.filter((m) => arbMatchIds.has(m.id));
-  const regularMatches = matches.filter((m) => !arbMatchIds.has(m.id));
-  const topProfit = arbitrage.length > 0 ? Math.max(...arbitrage.map((a) => Number(a.profit_percent))) : 0;
+  // Manual refresh (triggers collector then reloads)
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await triggerCollection();
+      await loadData();
+    } catch (err) {
+      console.error('Refresh failed:', err);
+      // Still try to load existing data
+      await loadData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadData]);
+
+  // Row selection
+  const handleSelectRow = useCallback((row: TableRow) => {
+    setSelectedRow((prev) => {
+      const prevKey = prev ? `${prev.matchId}|${prev.marketType}|${prev.handicapPoint}` : null;
+      const newKey = `${row.matchId}|${row.marketType}|${row.handicapPoint}`;
+      return prevKey === newKey ? null : row;
+    });
+  }, []);
+
+  const selectedRowKey = selectedRow
+    ? `${selectedRow.matchId}|${selectedRow.marketType}|${selectedRow.handicapPoint ?? 'null'}`
+    : null;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <LoadingSpinner message="SureOdds 로딩 중..." />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          Sports Odds Comparison
-        </h1>
-        <p className="text-gray-400">
-          Real-time odds from top bookmakers with automatic arbitrage detection.
-        </p>
-        {lastUpdated && (
-          <p className="text-xs text-gray-600 mt-1">
-            Last updated: {lastUpdated.toLocaleTimeString()}
-          </p>
+    <div className="h-full flex flex-col">
+      {/* Toolbar */}
+      <Toolbar
+        filters={filters}
+        onToggleSport={toggleSport}
+        onToggleMarketType={toggleMarketType}
+        onSetMinProfit={setMinProfit}
+        onSetSort={(field) => setSort(field)}
+        matchCount={uniqueMatches}
+        arbCount={arbCount}
+        topProfit={topProfit}
+        lastUpdated={lastUpdated}
+        loading={refreshing}
+        onRefresh={handleRefresh}
+        quota={quota}
+        onOpenAlertSettings={() => setAlertSettingsOpen(true)}
+      />
+
+      {/* Main content: table + detail split */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Table panel */}
+        <div className={`${selectedRow ? 'h-[60%]' : 'flex-1'} overflow-hidden`}>
+          <MatchTable
+            rows={rows}
+            filters={filters}
+            selectedRowKey={selectedRowKey}
+            onSelectRow={handleSelectRow}
+          />
+        </div>
+
+        {/* Detail panel (only shown when a row is selected) */}
+        {selectedRow && (
+          <>
+            <div className="panel-handle h-1.5 shrink-0" />
+            <div className="h-[40%] overflow-hidden">
+              <DetailPanel
+                match={selectedRow.matchData}
+                initialMarketType={selectedRow.marketType}
+                initialHandicapPoint={selectedRow.handicapPoint}
+                onClose={() => setSelectedRow(null)}
+              />
+            </div>
+          </>
         )}
       </div>
 
-      {/* Stats */}
-      <StatsBar
-        matchCount={matches.length}
-        arbCount={arbitrage.length}
-        topProfit={topProfit}
+      {/* Alert settings modal */}
+      <AlertSettings
+        isOpen={alertSettingsOpen}
+        onClose={() => setAlertSettingsOpen(false)}
       />
-
-      {/* Sport filter */}
-      <div className="flex gap-2 flex-wrap mb-6">
-        {SPORTS.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setSelectedSport(s.key)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              selectedSport === s.key
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:text-white'
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <LoadingSpinner message="Fetching live odds..." />
-      ) : matches.length === 0 ? (
-        <div className="text-center py-20 text-gray-500">
-          <div className="text-4xl mb-4">⚽</div>
-          <p>No matches found. Make sure the collector is running.</p>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {/* Sure Bet matches */}
-          {sureBetMatches.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold text-green-400 mb-4 flex items-center gap-2">
-                <span>⚡</span> Sure Bets Available ({sureBetMatches.length})
-              </h2>
-              <div className="space-y-3">
-                {sureBetMatches.map((match) => (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    odds={oddsMap[match.id] || []}
-                    hasSureBet
-                    profitPercent={Number(arbProfitMap[match.id])}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* All other matches */}
-          <section>
-            <h2 className="text-lg font-semibold text-gray-300 mb-4">
-              All Matches ({regularMatches.length})
-            </h2>
-            <div className="space-y-3">
-              {regularMatches.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  odds={oddsMap[match.id] || []}
-                />
-              ))}
-            </div>
-          </section>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,22 +1,22 @@
 /**
- * Arbitrage (Sure Bet) Detection Engine
+ * Arbitrage (Sure Bet) Detection Engine v2
  *
- * For a 2-way market (e.g. home/away):
- *   arb = 1/oddsA + 1/oddsB
+ * Supports h2h, spreads, and totals markets.
+ *
+ * For a 2-way market (spreads, totals, or h2h without draw):
+ *   arb = 1/odds1 + 1/odds2
  *   if arb < 1  →  arbitrage opportunity exists
- *   profit% = (1 - arb) * 100
  *
- * For a 3-way market (home/draw/away):
+ * For a 3-way market (h2h with draw):
  *   arb = 1/oddsHome + 1/oddsDraw + 1/oddsAway
  */
 
 /**
  * Calculate the arbitrage percentage and profit for given odds.
- * @param {number[]} oddsArray - Array of best odds for each outcome
- * @returns {{ arb: number, profit: number, isArbitrage: boolean }}
  */
 function calculateArbitrage(oddsArray) {
   if (!oddsArray || oddsArray.length < 2) return null;
+  if (oddsArray.some((o) => !o || o <= 1)) return null;
 
   const arb = oddsArray.reduce((sum, odd) => sum + 1 / odd, 0);
   const profit = (1 - arb) * 100;
@@ -26,26 +26,45 @@ function calculateArbitrage(oddsArray) {
 }
 
 /**
- * Find the best odds for each outcome across all bookmakers.
- * @param {Array} oddsRecords - Array of odds rows from DB for a single match
- * @returns {{ bestOdds: object, opportunities: Array }}
+ * Find the best odds for each outcome in a 2-way market (spreads, totals).
  */
-function findBestOdds(oddsRecords) {
+function findBestOdds2Way(oddsRecords) {
+  const best1 = { odds: 0, bookmaker: null };
+  const best2 = { odds: 0, bookmaker: null };
+
+  for (const record of oddsRecords) {
+    if (record.outcome_1_odds && record.outcome_1_odds > best1.odds) {
+      best1.odds = record.outcome_1_odds;
+      best1.bookmaker = record.bookmaker;
+    }
+    if (record.outcome_2_odds && record.outcome_2_odds > best2.odds) {
+      best2.odds = record.outcome_2_odds;
+      best2.bookmaker = record.bookmaker;
+    }
+  }
+
+  return { bestOutcome1: best1, bestOutcome2: best2 };
+}
+
+/**
+ * Find the best odds for each outcome in a 3-way h2h market.
+ */
+function findBestOddsH2H(oddsRecords) {
   const bestHome = { odds: 0, bookmaker: null };
   const bestDraw = { odds: 0, bookmaker: null };
   const bestAway = { odds: 0, bookmaker: null };
 
   for (const record of oddsRecords) {
-    if (record.home_odds && record.home_odds > bestHome.odds) {
-      bestHome.odds = record.home_odds;
+    if (record.outcome_1_odds && record.outcome_1_odds > bestHome.odds) {
+      bestHome.odds = record.outcome_1_odds;
       bestHome.bookmaker = record.bookmaker;
     }
-    if (record.draw_odds && record.draw_odds > bestDraw.odds) {
-      bestDraw.odds = record.draw_odds;
+    if (record.outcome_draw_odds && record.outcome_draw_odds > bestDraw.odds) {
+      bestDraw.odds = record.outcome_draw_odds;
       bestDraw.bookmaker = record.bookmaker;
     }
-    if (record.away_odds && record.away_odds > bestAway.odds) {
-      bestAway.odds = record.away_odds;
+    if (record.outcome_2_odds && record.outcome_2_odds > bestAway.odds) {
+      bestAway.odds = record.outcome_2_odds;
       bestAway.bookmaker = record.bookmaker;
     }
   }
@@ -54,52 +73,25 @@ function findBestOdds(oddsRecords) {
 }
 
 /**
- * Calculate how to distribute stake across outcomes for guaranteed profit.
- * @param {number} totalStake - Total amount to bet
- * @param {number[]} oddsArray - Best odds for each outcome
- * @returns {number[]} - Stakes for each outcome
+ * Detect h2h arbitrage (2-way and 3-way).
  */
-function calculateStakes(totalStake, oddsArray) {
-  const arb = oddsArray.reduce((sum, odd) => sum + 1 / odd, 0);
-  return oddsArray.map((odd) => parseFloat(((totalStake / odd / arb) * (1 / odd) * arb).toFixed(2)));
-}
+function detectH2hArbitrage(match, oddsRecords) {
+  const { bestHome, bestDraw, bestAway } = findBestOddsH2H(oddsRecords);
 
-/**
- * Simpler stake calculator: each stake = (totalStake / arb) * (1/odd)
- */
-function distributeStake(totalStake, oddsArray) {
-  const arb = oddsArray.reduce((sum, odd) => sum + 1 / odd, 0);
-  const stakes = oddsArray.map((odd) => parseFloat(((totalStake / arb) * (1 / odd)).toFixed(2)));
-  // Compute expected return from any winning outcome
-  const returns = oddsArray.map((odd, i) => parseFloat((stakes[i] * odd).toFixed(2)));
-  const minReturn = Math.min(...returns);
-  const profit = parseFloat((minReturn - totalStake).toFixed(2));
-
-  return { stakes, returns, profit };
-}
-
-/**
- * Detect arbitrage for a single match given its odds records.
- */
-function detectArbitrageForMatch(match, oddsRecords) {
-  if (!oddsRecords || oddsRecords.length < 2) return null;
-
-  const { bestHome, bestDraw, bestAway } = findBestOdds(oddsRecords);
-
-  // Try 3-way if draw odds exist
-  let result3way = null;
+  // Try 3-way first if draw odds exist
   if (bestDraw.odds > 0 && bestHome.odds > 0 && bestAway.odds > 0) {
     const arb3 = calculateArbitrage([bestHome.odds, bestDraw.odds, bestAway.odds]);
     if (arb3 && arb3.isArbitrage) {
-      result3way = {
+      return {
         match_id: match.id,
-        market_type: '3way',
-        bookmaker_home: bestHome.bookmaker,
+        market_type: 'h2h',
+        handicap_point: null,
+        bookmaker_a: bestHome.bookmaker,
+        bookmaker_b: bestAway.bookmaker,
         bookmaker_draw: bestDraw.bookmaker,
-        bookmaker_away: bestAway.bookmaker,
-        odds_home: bestHome.odds,
+        odds_a: bestHome.odds,
+        odds_b: bestAway.odds,
         odds_draw: bestDraw.odds,
-        odds_away: bestAway.odds,
         profit_percent: arb3.profit,
         arb_factor: arb3.arb,
       };
@@ -107,29 +99,120 @@ function detectArbitrageForMatch(match, oddsRecords) {
   }
 
   // Try 2-way (home vs away)
-  let result2way = null;
   if (bestHome.odds > 0 && bestAway.odds > 0) {
     const arb2 = calculateArbitrage([bestHome.odds, bestAway.odds]);
     if (arb2 && arb2.isArbitrage) {
-      result2way = {
+      return {
         match_id: match.id,
-        market_type: '2way',
-        bookmaker_home: bestHome.bookmaker,
-        bookmaker_away: bestAway.bookmaker,
-        odds_home: bestHome.odds,
-        odds_away: bestAway.odds,
+        market_type: 'h2h',
+        handicap_point: null,
+        bookmaker_a: bestHome.bookmaker,
+        bookmaker_b: bestAway.bookmaker,
+        bookmaker_draw: null,
+        odds_a: bestHome.odds,
+        odds_b: bestAway.odds,
+        odds_draw: null,
         profit_percent: arb2.profit,
         arb_factor: arb2.arb,
       };
     }
   }
 
-  return result3way || result2way;
+  return null;
+}
+
+/**
+ * Detect arbitrage for a 2-way market (spreads or totals).
+ */
+function detect2WayArbitrage(match, oddsRecords, marketType, handicapPoint) {
+  const { bestOutcome1, bestOutcome2 } = findBestOdds2Way(oddsRecords);
+
+  if (bestOutcome1.odds > 0 && bestOutcome2.odds > 0) {
+    const arb = calculateArbitrage([bestOutcome1.odds, bestOutcome2.odds]);
+    if (arb && arb.isArbitrage) {
+      return {
+        match_id: match.id,
+        market_type: marketType,
+        handicap_point: handicapPoint,
+        bookmaker_a: bestOutcome1.bookmaker,
+        bookmaker_b: bestOutcome2.bookmaker,
+        bookmaker_draw: null,
+        odds_a: bestOutcome1.odds,
+        odds_b: bestOutcome2.odds,
+        odds_draw: null,
+        profit_percent: arb.profit,
+        arb_factor: arb.arb,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Detect arbitrage across all market types for a match.
+ * Groups odds by (market_type, handicap_point) and checks each.
+ */
+function detectAllArbitrageForMatch(match, allOddsRecords) {
+  const opportunities = [];
+
+  // Group by market_type + handicap_point
+  const groups = {};
+  for (const record of allOddsRecords) {
+    const key = `${record.market_type}|${record.handicap_point ?? 'null'}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(record);
+  }
+
+  for (const [key, records] of Object.entries(groups)) {
+    if (records.length < 2) continue;
+
+    const [marketType, pointStr] = key.split('|');
+    const handicapPoint = pointStr === 'null' ? null : parseFloat(pointStr);
+
+    if (marketType === 'h2h') {
+      const opp = detectH2hArbitrage(match, records);
+      if (opp) opportunities.push(opp);
+    } else {
+      // spreads or totals: 2-way
+      const opp = detect2WayArbitrage(match, records, marketType, handicapPoint);
+      if (opp) opportunities.push(opp);
+    }
+  }
+
+  return opportunities;
+}
+
+/**
+ * Calculate optimal stake distribution for guaranteed profit.
+ */
+function distributeStake(totalStake, oddsArray) {
+  if (!oddsArray || oddsArray.length < 2) return null;
+  if (oddsArray.some((o) => !o || o <= 1)) return null;
+
+  const arb = oddsArray.reduce((sum, odd) => sum + 1 / odd, 0);
+  const stakes = oddsArray.map((odd) => parseFloat(((totalStake / arb) * (1 / odd)).toFixed(2)));
+  const returns = oddsArray.map((odd, i) => parseFloat((stakes[i] * odd).toFixed(2)));
+  const minReturn = Math.min(...returns);
+  const profit = parseFloat((minReturn - totalStake).toFixed(2));
+  const profitPercent = parseFloat(((profit / totalStake) * 100).toFixed(4));
+
+  return {
+    totalStake,
+    stakes,
+    returns,
+    profit,
+    profitPercent,
+    isArbitrage: arb < 1,
+  };
 }
 
 module.exports = {
   calculateArbitrage,
-  findBestOdds,
+  findBestOdds2Way,
+  findBestOddsH2H,
+  detectH2hArbitrage,
+  detect2WayArbitrage,
+  detectAllArbitrageForMatch,
   distributeStake,
-  detectArbitrageForMatch,
 };

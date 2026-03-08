@@ -15,22 +15,24 @@ interface Props {
 export default function MatchCard({ match, odds = [], hasSureBet, profitPercent }: Props) {
   const [expanded, setExpanded] = useState(false);
 
+  // Filter h2h odds only for this legacy card component
+  const h2hOdds = odds.filter((o) => o.market_type === 'h2h');
+
   // Find best odds per outcome
-  const bestHome = odds.reduce<{ odds: number; bookmaker: string } | null>((best, o) => {
-    if (!o.home_odds) return best;
-    if (!best || o.home_odds > best.odds) return { odds: o.home_odds, bookmaker: o.bookmaker };
+  const bestHome = h2hOdds.reduce<{ odds: number; bookmaker: string } | null>((best, o) => {
+    if (!o.outcome_1_odds) return best;
+    if (!best || o.outcome_1_odds > best.odds) return { odds: o.outcome_1_odds, bookmaker: o.bookmaker };
     return best;
   }, null);
 
-  const bestAway = odds.reduce<{ odds: number; bookmaker: string } | null>((best, o) => {
-    if (!o.away_odds) return best;
-    if (!best || o.away_odds > best.odds) return { odds: o.away_odds, bookmaker: o.bookmaker };
+  const bestAway = h2hOdds.reduce<{ odds: number; bookmaker: string } | null>((best, o) => {
+    if (!o.outcome_2_odds) return best;
+    if (!best || o.outcome_2_odds > best.odds) return { odds: o.outcome_2_odds, bookmaker: o.bookmaker };
     return best;
   }, null);
 
   return (
     <div className={`card transition-all ${hasSureBet ? 'border-green-500/40 bg-gray-900/80' : ''}`}>
-      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
@@ -46,9 +48,7 @@ export default function MatchCard({ match, odds = [], hasSureBet, profitPercent 
 
         <div className="flex items-center gap-2 shrink-0">
           {hasSureBet && (
-            <span className="badge-sure-bet">
-              ⚡ +{profitPercent?.toFixed(2)}%
-            </span>
+            <span className="badge-sure-bet">+{profitPercent?.toFixed(2)}%</span>
           )}
           <button
             onClick={() => setExpanded(!expanded)}
@@ -59,8 +59,7 @@ export default function MatchCard({ match, odds = [], hasSureBet, profitPercent 
         </div>
       </div>
 
-      {/* Quick odds preview */}
-      {odds.length > 0 && (
+      {h2hOdds.length > 0 && (
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <div>
             <div className="text-xs text-gray-500 mb-1">Home</div>
@@ -70,7 +69,7 @@ export default function MatchCard({ match, odds = [], hasSureBet, profitPercent 
           <div>
             <div className="text-xs text-gray-500 mb-1">Draw</div>
             <div className="odds-pill">
-              {formatOdds(odds.find((o) => o.draw_odds)?.draw_odds)}
+              {formatOdds(h2hOdds.find((o) => o.outcome_draw_odds)?.outcome_draw_odds)}
             </div>
           </div>
           <div>
@@ -81,8 +80,7 @@ export default function MatchCard({ match, odds = [], hasSureBet, profitPercent 
         </div>
       )}
 
-      {/* Expanded odds table */}
-      {expanded && odds.length > 0 && (
+      {expanded && h2hOdds.length > 0 && (
         <div className="mt-4 border-t border-gray-800 pt-4">
           <table className="w-full text-sm">
             <thead>
@@ -94,18 +92,18 @@ export default function MatchCard({ match, odds = [], hasSureBet, profitPercent 
               </tr>
             </thead>
             <tbody>
-              {odds.map((o) => (
+              {h2hOdds.map((o) => (
                 <tr key={o.id} className="border-t border-gray-800/60">
                   <td className="py-2 text-gray-300 font-medium">{o.bookmaker_title || getBookmakerName(o.bookmaker)}</td>
                   <td className="py-2 text-center">
-                    <span className={o.home_odds === bestHome?.odds ? 'text-green-400 font-bold' : 'text-gray-300'}>
-                      {formatOdds(o.home_odds)}
+                    <span className={o.outcome_1_odds === bestHome?.odds ? 'text-green-400 font-bold' : 'text-gray-300'}>
+                      {formatOdds(o.outcome_1_odds)}
                     </span>
                   </td>
-                  <td className="py-2 text-center text-gray-300">{formatOdds(o.draw_odds)}</td>
+                  <td className="py-2 text-center text-gray-300">{formatOdds(o.outcome_draw_odds)}</td>
                   <td className="py-2 text-center">
-                    <span className={o.away_odds === bestAway?.odds ? 'text-green-400 font-bold' : 'text-gray-300'}>
-                      {formatOdds(o.away_odds)}
+                    <span className={o.outcome_2_odds === bestAway?.odds ? 'text-green-400 font-bold' : 'text-gray-300'}>
+                      {formatOdds(o.outcome_2_odds)}
                     </span>
                   </td>
                 </tr>
@@ -114,10 +112,7 @@ export default function MatchCard({ match, odds = [], hasSureBet, profitPercent 
           </table>
 
           <div className="mt-3 flex justify-end">
-            <Link
-              href={`/calculator?matchId=${match.id}`}
-              className="btn-secondary text-xs"
-            >
+            <Link href={`/calculator?matchId=${match.id}`} className="btn-secondary text-xs">
               Open Calculator
             </Link>
           </div>

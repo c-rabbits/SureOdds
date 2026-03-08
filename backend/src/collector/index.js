@@ -1,14 +1,22 @@
 const cron = require('node-cron');
 const supabase = require('../config/supabase');
-const { fetchAllOdds } = require('./oddsApi');
-const { detectArbitrageForMatch } = require('../services/arbitrageEngine');
+const { fetchAllOdds, getQuotaInfo } = require('./oddsApi');
+const { detectAllArbitrageForMatch } = require('../services/arbitrageEngine');
 const { sendArbitrageAlert } = require('../services/telegramBot');
 require('dotenv').config();
 
-const INTERVAL_SECONDS = parseInt(process.env.COLLECTOR_INTERVAL || '60', 10);
+const INTERVAL_SECONDS = parseInt(process.env.COLLECTOR_INTERVAL || '300', 10);
+
+// Track last collection result for status reporting
+let lastCollectionResult = null;
+
+function getLastResult() {
+  return lastCollectionResult;
+}
 
 /**
  * Transform raw odds API data into DB-ready rows.
+ * Supports h2h, spreads, and totals markets.
  */
 function transformOddsData(rawData) {
   const matches = [];
@@ -26,23 +34,56 @@ function transformOddsData(rawData) {
     matches.push(match);
 
     for (const bookmaker of event.bookmakers || []) {
-      const h2hMarket = bookmaker.markets.find((m) => m.key === 'h2h');
-      if (!h2hMarket) continue;
+      for (const market of bookmaker.markets || []) {
+        if (market.key === 'h2h') {
+          const homeOutcome = market.outcomes.find((o) => o.name === event.home_team);
+          const awayOutcome = market.outcomes.find((o) => o.name === event.away_team);
+          const drawOutcome = market.outcomes.find((o) => o.name === 'Draw');
 
-      const outcomes = h2hMarket.outcomes;
-      const homeOutcome = outcomes.find((o) => o.name === event.home_team);
-      const awayOutcome = outcomes.find((o) => o.name === event.away_team);
-      const drawOutcome = outcomes.find((o) => o.name === 'Draw');
+          oddsRows.push({
+            match_external_id: event.id,
+            bookmaker: bookmaker.key,
+            bookmaker_title: bookmaker.title,
+            market_type: 'h2h',
+            handicap_point: null,
+            outcome_1_odds: homeOutcome?.price || null,
+            outcome_2_odds: awayOutcome?.price || null,
+            outcome_draw_odds: drawOutcome?.price || null,
+          });
+        } else if (market.key === 'spreads') {
+          const homeOutcome = market.outcomes.find((o) => o.name === event.home_team);
+          const awayOutcome = market.outcomes.find((o) => o.name === event.away_team);
 
-      oddsRows.push({
-        match_external_id: event.id,
-        bookmaker: bookmaker.key,
-        bookmaker_title: bookmaker.title,
-        market_type: 'h2h',
-        home_odds: homeOutcome?.price || null,
-        draw_odds: drawOutcome?.price || null,
-        away_odds: awayOutcome?.price || null,
-      });
+          if (homeOutcome && awayOutcome) {
+            oddsRows.push({
+              match_external_id: event.id,
+              bookmaker: bookmaker.key,
+              bookmaker_title: bookmaker.title,
+              market_type: 'spreads',
+              handicap_point: homeOutcome.point,
+              outcome_1_odds: homeOutcome.price,
+              outcome_2_odds: awayOutcome.price,
+              outcome_draw_odds: null,
+            });
+          }
+        } else if (market.key === 'totals') {
+          const overOutcome = market.outcomes.find((o) => o.name === 'Over');
+          const underOutcome = market.outcomes.find((o) => o.name === 'Under');
+
+          if (overOutcome && underOutcome) {
+            oddsRows.push({
+              match_external_id: event.id,
+              bookmaker: bookmaker.key,
+              bookmaker_title: bookmaker.title,
+              market_type: 'totals',
+              handicap_point: overOutcome.point,
+              outcome_1_odds: overOutcome.price,
+              outcome_2_odds: underOutcome.price,
+              outcome_draw_odds: null,
+            });
+          }
+        }
+      }
     }
   }
 
@@ -50,7 +91,7 @@ function transformOddsData(rawData) {
 }
 
 /**
- * Upsert matches and odds into Supabase.
+ * Upsert matches and odds into Supabase (v2 schema).
  */
 async function saveToDatabase(matches, oddsRows) {
   // Upsert matches
@@ -75,30 +116,37 @@ async function saveToDatabase(matches, oddsRows) {
   const idMap = {};
   for (const m of savedMatches) idMap[m.external_id] = m.id;
 
-  // Map external IDs to DB IDs in odds rows
+  // Map external IDs to DB IDs and clean up
   const oddsWithIds = oddsRows
     .filter((o) => idMap[o.match_external_id])
-    .map((o) => ({ ...o, match_id: idMap[o.match_external_id], match_external_id: undefined }));
+    .map(({ match_external_id, ...rest }) => ({
+      ...rest,
+      match_id: idMap[match_external_id],
+    }));
 
-  // Upsert odds (replace by match_id + bookmaker)
-  const { error: oddsError } = await supabase
-    .from('odds')
-    .upsert(oddsWithIds, { onConflict: 'match_id,bookmaker' });
-
-  if (oddsError) {
-    console.error('Error upserting odds:', oddsError.message);
+  // Upsert odds in batches (v2 schema uses composite unique)
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < oddsWithIds.length; i += BATCH_SIZE) {
+    const batch = oddsWithIds.slice(i, i + BATCH_SIZE);
+    const { error: oddsError } = await supabase.from('odds').upsert(batch, {
+      onConflict: 'match_id,bookmaker,market_type,COALESCE(handicap_point, 0)',
+    });
+    if (oddsError) {
+      console.error('Error upserting odds batch:', oddsError.message);
+    }
   }
 
   return savedMatches;
 }
 
 /**
- * Run arbitrage detection for all current matches.
+ * Run arbitrage detection for all current matches across all market types.
  */
 async function runArbitrageDetection(savedMatches) {
-  if (!savedMatches.length) return;
+  if (!savedMatches.length) return [];
 
   const matchIds = savedMatches.map((m) => m.id);
+  const newOpportunities = [];
 
   // Fetch all matches with their odds
   const { data: matches } = await supabase
@@ -107,75 +155,129 @@ async function runArbitrageDetection(savedMatches) {
     .in('id', matchIds)
     .gte('start_time', new Date().toISOString());
 
-  if (!matches) return;
+  if (!matches) return [];
+
+  // Mark old opportunities as inactive
+  await supabase
+    .from('arbitrage_opportunities')
+    .update({ is_active: false })
+    .in('match_id', matchIds)
+    .eq('is_active', true);
 
   for (const match of matches) {
     const { data: oddsRecords } = await supabase.from('odds').select('*').eq('match_id', match.id);
-
     if (!oddsRecords || oddsRecords.length < 2) continue;
 
-    const opportunity = detectArbitrageForMatch(match, oddsRecords);
-    if (!opportunity) continue;
+    const opportunities = detectAllArbitrageForMatch(match, oddsRecords);
+    if (!opportunities || opportunities.length === 0) continue;
 
-    // Check if we already have this opportunity recently (within 5 minutes)
-    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { data: existing } = await supabase
-      .from('arbitrage_opportunities')
-      .select('id')
-      .eq('match_id', match.id)
-      .gte('detected_at', fiveMinAgo)
-      .limit(1);
+    for (const opp of opportunities) {
+      // Save new opportunity
+      const insertData = {
+        match_id: opp.match_id,
+        market_type: opp.market_type,
+        handicap_point: opp.handicap_point || null,
+        bookmaker_a: opp.bookmaker_a,
+        bookmaker_b: opp.bookmaker_b,
+        bookmaker_draw: opp.bookmaker_draw || null,
+        odds_a: opp.odds_a,
+        odds_b: opp.odds_b,
+        odds_draw: opp.odds_draw || null,
+        profit_percent: opp.profit_percent,
+        arb_factor: opp.arb_factor,
+        is_active: true,
+      };
 
-    if (existing && existing.length > 0) continue;
+      const { error } = await supabase.from('arbitrage_opportunities').insert(insertData);
 
-    // Save new opportunity
-    const { error } = await supabase.from('arbitrage_opportunities').insert({
-      match_id: opportunity.match_id,
-      market_type: opportunity.market_type,
-      bookmaker_a: opportunity.bookmaker_home,
-      bookmaker_b: opportunity.bookmaker_away,
-      bookmaker_draw: opportunity.bookmaker_draw || null,
-      odds_a: opportunity.odds_home,
-      odds_b: opportunity.odds_away,
-      odds_draw: opportunity.odds_draw || null,
-      profit_percent: opportunity.profit_percent,
-      arb_factor: opportunity.arb_factor,
-    });
+      if (!error) {
+        const label = opp.market_type === 'h2h' ? 'H2H' :
+          opp.market_type === 'spreads' ? `Spread ${opp.handicap_point}` :
+          `Total ${opp.handicap_point}`;
 
-    if (!error) {
-      console.log(
-        `Arbitrage found: ${match.home_team} vs ${match.away_team} | Profit: ${opportunity.profit_percent.toFixed(2)}%`
-      );
-      await sendArbitrageAlert(opportunity, match);
+        console.log(
+          `Arbitrage [${label}]: ${match.home_team} vs ${match.away_team} | Profit: ${opp.profit_percent.toFixed(2)}%`
+        );
+        newOpportunities.push({ ...opp, match });
+        await sendArbitrageAlert(opp, match);
+      }
     }
   }
+
+  return newOpportunities;
+}
+
+/**
+ * Track API usage in database.
+ */
+async function trackApiUsage(creditsUsed, note) {
+  await supabase.from('api_usage').insert({
+    credits_used: creditsUsed,
+    note,
+  });
 }
 
 /**
  * Main collection cycle.
  */
-async function collect() {
+async function collect(sports, markets) {
+  const startTime = Date.now();
   console.log(`[${new Date().toISOString()}] Starting odds collection...`);
+
   try {
-    const rawData = await fetchAllOdds();
-    console.log(`Fetched ${rawData.length} events`);
+    const { data: rawData, creditsUsed } = await fetchAllOdds(sports, markets);
+    console.log(`Fetched ${rawData.length} events (${creditsUsed} credits used)`);
 
     const { matches, oddsRows } = transformOddsData(rawData);
     const savedMatches = await saveToDatabase(matches, oddsRows);
     console.log(`Saved ${savedMatches.length} matches, ${oddsRows.length} odds rows`);
 
-    await runArbitrageDetection(savedMatches);
+    const newOpps = await runArbitrageDetection(savedMatches);
+    console.log(`Found ${newOpps.length} new arbitrage opportunities`);
+
+    await trackApiUsage(creditsUsed, `Collected ${matches.length} matches`);
+
+    lastCollectionResult = {
+      success: true,
+      timestamp: new Date().toISOString(),
+      duration: Date.now() - startTime,
+      matchesUpdated: savedMatches.length,
+      oddsRows: oddsRows.length,
+      arbitrageFound: newOpps.length,
+      creditsUsed,
+      quota: getQuotaInfo(),
+    };
+
     console.log('Collection cycle complete.');
+    return lastCollectionResult;
   } catch (err) {
     console.error('Collection error:', err.message);
+    lastCollectionResult = {
+      success: false,
+      timestamp: new Date().toISOString(),
+      duration: Date.now() - startTime,
+      error: err.message,
+    };
+    return lastCollectionResult;
   }
 }
 
-// Run immediately on start
-collect();
+// Only auto-run when executed directly (not when imported as module)
+if (require.main === module) {
+  // Run immediately on start
+  collect();
 
-// Schedule recurring collection
-const cronExpression = `*/${Math.max(1, INTERVAL_SECONDS)} * * * * *`;
-cron.schedule(cronExpression, collect);
+  // Schedule recurring collection
+  if (INTERVAL_SECONDS >= 60) {
+    const minutes = Math.floor(INTERVAL_SECONDS / 60);
+    const cronExpression = `*/${minutes} * * * *`;
+    cron.schedule(cronExpression, () => collect());
+    console.log(`Odds collector started. Running every ${minutes} minutes.`);
+  } else {
+    const cronExpression = `*/${Math.max(1, INTERVAL_SECONDS)} * * * * *`;
+    cron.schedule(cronExpression, () => collect());
+    console.log(`Odds collector started. Running every ${INTERVAL_SECONDS} seconds.`);
+  }
+}
 
-console.log(`Odds collector started. Running every ${INTERVAL_SECONDS} seconds.`);
+module.exports = { collect, getLastResult, transformOddsData };

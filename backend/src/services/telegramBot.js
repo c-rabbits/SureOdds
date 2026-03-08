@@ -12,6 +12,7 @@ function getBot() {
 
 /**
  * Send a Sure Bet alert to the configured Telegram chat.
+ * Supports h2h, spreads, and totals market types.
  */
 async function sendArbitrageAlert(opportunity, match) {
   const b = getBot();
@@ -23,13 +24,31 @@ async function sendArbitrageAlert(opportunity, match) {
   }
 
   const profit = opportunity.profit_percent.toFixed(2);
-  const market = opportunity.market_type === '3way' ? '3-way (1X2)' : '2-way (1X2)';
 
-  let oddsText = `🏠 Home  (${opportunity.bookmaker_home}): ${opportunity.odds_home}\n`;
-  if (opportunity.market_type === '3way') {
-    oddsText += `🤝 Draw  (${opportunity.bookmaker_draw}): ${opportunity.odds_draw}\n`;
+  let marketLabel;
+  let oddsText;
+
+  if (opportunity.market_type === 'h2h') {
+    const is3way = !!opportunity.odds_draw;
+    marketLabel = is3way ? 'H2H 3-way (1X2)' : 'H2H 2-way';
+
+    oddsText = `🏠 Home  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
+    if (is3way) {
+      oddsText += `🤝 Draw  (${opportunity.bookmaker_draw}): ${opportunity.odds_draw}\n`;
+    }
+    oddsText += `✈️ Away  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
+  } else if (opportunity.market_type === 'spreads') {
+    marketLabel = `Spread ${opportunity.handicap_point > 0 ? '+' : ''}${opportunity.handicap_point}`;
+    oddsText = `🏠 Home ${opportunity.handicap_point}  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
+    oddsText += `✈️ Away ${-opportunity.handicap_point}  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
+  } else if (opportunity.market_type === 'totals') {
+    marketLabel = `Over/Under ${opportunity.handicap_point}`;
+    oddsText = `⬆️ Over ${opportunity.handicap_point}  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
+    oddsText += `⬇️ Under ${opportunity.handicap_point}  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
+  } else {
+    marketLabel = opportunity.market_type;
+    oddsText = `A (${opportunity.bookmaker_a}): ${opportunity.odds_a}\nB (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
   }
-  oddsText += `✈️ Away  (${opportunity.bookmaker_away}): ${opportunity.odds_away}`;
 
   const message = `
 ⚡ *Sure Bet Found!*
@@ -38,7 +57,7 @@ async function sendArbitrageAlert(opportunity, match) {
 ⚽ ${match.home_team} vs ${match.away_team}
 🕐 ${new Date(match.start_time).toLocaleString()}
 
-📊 Market: ${market}
+📊 Market: ${marketLabel}
 ${oddsText}
 
 💰 *Profit: ${profit}%*

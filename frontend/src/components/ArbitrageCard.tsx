@@ -11,7 +11,7 @@ interface Props {
 export default function ArbitrageCard({ opportunity }: Props) {
   const match = opportunity.matches;
   const profit = Number(opportunity.profit_percent);
-  const is3way = opportunity.market_type === '3way';
+  const is3way = opportunity.market_type === 'h2h' && !!opportunity.odds_draw;
 
   return (
     <div className="card border-green-500/30 hover:border-green-400/50 transition-all">

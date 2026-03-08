@@ -5,6 +5,10 @@ require('dotenv').config();
 const matchesRouter = require('./routes/matches');
 const oddsRouter = require('./routes/odds');
 const arbitrageRouter = require('./routes/arbitrage');
+const collectorRouter = require('./routes/collector');
+const authRouter = require('./routes/auth');
+const adminRouter = require('./routes/admin');
+const { requireAuth } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -17,10 +21,17 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes
-app.use('/api/matches', matchesRouter);
-app.use('/api/odds', oddsRouter);
-app.use('/api/arbitrage', arbitrageRouter);
+// Auth routes (인증 불필요)
+app.use('/api/auth', authRouter);
+
+// Admin routes (내부에서 requireAuth + requireAdmin 적용)
+app.use('/api/admin', adminRouter);
+
+// API routes (인증 필요)
+app.use('/api/matches', requireAuth, matchesRouter);
+app.use('/api/odds', requireAuth, oddsRouter);
+app.use('/api/arbitrage', requireAuth, arbitrageRouter);
+app.use('/api/collector', requireAuth, collectorRouter);
 
 // 404 handler
 app.use((req, res) => {

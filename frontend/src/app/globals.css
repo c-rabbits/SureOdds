@@ -6,6 +6,19 @@
   body {
     @apply bg-gray-950 text-gray-100;
   }
+
+  ::-webkit-scrollbar {
+    @apply w-1.5 h-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-900;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-700 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-600;
+  }
 }
 
 @layer components {
@@ -27,5 +40,98 @@
 
   .btn-secondary {
     @apply bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold px-4 py-2 rounded-lg transition-colors;
+  }
+
+  .btn-sm {
+    @apply px-2.5 py-1 text-xs rounded-md font-medium transition-colors;
+  }
+
+  .btn-icon {
+    @apply p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors;
+  }
+
+  /* Dense data table */
+  .data-table {
+    @apply w-full text-xs border-collapse;
+  }
+
+  .data-table thead {
+    @apply sticky top-0 z-10;
+  }
+
+  .data-table th {
+    @apply bg-gray-900 text-gray-400 font-medium px-2 py-1.5 text-left border-b border-gray-700 cursor-pointer select-none whitespace-nowrap;
+  }
+
+  .data-table th:hover {
+    @apply text-gray-200;
+  }
+
+  .data-table td {
+    @apply px-2 py-1 text-gray-300 border-b border-gray-800/50 whitespace-nowrap;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-gray-800/40;
+  }
+
+  .data-table tr.arb-row td {
+    @apply bg-green-500/5;
+  }
+
+  .data-table tr.arb-row:hover td {
+    @apply bg-green-500/10;
+  }
+
+  .data-table tr.selected td {
+    @apply bg-blue-500/10;
+  }
+
+  .data-table .odds-best {
+    @apply text-green-400 font-bold;
+  }
+
+  .data-table .odds-cell {
+    @apply font-mono text-right;
+  }
+
+  .data-table .profit-cell {
+    @apply font-mono font-bold text-right;
+  }
+
+  /* Filter pill */
+  .filter-pill {
+    @apply px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer;
+  }
+
+  .filter-pill-active {
+    @apply bg-green-600 text-white;
+  }
+
+  .filter-pill-inactive {
+    @apply bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700;
+  }
+
+  /* Detail panel tabs */
+  .tab {
+    @apply px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer;
+  }
+
+  .tab-active {
+    @apply bg-gray-700 text-white;
+  }
+
+  .tab-inactive {
+    @apply text-gray-400 hover:text-white hover:bg-gray-800;
+  }
+
+  /* Resizable panel handle */
+  .panel-handle {
+    @apply flex items-center justify-center bg-gray-800 hover:bg-gray-700 transition-colors;
+  }
+
+  .panel-handle::after {
+    content: '';
+    @apply block w-8 h-0.5 bg-gray-600 rounded-full;
   }
 }
