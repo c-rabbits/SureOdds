@@ -21,7 +21,7 @@ export default function HomePage() {
   const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
 
-  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort } = useFilters();
+  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter } = useFilters();
 
   // Flatten matches to table rows
   const rows = useMemo(() => flattenMatchesToRows(matches), [matches]);
@@ -118,6 +118,7 @@ export default function HomePage() {
         onToggleMarketType={toggleMarketType}
         onSetMinProfit={setMinProfit}
         onSetSort={(field) => setSort(field)}
+        onSetSourceFilter={setSourceFilter}
         matchCount={uniqueMatches}
         arbCount={arbCount}
         topProfit={topProfit}

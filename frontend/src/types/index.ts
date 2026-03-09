@@ -11,6 +11,8 @@ export interface Match {
 
 export type MarketType = 'h2h' | 'spreads' | 'totals';
 
+export type SourceType = 'international' | 'domestic';
+
 export interface Odds {
   id: string;
   match_id: string;
@@ -21,6 +23,7 @@ export interface Odds {
   outcome_1_odds: number | null;  // home (h2h/spreads) or over (totals)
   outcome_2_odds: number | null;  // away (h2h/spreads) or under (totals)
   outcome_draw_odds: number | null; // draw (h2h 3-way only)
+  source_type: SourceType;
   updated_at: string;
 }
 
@@ -87,6 +90,8 @@ export interface QuotaInfo {
 export type SortField = 'profit' | 'time' | 'sport' | 'league';
 export type SortDirection = 'asc' | 'desc';
 
+export type SourceFilter = 'all' | 'international' | 'domestic' | 'cross';
+
 export interface FilterState {
   sports: string[];
   marketTypes: MarketType[];
@@ -94,6 +99,7 @@ export interface FilterState {
   bookmakers: string[];
   sortBy: SortField;
   sortDir: SortDirection;
+  sourceFilter: SourceFilter;
 }
 
 // ============================================================
@@ -129,5 +135,6 @@ export interface TableRow {
   arbFactor: number | null;
   profitPercent: number | null;
   isArbitrage: boolean;
+  isCrossSource: boolean; // true if best odds come from different source types
   matchData: MatchWithOdds;
 }

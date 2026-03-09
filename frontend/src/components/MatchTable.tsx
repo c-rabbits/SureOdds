@@ -11,6 +11,7 @@ import {
   getBookmakerShort,
   getProfitColorClass,
   getSportCategory,
+  isDomesticBookmaker,
 } from '@/lib/utils';
 
 interface Props {
@@ -36,6 +37,25 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
 
     // Filter by market type
     result = result.filter((r) => filters.marketTypes.includes(r.marketType));
+
+    // Filter by source
+    if (filters.sourceFilter && filters.sourceFilter !== 'all') {
+      if (filters.sourceFilter === 'cross') {
+        result = result.filter((r) => r.isCrossSource);
+      } else if (filters.sourceFilter === 'domestic') {
+        // Show rows where at least one best bookmaker is domestic
+        result = result.filter((r) => {
+          const bookmakers = [r.bestOutcome1?.bookmaker, r.bestOutcome2?.bookmaker, r.bestDraw?.bookmaker].filter(Boolean);
+          return bookmakers.some((b) => isDomesticBookmaker(b!));
+        });
+      } else if (filters.sourceFilter === 'international') {
+        // Show rows where all best bookmakers are international
+        result = result.filter((r) => {
+          const bookmakers = [r.bestOutcome1?.bookmaker, r.bestOutcome2?.bookmaker, r.bestDraw?.bookmaker].filter(Boolean);
+          return bookmakers.every((b) => !isDomesticBookmaker(b!));
+        });
+      }
+    }
 
     // Filter by min profit (only show rows with arb or all if minProfit is 0)
     if (filters.minProfit > 0) {
@@ -134,7 +154,12 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
                     ) : '-'}
                   </td>
                   <td className="text-gray-500">
-                    {row.bestOutcome1 ? getBookmakerShort(row.bestOutcome1.bookmaker) : ''}
+                    {row.bestOutcome1 ? (
+                      <span className="inline-flex items-center gap-0.5">
+                        {isDomesticBookmaker(row.bestOutcome1.bookmaker) && <span className="text-[9px]" title="국내">&#x1F1F0;&#x1F1F7;</span>}
+                        {getBookmakerShort(row.bestOutcome1.bookmaker)}
+                      </span>
+                    ) : ''}
                   </td>
                   <td className="odds-cell text-gray-400">
                     {row.bestDraw ? formatOdds(row.bestDraw.odds) : row.marketType === 'h2h' ? '-' : ''}
@@ -147,14 +172,20 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
                     ) : '-'}
                   </td>
                   <td className="text-gray-500">
-                    {row.bestOutcome2 ? getBookmakerShort(row.bestOutcome2.bookmaker) : ''}
+                    {row.bestOutcome2 ? (
+                      <span className="inline-flex items-center gap-0.5">
+                        {isDomesticBookmaker(row.bestOutcome2.bookmaker) && <span className="text-[9px]" title="국내">&#x1F1F0;&#x1F1F7;</span>}
+                        {getBookmakerShort(row.bestOutcome2.bookmaker)}
+                      </span>
+                    ) : ''}
                   </td>
                   <td className="odds-cell text-gray-400 font-mono">
                     {row.arbFactor !== null ? row.arbFactor.toFixed(4) : '-'}
                   </td>
                   <td className="profit-cell">
                     {row.isArbitrage && row.profitPercent !== null ? (
-                      <span className={getProfitColorClass(row.profitPercent)}>
+                      <span className={`${getProfitColorClass(row.profitPercent)} inline-flex items-center gap-0.5`}>
+                        {row.isCrossSource && <span className="text-[9px]" title="해외vs국내">&#x1F500;</span>}
                         +{row.profitPercent.toFixed(2)}%
                       </span>
                     ) : row.profitPercent !== null ? (

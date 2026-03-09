@@ -132,6 +132,48 @@ export async function getApiQuota(): Promise<QuotaInfo> {
 }
 
 // ============================================================
+// Domestic (국내 배당)
+// ============================================================
+export async function scrapeBetman(): Promise<{ matches: number; oddsRows: number }> {
+  const { data } = await api.post('/api/domestic/betman/scrape');
+  return data.data;
+}
+
+export async function getBetmanStatus(): Promise<unknown> {
+  const { data } = await api.get('/api/domestic/betman/status');
+  return data.data;
+}
+
+export async function getBetmanRounds(): Promise<{ gmId: string; gmTs: string; name: string; status: string }[]> {
+  const { data } = await api.get('/api/domestic/betman/rounds');
+  return data.data;
+}
+
+export async function saveDomesticOdds(payload: {
+  matchId: string;
+  bookmaker: string;
+  marketType: string;
+  handicapPoint?: number;
+  odds1: number | null;
+  odds2: number | null;
+  oddsDraw?: number | null;
+}): Promise<{ success: boolean }> {
+  const { data } = await api.post('/api/domestic/odds', payload);
+  return data;
+}
+
+export async function linkMatches(
+  domesticMatchId: string,
+  internationalMatchId: string
+): Promise<{ linkedOdds: number }> {
+  const { data } = await api.post('/api/domestic/match-link', {
+    domesticMatchId,
+    internationalMatchId,
+  });
+  return data.data;
+}
+
+// ============================================================
 // Auth API
 // ============================================================
 export async function getCurrentUser(): Promise<UserProfile> {

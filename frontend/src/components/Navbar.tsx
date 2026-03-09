@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const baseLinks = [
   { href: '/', label: '대시보드' },
+  { href: '/domestic', label: '🇰🇷 국내 배당' },
   { href: '/calculator', label: '계산기' },
 ];
 

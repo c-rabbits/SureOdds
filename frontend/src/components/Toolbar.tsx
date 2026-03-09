@@ -1,6 +1,6 @@
 'use client';
 
-import { FilterState, MarketType, QuotaInfo } from '@/types';
+import { FilterState, MarketType, QuotaInfo, SourceFilter } from '@/types';
 import { SPORT_CATEGORIES, getMarketLabel } from '@/lib/utils';
 
 interface Props {
@@ -9,6 +9,7 @@ interface Props {
   onToggleMarketType: (mt: MarketType) => void;
   onSetMinProfit: (v: number) => void;
   onSetSort: (field: 'profit' | 'time') => void;
+  onSetSourceFilter: (sf: SourceFilter) => void;
   matchCount: number;
   arbCount: number;
   topProfit: number;
@@ -27,12 +28,20 @@ const SPORT_KR: Record<string, string> = {
   hockey: '하키',
 };
 
+const SOURCE_FILTERS: { key: SourceFilter; label: string }[] = [
+  { key: 'all', label: '전체' },
+  { key: 'international', label: '🌐해외' },
+  { key: 'domestic', label: '🇰🇷국내' },
+  { key: 'cross', label: '🔀크로스' },
+];
+
 export default function Toolbar({
   filters,
   onToggleSport,
   onToggleMarketType,
   onSetMinProfit,
   onSetSort,
+  onSetSourceFilter,
   matchCount,
   arbCount,
   topProfit,
@@ -95,6 +104,21 @@ export default function Toolbar({
             </button>
           );
         })}
+      </div>
+
+      <div className="h-4 w-px bg-gray-700 shrink-0" />
+
+      {/* 소스 필터 */}
+      <div className="flex items-center gap-1 shrink-0">
+        {SOURCE_FILTERS.map((sf) => (
+          <button
+            key={sf.key}
+            onClick={() => onSetSourceFilter(sf.key)}
+            className={`filter-pill ${filters.sourceFilter === sf.key ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+          >
+            {sf.label}
+          </button>
+        ))}
       </div>
 
       <div className="h-4 w-px bg-gray-700 shrink-0" />

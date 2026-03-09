@@ -1,4 +1,4 @@
-import { MarketType, Odds, MatchWithOdds, TableRow } from '@/types';
+import { MarketType, Odds, MatchWithOdds, TableRow, SourceType } from '@/types';
 
 /**
  * Format a date/time string for display.
@@ -77,6 +77,8 @@ export function getBookmakerName(key: string): string {
     bwin: 'bwin',
     draftkings: 'DraftKings',
     fanduel: 'FanDuel',
+    betman_proto: '베트맨 프로토',
+    manual_domestic: '수동 입력',
   };
   return map[key] || key;
 }
@@ -96,8 +98,27 @@ export function getBookmakerShort(key: string): string {
     bwin: 'BWIN',
     draftkings: 'DK',
     fanduel: 'FD',
+    betman_proto: 'BM',
+    manual_domestic: '수동',
   };
   return map[key] || key.toUpperCase().slice(0, 4);
+}
+
+/**
+ * Check if a bookmaker is domestic (Korean).
+ */
+export function isDomesticBookmaker(key: string): boolean {
+  return key === 'betman_proto' || key === 'manual_domestic' || key.startsWith('domestic_');
+}
+
+/**
+ * Get source type badge label.
+ */
+export function getSourceBadge(sourceType: SourceType): { label: string; emoji: string; color: string } {
+  if (sourceType === 'domestic') {
+    return { label: '국내', emoji: '🇰🇷', color: 'text-blue-400' };
+  }
+  return { label: '해외', emoji: '🌐', color: 'text-green-400' };
 }
 
 /**
@@ -222,6 +243,12 @@ export function flattenMatchesToRows(matches: MatchWithOdds[]): TableRow[] {
         isArbitrage = arbFactor < 1;
       }
 
+      // Detect cross-source: best odds come from different source types
+      const bestBookmakers = [best1?.bookmaker, best2?.bookmaker, bestDraw?.bookmaker].filter(Boolean);
+      const hasDomestic = bestBookmakers.some((b) => isDomesticBookmaker(b!));
+      const hasInternational = bestBookmakers.some((b) => !isDomesticBookmaker(b!));
+      const isCrossSource = hasDomestic && hasInternational;
+
       rows.push({
         matchId: match.id,
         sport: match.sport,
@@ -237,6 +264,7 @@ export function flattenMatchesToRows(matches: MatchWithOdds[]): TableRow[] {
         arbFactor,
         profitPercent,
         isArbitrage,
+        isCrossSource,
         matchData: match,
       });
     }

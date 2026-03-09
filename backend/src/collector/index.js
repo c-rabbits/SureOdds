@@ -1,7 +1,9 @@
 const cron = require('node-cron');
 const supabase = require('../config/supabase');
 const { fetchAllOdds, getQuotaInfo } = require('./oddsApi');
+const { scrapeBetman } = require('./betmanScraper');
 const { detectAllArbitrageForMatch } = require('../services/arbitrageEngine');
+const { findMatchingInternationalMatch } = require('../services/teamMatcher');
 const { sendArbitrageAlert } = require('../services/telegramBot');
 require('dotenv').config();
 
@@ -116,20 +118,22 @@ async function saveToDatabase(matches, oddsRows) {
   const idMap = {};
   for (const m of savedMatches) idMap[m.external_id] = m.id;
 
-  // Map external IDs to DB IDs and clean up
+  // Map external IDs to DB IDs and normalize handicap_point (NULL → 0)
   const oddsWithIds = oddsRows
     .filter((o) => idMap[o.match_external_id])
     .map(({ match_external_id, ...rest }) => ({
       ...rest,
       match_id: idMap[match_external_id],
+      handicap_point: rest.handicap_point ?? 0,
+      source_type: rest.source_type || 'international',
     }));
 
-  // Upsert odds in batches (v2 schema uses composite unique)
+  // Upsert odds in batches (v2 schema uses composite unique with source_type)
   const BATCH_SIZE = 100;
   for (let i = 0; i < oddsWithIds.length; i += BATCH_SIZE) {
     const batch = oddsWithIds.slice(i, i + BATCH_SIZE);
     const { error: oddsError } = await supabase.from('odds').upsert(batch, {
-      onConflict: 'match_id,bookmaker,market_type,COALESCE(handicap_point, 0)',
+      onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
     });
     if (oddsError) {
       console.error('Error upserting odds batch:', oddsError.message);
@@ -232,10 +236,98 @@ async function collect(sports, markets) {
     const savedMatches = await saveToDatabase(matches, oddsRows);
     console.log(`Saved ${savedMatches.length} matches, ${oddsRows.length} odds rows`);
 
+    // ─── Betman (domestic) scraping ───
+    let betmanMatchCount = 0;
+    let betmanOddsCount = 0;
+    try {
+      const betmanData = await scrapeBetman();
+      if (betmanData.matches.length > 0) {
+        // Try to match domestic matches to international ones
+        for (const bMatch of betmanData.matches) {
+          const intlMatchId = await findMatchingInternationalMatch(bMatch);
+          if (intlMatchId) {
+            // Link domestic odds to existing international match
+            for (const oddRow of betmanData.oddsRows) {
+              if (oddRow.match_external_id === bMatch.external_id) {
+                oddRow.match_external_id = `__linked_${intlMatchId}`;
+                oddRow._linked_match_id = intlMatchId;
+              }
+            }
+            // Don't insert duplicate match; remove from list
+            bMatch._skip = true;
+          }
+        }
+
+        // Save unmatched Betman matches
+        const newBetmanMatches = betmanData.matches.filter((m) => !m._skip);
+        if (newBetmanMatches.length > 0) {
+          const { error: bmError } = await supabase
+            .from('matches')
+            .upsert(newBetmanMatches, { onConflict: 'external_id' });
+          if (bmError) console.error('Error upserting Betman matches:', bmError.message);
+        }
+
+        // Get IDs for newly inserted Betman matches
+        const betmanExtIds = newBetmanMatches.map((m) => m.external_id);
+        let betmanIdMap = {};
+        if (betmanExtIds.length > 0) {
+          const { data: bSaved } = await supabase
+            .from('matches')
+            .select('id, external_id')
+            .in('external_id', betmanExtIds);
+          if (bSaved) {
+            for (const m of bSaved) betmanIdMap[m.external_id] = m.id;
+          }
+        }
+
+        // Prepare and upsert Betman odds
+        const betmanOddsWithIds = betmanData.oddsRows
+          .map(({ match_external_id, _linked_match_id, ...rest }) => {
+            const matchId = _linked_match_id || betmanIdMap[match_external_id];
+            if (!matchId) return null;
+            return {
+              ...rest,
+              match_id: matchId,
+              handicap_point: rest.handicap_point ?? 0,
+              source_type: 'domestic',
+            };
+          })
+          .filter(Boolean);
+
+        for (let i = 0; i < betmanOddsWithIds.length; i += BATCH_SIZE) {
+          const batch = betmanOddsWithIds.slice(i, i + BATCH_SIZE);
+          const { error: boError } = await supabase.from('odds').upsert(batch, {
+            onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
+          });
+          if (boError) console.error('Error upserting Betman odds:', boError.message);
+        }
+
+        betmanMatchCount = betmanData.matches.length;
+        betmanOddsCount = betmanOddsWithIds.length;
+
+        // Add Betman matches to savedMatches for arb detection
+        const allBetmanSaved = [
+          ...Object.entries(betmanIdMap).map(([eid, id]) => ({ id, external_id: eid })),
+          ...betmanData.oddsRows.filter((o) => o._linked_match_id).map((o) => ({ id: o._linked_match_id })),
+        ];
+        // Deduplicate
+        const existingIds = new Set(savedMatches.map((m) => m.id));
+        for (const bm of allBetmanSaved) {
+          if (!existingIds.has(bm.id)) {
+            savedMatches.push(bm);
+            existingIds.add(bm.id);
+          }
+        }
+      }
+      console.log(`[Betman] Saved ${betmanMatchCount} matches, ${betmanOddsCount} odds rows`);
+    } catch (betmanErr) {
+      console.error('[Betman] Collection error (non-fatal):', betmanErr.message);
+    }
+
     const newOpps = await runArbitrageDetection(savedMatches);
     console.log(`Found ${newOpps.length} new arbitrage opportunities`);
 
-    await trackApiUsage(creditsUsed, `Collected ${matches.length} matches`);
+    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${betmanMatchCount} domestic matches`);
 
     lastCollectionResult = {
       success: true,
@@ -246,6 +338,7 @@ async function collect(sports, markets) {
       arbitrageFound: newOpps.length,
       creditsUsed,
       quota: getQuotaInfo(),
+      domestic: { matches: betmanMatchCount, oddsRows: betmanOddsCount },
     };
 
     console.log('Collection cycle complete.');

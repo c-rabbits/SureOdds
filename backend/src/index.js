@@ -6,6 +6,7 @@ const matchesRouter = require('./routes/matches');
 const oddsRouter = require('./routes/odds');
 const arbitrageRouter = require('./routes/arbitrage');
 const collectorRouter = require('./routes/collector');
+const domesticRouter = require('./routes/domestic');
 const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const { requireAuth } = require('./middleware/auth');
@@ -32,6 +33,7 @@ app.use('/api/matches', requireAuth, matchesRouter);
 app.use('/api/odds', requireAuth, oddsRouter);
 app.use('/api/arbitrage', requireAuth, arbitrageRouter);
 app.use('/api/collector', requireAuth, collectorRouter);
+app.use('/api/domestic', requireAuth, domesticRouter);
 
 // 404 handler
 app.use((req, res) => {
