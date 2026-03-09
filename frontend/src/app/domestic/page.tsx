@@ -8,13 +8,29 @@ import {
   getBetmanRounds,
   saveDomesticOdds,
 } from '@/lib/api';
-import { getBookmakerName, formatShortTime, getMarketLabel } from '@/lib/utils';
+import { formatShortTime } from '@/lib/utils';
 
 interface BetmanRound {
   gmId: string;
   gmTs: string;
   name: string;
   status: string;
+}
+
+// 사설 사이트 등록 정보 (세션 전용, DB 미저장)
+interface PrivateSite {
+  id: string;
+  siteUrl: string;
+  siteName: string;
+  loginId: string;
+  loginPw: string;
+  checkInterval: number; // seconds
+  enableCross: boolean;
+  enableHandicap: boolean;
+  enableExtHandicap: boolean; // 연장(핸디)
+  enableExtOU: boolean; // 연장(OU)
+  isActive: boolean;
+  group: string;
 }
 
 export default function DomesticPage() {
@@ -34,9 +50,19 @@ export default function DomesticPage() {
   const [oddsDraw, setOddsDraw] = useState<string>('');
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
-  // Site credentials (session-only, not stored in DB)
-  const [siteId, setSiteId] = useState('');
-  const [sitePw, setSitePw] = useState('');
+  // ─── 사설 사이트 등록 state (세션 전용) ───
+  const [privateSites, setPrivateSites] = useState<PrivateSite[]>([]);
+  const [siteUrl, setSiteUrl] = useState('');
+  const [siteName, setSiteName] = useState('');
+  const [siteGroup, setSiteGroup] = useState('기본');
+  const [siteLoginId, setSiteLoginId] = useState('');
+  const [siteLoginPw, setSiteLoginPw] = useState('');
+  const [siteCheckInterval, setSiteCheckInterval] = useState(60);
+  const [siteCross, setSiteCross] = useState(true);
+  const [siteHandicap, setSiteHandicap] = useState(true);
+  const [siteExtHandicap, setSiteExtHandicap] = useState(false);
+  const [siteExtOU, setSiteExtOU] = useState(false);
+  const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -102,6 +128,72 @@ export default function DomesticPage() {
     }
   };
 
+  // ─── 사설 사이트 관리 함수 ───
+  const handleAddSite = () => {
+    if (!siteName.trim()) return;
+    const newSite: PrivateSite = {
+      id: editingSiteId || `site_${Date.now()}`,
+      siteUrl: siteUrl.trim(),
+      siteName: siteName.trim(),
+      loginId: siteLoginId,
+      loginPw: siteLoginPw,
+      checkInterval: siteCheckInterval,
+      enableCross: siteCross,
+      enableHandicap: siteHandicap,
+      enableExtHandicap: siteExtHandicap,
+      enableExtOU: siteExtOU,
+      isActive: true,
+      group: siteGroup,
+    };
+
+    if (editingSiteId) {
+      setPrivateSites((prev) => prev.map((s) => (s.id === editingSiteId ? newSite : s)));
+      setEditingSiteId(null);
+    } else {
+      setPrivateSites((prev) => [...prev, newSite]);
+    }
+    resetSiteForm();
+  };
+
+  const resetSiteForm = () => {
+    setSiteUrl('');
+    setSiteName('');
+    setSiteGroup('기본');
+    setSiteLoginId('');
+    setSiteLoginPw('');
+    setSiteCheckInterval(60);
+    setSiteCross(true);
+    setSiteHandicap(true);
+    setSiteExtHandicap(false);
+    setSiteExtOU(false);
+    setEditingSiteId(null);
+  };
+
+  const handleEditSite = (site: PrivateSite) => {
+    setEditingSiteId(site.id);
+    setSiteUrl(site.siteUrl);
+    setSiteName(site.siteName);
+    setSiteGroup(site.group);
+    setSiteLoginId(site.loginId);
+    setSiteLoginPw(site.loginPw);
+    setSiteCheckInterval(site.checkInterval);
+    setSiteCross(site.enableCross);
+    setSiteHandicap(site.enableHandicap);
+    setSiteExtHandicap(site.enableExtHandicap);
+    setSiteExtOU(site.enableExtOU);
+  };
+
+  const handleDeleteSite = (id: string) => {
+    setPrivateSites((prev) => prev.filter((s) => s.id !== id));
+    if (editingSiteId === id) resetSiteForm();
+  };
+
+  const handleToggleSiteActive = (id: string) => {
+    setPrivateSites((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, isActive: !s.isActive } : s))
+    );
+  };
+
   const domesticOddsCount = matches.reduce(
     (acc, m) => acc + (m.odds?.filter((o) => (o as { source_type?: string }).source_type === 'domestic').length || 0),
     0
@@ -121,7 +213,7 @@ export default function DomesticPage() {
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-white">{matches.length}</div>
             <div className="text-xs text-gray-400">전체 경기</div>
@@ -133,6 +225,10 @@ export default function DomesticPage() {
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-green-400">{rounds.length}</div>
             <div className="text-xs text-gray-400">프로토 회차</div>
+          </div>
+          <div className="card p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-400">{privateSites.filter(s => s.isActive).length}/{privateSites.length}</div>
+            <div className="text-xs text-gray-400">사설 사이트</div>
           </div>
         </div>
 
@@ -318,42 +414,238 @@ export default function DomesticPage() {
           </div>
         </div>
 
-        {/* ─── Section 3: Site Credentials (for future login-required sites) ─── */}
-        <div className="card p-5 opacity-60">
+        {/* ─── Section 3: 사설 사이트 등록 ─── */}
+        <div className="card p-5">
           <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-            <span>&#x1F512;</span> 사이트 로그인 (향후 지원)
+            <span>&#x1F310;</span> 사설 사이트 등록
           </h2>
           <p className="text-sm text-gray-400 mb-4">
-            로그인이 필요한 국내 사이트를 위한 자격증명입니다.
-            DB에 저장되지 않으며, 이 탭이 닫히면 자동 삭제됩니다.
+            사설 사이트를 등록하여 배당을 자동 수집합니다.
+            <span className="text-yellow-500"> DB에 저장되지 않으며, 탭을 닫으면 자동 삭제됩니다.</span>
           </p>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">사이트 아이디</label>
-              <input
-                type="text"
-                placeholder="아이디 입력"
-                value={siteId}
-                onChange={(e) => setSiteId(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
-                disabled
-              />
+
+          {/* 등록 폼 — 이미지 레이아웃 기반 */}
+          <div className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 space-y-4">
+            {/* Row 1: 사이트 선택 + 그룹 + 사이트명 */}
+            <div className="grid grid-cols-12 gap-3 items-end">
+              <div className="col-span-5">
+                <label className="block text-xs text-gray-400 mb-1">사이트 주소 (검색 가능)</label>
+                <input
+                  type="text"
+                  placeholder="https://example.com"
+                  value={siteUrl}
+                  onChange={(e) => setSiteUrl(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-400 mb-1">그룹</label>
+                <select
+                  value={siteGroup}
+                  onChange={(e) => setSiteGroup(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
+                >
+                  <option value="기본">기본</option>
+                  <option value="A그룹">A그룹</option>
+                  <option value="B그룹">B그룹</option>
+                  <option value="C그룹">C그룹</option>
+                </select>
+              </div>
+              <div className="col-span-5">
+                <label className="block text-xs text-gray-400 mb-1">사이트명</label>
+                <input
+                  type="text"
+                  placeholder="사이트 이름 입력"
+                  value={siteName}
+                  onChange={(e) => setSiteName(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">비밀번호</label>
-              <input
-                type="password"
-                placeholder="비밀번호 입력"
-                value={sitePw}
-                onChange={(e) => setSitePw(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
-                disabled
-              />
+
+            {/* Row 2: 아이디 + 비밀번호 + 체크간격 */}
+            <div className="grid grid-cols-12 gap-3 items-end">
+              <div className="col-span-4">
+                <label className="block text-xs text-gray-400 mb-1">
+                  <span className="mr-1">&#x1F464;</span>아이디
+                </label>
+                <input
+                  type="text"
+                  placeholder="아이디 입력"
+                  value={siteLoginId}
+                  onChange={(e) => setSiteLoginId(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
+                />
+              </div>
+              <div className="col-span-4">
+                <label className="block text-xs text-gray-400 mb-1">
+                  <span className="mr-1">&#x1F512;</span>비밀번호
+                </label>
+                <input
+                  type="password"
+                  placeholder="비밀번호 입력"
+                  value={siteLoginPw}
+                  onChange={(e) => setSiteLoginPw(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
+                />
+              </div>
+              <div className="col-span-4">
+                <label className="block text-xs text-gray-400 mb-1">체크간격</label>
+                <select
+                  value={siteCheckInterval}
+                  onChange={(e) => setSiteCheckInterval(Number(e.target.value))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
+                >
+                  <option value={30}>30초</option>
+                  <option value={60}>60초</option>
+                  <option value={90}>90초</option>
+                  <option value={120}>120초</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 3: 마켓 필터 토글 + 사이트 추가 버튼 */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-4 flex-wrap">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={siteCross}
+                    onChange={(e) => setSiteCross(e.target.checked)}
+                    className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-green-500 focus:ring-green-500"
+                  />
+                  <span className="text-sm text-white">크로스</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={siteHandicap}
+                    onChange={(e) => setSiteHandicap(e.target.checked)}
+                    className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-white">핸디</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={siteExtHandicap}
+                    onChange={(e) => setSiteExtHandicap(e.target.checked)}
+                    className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-white">연장(핸디)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={siteExtOU}
+                    onChange={(e) => setSiteExtOU(e.target.checked)}
+                    className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-orange-500 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-white">연장(OU)</span>
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                {editingSiteId && (
+                  <button
+                    onClick={resetSiteForm}
+                    className="px-4 py-2 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                  >
+                    취소
+                  </button>
+                )}
+                <button
+                  onClick={handleAddSite}
+                  disabled={!siteName.trim()}
+                  className="btn-primary px-5 py-2 text-sm disabled:opacity-40"
+                >
+                  {editingSiteId ? '사이트 수정' : '+ 사이트추가'}
+                </button>
+              </div>
             </div>
           </div>
-          <p className="text-xs text-yellow-500 mt-2">
-            * 현재 베트맨은 로그인 없이 배당 조회가 가능하여 비활성화 상태입니다.
-          </p>
+
+          {/* 등록된 사이트 목록 테이블 */}
+          {privateSites.length > 0 && (
+            <div className="mt-5 overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-700 text-gray-400 text-xs">
+                    <th className="text-left py-2 px-2">상태</th>
+                    <th className="text-left py-2 px-2">그룹</th>
+                    <th className="text-left py-2 px-2">사이트명</th>
+                    <th className="text-left py-2 px-2">주소</th>
+                    <th className="text-left py-2 px-2">아이디</th>
+                    <th className="text-center py-2 px-2">체크간격</th>
+                    <th className="text-center py-2 px-2">크로스</th>
+                    <th className="text-center py-2 px-2">핸디</th>
+                    <th className="text-center py-2 px-2">연장(H)</th>
+                    <th className="text-center py-2 px-2">연장(OU)</th>
+                    <th className="text-center py-2 px-2">기능</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {privateSites.map((site) => (
+                    <tr
+                      key={site.id}
+                      className={`border-b border-gray-800 hover:bg-gray-800/50 transition-colors ${
+                        !site.isActive ? 'opacity-40' : ''
+                      }`}
+                    >
+                      <td className="py-2 px-2">
+                        <button
+                          onClick={() => handleToggleSiteActive(site.id)}
+                          className={`w-3 h-3 rounded-full ${
+                            site.isActive ? 'bg-green-500' : 'bg-red-500'
+                          }`}
+                          title={site.isActive ? '활성' : '비활성'}
+                        />
+                      </td>
+                      <td className="py-2 px-2 text-gray-400">{site.group}</td>
+                      <td className="py-2 px-2 text-white font-medium">{site.siteName}</td>
+                      <td className="py-2 px-2 text-gray-500 max-w-[150px] truncate" title={site.siteUrl}>
+                        {site.siteUrl || '-'}
+                      </td>
+                      <td className="py-2 px-2 text-gray-300">{site.loginId || '-'}</td>
+                      <td className="py-2 px-2 text-center text-gray-300">{site.checkInterval}초</td>
+                      <td className="py-2 px-2 text-center">
+                        {site.enableCross ? <span className="text-green-400">&#x2714;</span> : <span className="text-gray-600">-</span>}
+                      </td>
+                      <td className="py-2 px-2 text-center">
+                        {site.enableHandicap ? <span className="text-purple-400">&#x2714;</span> : <span className="text-gray-600">-</span>}
+                      </td>
+                      <td className="py-2 px-2 text-center">
+                        {site.enableExtHandicap ? <span className="text-blue-400">&#x2714;</span> : <span className="text-gray-600">-</span>}
+                      </td>
+                      <td className="py-2 px-2 text-center">
+                        {site.enableExtOU ? <span className="text-orange-400">&#x2714;</span> : <span className="text-gray-600">-</span>}
+                      </td>
+                      <td className="py-2 px-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleEditSite(site)}
+                            className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+                            title="수정"
+                          >
+                            &#x270F;
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSite(site.id)}
+                            className="text-xs px-2 py-1 rounded bg-gray-700 text-red-400 hover:bg-red-900/40"
+                            title="삭제"
+                          >
+                            &#x2716;
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-yellow-500/70 mt-3">
+                * 등록 정보는 메모리에만 저장됩니다. 페이지를 새로고침하면 초기화됩니다.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
