@@ -85,7 +85,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
   }, [rows, filters]);
 
   return (
-    <div className="overflow-auto flex-1">
+    <div className="overflow-auto h-full">
       <table className="data-table">
         <thead>
           <tr>
