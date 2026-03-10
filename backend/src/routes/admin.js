@@ -7,6 +7,9 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { createServiceLogger } = require('../config/logger');
+
+const log = createServiceLogger('Admin');
 
 // 모든 관리자 라우트에 인증 + 관리자 권한 적용
 router.use(requireAuth, requireAdmin);
@@ -44,7 +47,7 @@ router.get('/users', async (req, res) => {
 
     res.json({ success: true, data: merged });
   } catch (err) {
-    console.error('List users error:', err);
+    log.error('List users error', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -111,7 +114,7 @@ router.post('/users', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Create user error:', err);
+    log.error('Create user error', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -154,7 +157,7 @@ router.patch('/users/:id', async (req, res) => {
 
     res.json({ success: true, data });
   } catch (err) {
-    console.error('Update user error:', err);
+    log.error('Update user error', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -178,7 +181,7 @@ router.delete('/users/:id', async (req, res) => {
 
     res.json({ success: true, data: { deleted: req.params.id } });
   } catch (err) {
-    console.error('Delete user error:', err);
+    log.error('Delete user error', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
 });

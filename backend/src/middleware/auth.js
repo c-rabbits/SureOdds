@@ -3,7 +3,9 @@
  * Supabase Auth 토큰을 검증하고 사용자 프로필을 req.user에 할당
  */
 require('dotenv').config();
+const { createServiceLogger } = require('../config/logger');
 
+const log = createServiceLogger('Auth');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
@@ -81,7 +83,7 @@ async function requireAuth(req, res, next) {
 
     next();
   } catch (err) {
-    console.error('Auth middleware error:', err);
+    log.error('Auth middleware error', { error: err.message });
     return res.status(401).json({
       success: false,
       error: '인증 오류가 발생했습니다.',

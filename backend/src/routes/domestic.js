@@ -11,6 +11,9 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { scrapeBetman, scrapeProtoRound, findProtoRounds, getLastScrapeResult } = require('../collector/betmanScraper');
 const { findMatchingInternationalMatch, findEnglishName } = require('../services/teamMatcher');
+const { createServiceLogger } = require('../config/logger');
+
+const log = createServiceLogger('Domestic');
 
 /**
  * POST /api/domestic/odds
@@ -49,7 +52,7 @@ router.post('/odds', async (req, res) => {
 
     res.json({ success: true, data: oddsRow });
   } catch (err) {
-    console.error('Error saving domestic odds:', err.message);
+    log.error('Error saving domestic odds', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -93,7 +96,7 @@ router.post('/betman/scrape', async (req, res) => {
       if (savedMatches) {
         for (const m of savedMatches) idMap[m.external_id] = m.id;
       }
-      console.log(`[Domestic] idMap size: ${Object.keys(idMap).length}, oddsRows: ${result.oddsRows.length}`);
+      log.info(`idMap size: ${Object.keys(idMap).length}, oddsRows: ${result.oddsRows.length}`);
 
       // Upsert odds
       const oddsRows = result.oddsRows
@@ -105,7 +108,7 @@ router.post('/betman/scrape', async (req, res) => {
         }))
         .filter((o) => o.match_id);
 
-      console.log(`[Domestic] Mapped odds rows with match_id: ${oddsRows.length}`);
+      log.info(`Mapped odds rows with match_id: ${oddsRows.length}`);
 
       const BATCH_SIZE = 100;
       for (let i = 0; i < oddsRows.length; i += BATCH_SIZE) {
@@ -113,8 +116,8 @@ router.post('/betman/scrape', async (req, res) => {
         const { error: upsertErr } = await supabase.from('odds').upsert(batch, {
           onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
         });
-        if (upsertErr) console.error(`[Domestic] Odds upsert error batch ${i}:`, upsertErr.message);
-        else console.log(`[Domestic] Odds batch ${i}-${i+batch.length} upserted OK`);
+        if (upsertErr) log.error(`Odds upsert error batch ${i}`, { error: upsertErr.message });
+        else log.info(`Odds batch ${i}-${i+batch.length} upserted OK`);
       }
     }
 
@@ -126,7 +129,7 @@ router.post('/betman/scrape', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Error scraping Betman:', err.message);
+    log.error('Error scraping Betman', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });

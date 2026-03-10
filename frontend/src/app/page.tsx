@@ -57,6 +57,7 @@ export default function HomePage() {
         }
       }
     } catch (err) {
+      // Toast는 API 인터셉터가 자동으로 표시하므로 여기서는 콘솔만 남김
       console.error('Failed to load data:', err);
     } finally {
       setLoading(false);

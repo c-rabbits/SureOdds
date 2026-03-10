@@ -10,12 +10,17 @@ const domesticRouter = require('./routes/domestic');
 const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const { requireAuth } = require('./middleware/auth');
+const { logger, createServiceLogger, requestLogger } = require('./config/logger');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const log = createServiceLogger('Server');
 
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000' }));
 app.use(express.json());
+
+// 요청 로깅 미들웨어
+app.use(requestLogger);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -37,17 +42,22 @@ app.use('/api/domestic', requireAuth, domesticRouter);
 
 // 404 handler
 app.use((req, res) => {
+  log.warn(`Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ error: 'Not found' });
 });
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  log.error(`Unhandled error: ${err.message}`, {
+    stack: err.stack,
+    method: req.method,
+    url: req.originalUrl,
+  });
   res.status(500).json({ error: 'Internal server error' });
 });
 
 app.listen(PORT, () => {
-  console.log(`SureOdds API running on port ${PORT}`);
+  log.info(`SureOdds API running on port ${PORT}`);
 });
 
 module.exports = app;

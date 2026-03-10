@@ -5,7 +5,10 @@ const { scrapeBetman } = require('./betmanScraper');
 const { detectAllArbitrageForMatch } = require('../services/arbitrageEngine');
 const { findMatchingInternationalMatch } = require('../services/teamMatcher');
 const { sendArbitrageAlert } = require('../services/telegramBot');
+const { createServiceLogger } = require('../config/logger');
 require('dotenv').config();
+
+const log = createServiceLogger('Collector');
 
 const INTERVAL_SECONDS = parseInt(process.env.COLLECTOR_INTERVAL || '300', 10);
 
@@ -99,7 +102,7 @@ async function saveToDatabase(matches, oddsRows) {
   // Upsert matches
   const { error: matchError } = await supabase.from('matches').upsert(matches, { onConflict: 'external_id' });
   if (matchError) {
-    console.error('Error upserting matches:', matchError.message);
+    log.error('Error upserting matches', { error: matchError.message });
     return [];
   }
 
@@ -111,7 +114,7 @@ async function saveToDatabase(matches, oddsRows) {
     .in('external_id', externalIds);
 
   if (fetchError) {
-    console.error('Error fetching match IDs:', fetchError.message);
+    log.error('Error fetching match IDs', { error: fetchError.message });
     return [];
   }
 
@@ -136,7 +139,7 @@ async function saveToDatabase(matches, oddsRows) {
       onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
     });
     if (oddsError) {
-      console.error('Error upserting odds batch:', oddsError.message);
+      log.error('Error upserting odds batch', { error: oddsError.message });
     }
   }
 
@@ -199,9 +202,7 @@ async function runArbitrageDetection(savedMatches) {
           opp.market_type === 'spreads' ? `Spread ${opp.handicap_point}` :
           `Total ${opp.handicap_point}`;
 
-        console.log(
-          `Arbitrage [${label}]: ${match.home_team} vs ${match.away_team} | Profit: ${opp.profit_percent.toFixed(2)}%`
-        );
+        log.info(`Arbitrage [${label}]: ${match.home_team} vs ${match.away_team} | Profit: ${opp.profit_percent.toFixed(2)}%`);
         newOpportunities.push({ ...opp, match });
         await sendArbitrageAlert(opp, match);
       }
@@ -226,15 +227,15 @@ async function trackApiUsage(creditsUsed, note) {
  */
 async function collect(sports, markets) {
   const startTime = Date.now();
-  console.log(`[${new Date().toISOString()}] Starting odds collection...`);
+  log.info('Starting odds collection...');
 
   try {
     const { data: rawData, creditsUsed } = await fetchAllOdds(sports, markets);
-    console.log(`Fetched ${rawData.length} events (${creditsUsed} credits used)`);
+    log.info(`Fetched ${rawData.length} events`, { creditsUsed });
 
     const { matches, oddsRows } = transformOddsData(rawData);
     const savedMatches = await saveToDatabase(matches, oddsRows);
-    console.log(`Saved ${savedMatches.length} matches, ${oddsRows.length} odds rows`);
+    log.info(`Saved ${savedMatches.length} matches, ${oddsRows.length} odds rows`);
 
     // ─── Betman (domestic) scraping ───
     let betmanMatchCount = 0;
@@ -264,7 +265,7 @@ async function collect(sports, markets) {
           const { error: bmError } = await supabase
             .from('matches')
             .upsert(newBetmanMatches, { onConflict: 'external_id' });
-          if (bmError) console.error('Error upserting Betman matches:', bmError.message);
+          if (bmError) log.error('Error upserting Betman matches', { error: bmError.message });
         }
 
         // Get IDs for newly inserted Betman matches
@@ -299,7 +300,7 @@ async function collect(sports, markets) {
           const { error: boError } = await supabase.from('odds').upsert(batch, {
             onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
           });
-          if (boError) console.error('Error upserting Betman odds:', boError.message);
+          if (boError) log.error('Error upserting Betman odds', { error: boError.message });
         }
 
         betmanMatchCount = betmanData.matches.length;
@@ -319,13 +320,13 @@ async function collect(sports, markets) {
           }
         }
       }
-      console.log(`[Betman] Saved ${betmanMatchCount} matches, ${betmanOddsCount} odds rows`);
+      log.info(`[Betman] Saved ${betmanMatchCount} matches, ${betmanOddsCount} odds rows`);
     } catch (betmanErr) {
-      console.error('[Betman] Collection error (non-fatal):', betmanErr.message);
+      log.warn('[Betman] Collection error (non-fatal)', { error: betmanErr.message });
     }
 
     const newOpps = await runArbitrageDetection(savedMatches);
-    console.log(`Found ${newOpps.length} new arbitrage opportunities`);
+    log.info(`Found ${newOpps.length} new arbitrage opportunities`);
 
     await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${betmanMatchCount} domestic matches`);
 
@@ -341,10 +342,10 @@ async function collect(sports, markets) {
       domestic: { matches: betmanMatchCount, oddsRows: betmanOddsCount },
     };
 
-    console.log('Collection cycle complete.');
+    log.info('Collection cycle complete', { duration: Date.now() - startTime });
     return lastCollectionResult;
   } catch (err) {
-    console.error('Collection error:', err.message);
+    log.error('Collection error', { error: err.message, stack: err.stack });
     lastCollectionResult = {
       success: false,
       timestamp: new Date().toISOString(),
@@ -365,11 +366,11 @@ if (require.main === module) {
     const minutes = Math.floor(INTERVAL_SECONDS / 60);
     const cronExpression = `*/${minutes} * * * *`;
     cron.schedule(cronExpression, () => collect());
-    console.log(`Odds collector started. Running every ${minutes} minutes.`);
+    log.info(`Odds collector started. Running every ${minutes} minutes.`);
   } else {
     const cronExpression = `*/${Math.max(1, INTERVAL_SECONDS)} * * * * *`;
     cron.schedule(cronExpression, () => collect());
-    console.log(`Odds collector started. Running every ${INTERVAL_SECONDS} seconds.`);
+    log.info(`Odds collector started. Running every ${INTERVAL_SECONDS} seconds.`);
   }
 }
 

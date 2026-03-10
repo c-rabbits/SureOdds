@@ -1,5 +1,9 @@
-const axios = require('axios');
+const { createHttpClient } = require('../config/httpClient');
+const { createServiceLogger } = require('../config/logger');
 require('dotenv').config();
+
+const log = createServiceLogger('OddsAPI');
+const http = createHttpClient('OddsAPI', { timeout: 30000 });
 
 const BASE_URL = 'https://api.the-odds-api.com/v4';
 const API_KEY = process.env.ODDS_API_KEY;
@@ -45,12 +49,12 @@ function getQuotaInfo() {
 
 async function fetchOdds(sport, markets = MARKETS) {
   if (!API_KEY) {
-    console.warn('ODDS_API_KEY not set. Using mock data.');
+    log.warn('ODDS_API_KEY not set. Using mock data.');
     return getMockOdds(sport);
   }
 
   try {
-    const response = await axios.get(`${BASE_URL}/sports/${sport}/odds`, {
+    const response = await http.get(`${BASE_URL}/sports/${sport}/odds`, {
       params: {
         apiKey: API_KEY,
         regions: 'eu',
@@ -73,7 +77,7 @@ async function fetchOdds(sport, markets = MARKETS) {
 
     return response.data;
   } catch (err) {
-    console.error(`Failed to fetch odds for ${sport}:`, err.message);
+    log.error(`Failed to fetch odds for ${sport}`, { error: err.message });
     return [];
   }
 }

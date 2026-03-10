@@ -1,5 +1,8 @@
 const TelegramBot = require('node-telegram-bot-api');
+const { createServiceLogger } = require('../config/logger');
 require('dotenv').config();
+
+const log = createServiceLogger('Telegram');
 
 let bot = null;
 
@@ -19,7 +22,7 @@ async function sendArbitrageAlert(opportunity, match) {
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!b || !chatId) {
-    console.log('Telegram not configured. Skipping notification.');
+    log.info('Telegram not configured. Skipping notification.');
     return;
   }
 
@@ -67,9 +70,9 @@ _Detected at ${new Date().toLocaleString()}_
 
   try {
     await b.sendMessage(chatId, message, { parse_mode: 'Markdown' });
-    console.log(`Telegram alert sent for ${match.home_team} vs ${match.away_team}`);
+    log.info(`Alert sent for ${match.home_team} vs ${match.away_team}`);
   } catch (err) {
-    console.error('Failed to send Telegram alert:', err.message);
+    log.error('Failed to send alert', { error: err.message });
   }
 }
 

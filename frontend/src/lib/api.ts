@@ -1,4 +1,5 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+import axiosRetry from 'axios-retry';
 import { Match, Odds, ArbitrageOpportunity, StakeCalculation, MatchWithOdds, CollectorStatus, QuotaInfo, MarketType, UserProfile } from '@/types';
 import { supabase } from '@/lib/supabase';
 
@@ -6,6 +7,71 @@ const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
   timeout: 15000,
 });
+
+// ============================================================
+// 네트워크 장애 시 자동 재시도 (최대 2회, 지수 백오프)
+// ============================================================
+axiosRetry(api, {
+  retries: 2,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    // 네트워크 에러 or 타임아웃
+    if (axiosRetry.isNetworkOrIdempotentRequestError(error)) return true;
+    // 5xx 서버 에러
+    if (error.response && error.response.status >= 500) return true;
+    // 429 Rate Limit
+    if (error.response && error.response.status === 429) return true;
+    return false;
+  },
+  onRetry: (retryCount, error) => {
+    console.warn(`[API] Retry #${retryCount}: ${error.message}`);
+  },
+});
+
+// ============================================================
+// 사용자 친화적 에러 메시지 매핑
+// ============================================================
+type ToastFn = (toast: { type: 'error' | 'warning'; title: string; message?: string; duration?: number }) => void;
+let _addToast: ToastFn | null = null;
+
+/** Toast 시스템 연결 (ToastProvider에서 호출) */
+export function connectToast(fn: ToastFn) {
+  _addToast = fn;
+}
+
+function getErrorMessage(error: AxiosError<{ error?: string }>): { title: string; message?: string } {
+  // 네트워크 에러 (서버 미응답)
+  if (!error.response) {
+    if (error.code === 'ECONNABORTED') {
+      return { title: '요청 시간 초과', message: '서버 응답이 너무 느립니다. 잠시 후 다시 시도해주세요.' };
+    }
+    return { title: '네트워크 오류', message: '서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.' };
+  }
+
+  const status = error.response.status;
+  const serverMsg = error.response.data?.error;
+
+  switch (status) {
+    case 400:
+      return { title: '잘못된 요청', message: serverMsg || '입력 데이터를 확인해주세요.' };
+    case 401:
+      return { title: '인증 만료', message: '로그인이 필요합니다. 다시 로그인해주세요.' };
+    case 403:
+      return { title: '접근 권한 없음', message: serverMsg || '해당 기능에 대한 권한이 없습니다.' };
+    case 404:
+      return { title: '데이터 없음', message: serverMsg || '요청한 정보를 찾을 수 없습니다.' };
+    case 429:
+      return { title: 'API 호출 제한', message: 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.' };
+    case 500:
+      return { title: '서버 오류', message: serverMsg || '서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' };
+    case 502:
+    case 503:
+    case 504:
+      return { title: '서버 점검 중', message: '서버가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.' };
+    default:
+      return { title: `오류 (${status})`, message: serverMsg || '알 수 없는 오류가 발생했습니다.' };
+  }
+}
 
 // ============================================================
 // 인터셉터: 매 요청에 JWT 토큰 자동 주입
@@ -22,15 +88,28 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// 401 응답 시 로그인 페이지로 리다이렉트
+// ============================================================
+// 응답 인터셉터: 에러 Toast 표시 + 401 리다이렉트
+// ============================================================
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  (error: AxiosError<{ error?: string }>) => {
+    const status = error.response?.status;
+
+    // 401: 로그인 페이지로 리다이렉트
+    if (status === 401) {
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
         window.location.href = '/login';
       }
     }
+
+    // Toast로 에러 메시지 표시 (401 리다이렉트 시 제외, 무음 요청 제외)
+    const silent = (error.config as { _silent?: boolean })?._silent;
+    if (_addToast && !silent && status !== 401) {
+      const { title, message } = getErrorMessage(error);
+      _addToast({ type: status && status >= 500 ? 'error' : 'warning', title, message });
+    }
+
     return Promise.reject(error);
   }
 );

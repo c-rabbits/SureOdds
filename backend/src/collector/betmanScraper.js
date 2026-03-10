@@ -23,8 +23,11 @@
  *   saleStatus (on currentLottery) — SaleProgress / SaleComplete / SaleBefore
  */
 
-const axios = require('axios');
+const { createHttpClient } = require('../config/httpClient');
+const { createServiceLogger } = require('../config/logger');
 
+const log = createServiceLogger('Betman');
+const http = createHttpClient('Betman', { timeout: 15000 });
 const BETMAN_BASE = 'https://www.betman.co.kr';
 const GAME_INFO_URL = `${BETMAN_BASE}/buyPsblGame/gameInfoInq.do`;
 
@@ -75,9 +78,8 @@ async function fetchGameInfo(gmId, gmTs) {
     _sbmInfo: { debugMode: 'false' },
   };
 
-  const { data } = await axios.post(GAME_INFO_URL, body, {
+  const { data } = await http.post(GAME_INFO_URL, body, {
     headers: HEADERS,
-    timeout: 15000,
   });
 
   return data;
@@ -192,13 +194,13 @@ function mapSportKey(itemCode, leagueName) {
  * @returns {{ matches: Array, oddsRows: Array }}
  */
 async function scrapeProtoRound(gmId, gmTs) {
-  console.log(`[Betman] Fetching round: gmId=${gmId}, gmTs=${gmTs}`);
+  log.info(`Fetching round: gmId=${gmId}, gmTs=${gmTs}`);
 
   const data = await fetchGameInfo(gmId, gmTs);
   const cs = data.compSchedules;
 
   if (!cs || !cs.keys || !cs.datas || cs.datas.length === 0) {
-    console.warn('[Betman] No compSchedules data in response');
+    log.warn('No compSchedules data in response');
     return { matches: [], oddsRows: [] };
   }
 
@@ -280,7 +282,7 @@ async function scrapeProtoRound(gmId, gmTs) {
     }
   }
 
-  console.log(`[Betman] Round ${gmTs}: ${matches.length} matches, ${oddsRows.length} odds rows`);
+  log.info(`Round ${gmTs}: ${matches.length} matches, ${oddsRows.length} odds rows`);
   return { matches, oddsRows };
 }
 
@@ -289,11 +291,11 @@ async function scrapeProtoRound(gmId, gmTs) {
  */
 async function scrapeBetman() {
   const startTime = Date.now();
-  console.log(`[Betman] Starting scrape at ${new Date().toISOString()}`);
+  log.info('Starting scrape');
 
   try {
     const rounds = await findProtoRounds(true, true);
-    console.log(`[Betman] Found ${rounds.length} Proto rounds`);
+    log.info(`Found ${rounds.length} Proto rounds`);
 
     if (rounds.length === 0) {
       lastScrapeResult = {
@@ -318,7 +320,7 @@ async function scrapeBetman() {
         allMatches.push(...matches);
         allOddsRows.push(...oddsRows);
       } catch (err) {
-        console.error(`[Betman] Error scraping round ${round.name}:`, err.message);
+        log.error(`Error scraping round ${round.name}`, { error: err.message });
       }
     }
 
@@ -331,10 +333,10 @@ async function scrapeBetman() {
       rounds: toScrape.map((r) => r.name),
     };
 
-    console.log(`[Betman] Scrape complete: ${allMatches.length} matches, ${allOddsRows.length} odds rows`);
+    log.info(`Scrape complete: ${allMatches.length} matches, ${allOddsRows.length} odds rows`);
     return { matches: allMatches, oddsRows: allOddsRows };
   } catch (err) {
-    console.error('[Betman] Scrape error:', err.message);
+    log.error('Scrape error', { error: err.message, stack: err.stack });
     lastScrapeResult = {
       success: false,
       timestamp: new Date().toISOString(),
