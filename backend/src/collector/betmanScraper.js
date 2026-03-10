@@ -158,6 +158,8 @@ function mapSportKey(itemCode, leagueName) {
     if (upper.includes('분데스') || upper.includes('BUNDESLIGA')) return 'soccer_germany_bundesliga';
     if (upper.includes('세리에') || upper.includes('SERIE')) return 'soccer_italy_serie_a';
     if (upper.includes('리그1') || upper.includes('LIGUE')) return 'soccer_france_ligue_one';
+    if (upper.includes('UCL') || upper.includes('챔피언스') || upper.includes('UEFA CL')) return 'soccer_uefa_champs_league';
+    if (upper.includes('UEL') || upper.includes('유로파') || upper.includes('UEFA EL')) return 'soccer_uefa_europa_league';
     if (upper.includes('K리그') || upper.includes('K-LEAGUE') || upper.includes('KLEAGUE')) return 'soccer_korea_kleague1';
     if (upper.includes('J리그') || upper.includes('J-LEAGUE')) return 'soccer_japan_j_league';
     if (upper.includes('A리그') || upper.includes('A-LEAGUE')) return 'soccer_australia_aleague';

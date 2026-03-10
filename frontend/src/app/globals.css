@@ -92,11 +92,11 @@
   }
 
   .data-table .odds-cell {
-    @apply font-mono text-right;
+    @apply font-mono text-center;
   }
 
   .data-table .profit-cell {
-    @apply font-mono font-bold text-right;
+    @apply font-mono font-bold text-center;
   }
 
   /* Filter pill */

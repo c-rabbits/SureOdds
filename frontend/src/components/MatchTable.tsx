@@ -90,18 +90,18 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
         <thead>
           <tr>
             <th className="w-6"></th>
-            <th>시간</th>
-            <th>리그</th>
-            <th>홈</th>
-            <th>원정</th>
-            <th>마켓</th>
-            <th className="text-right w-[60px]">배당1</th>
+            <th className="w-[140px]">시간</th>
+            <th className="w-[180px]">리그</th>
+            <th className="w-[140px]">홈</th>
+            <th className="w-[140px]">원정</th>
+            <th className="w-[100px]">마켓</th>
+            <th className="text-center w-[60px]">배당1</th>
             <th className="w-[48px]">북메이커</th>
-            <th className="text-right w-[50px]">무승부</th>
-            <th className="text-right w-[60px]">배당2</th>
+            <th className="text-center w-[50px]">무승부</th>
+            <th className="text-center w-[60px]">배당2</th>
             <th className="w-[48px]">북메이커</th>
-            <th className="text-right w-[70px]">양방계수</th>
-            <th className="text-right w-[70px]">수익률</th>
+            <th className="text-center w-[70px]">양방계수</th>
+            <th className="text-center w-[70px]">수익률</th>
           </tr>
         </thead>
         <tbody>
