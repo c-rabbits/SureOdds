@@ -46,9 +46,13 @@ export function useFilters() {
 
   const toggleSport = useCallback((sport: string) => {
     setFilters((prev) => {
+      // "all" 클릭 시 스포츠 필터 초기화
+      if (sport === 'all') {
+        return { ...prev, sports: [] };
+      }
       const sports = prev.sports.includes(sport)
         ? prev.sports.filter((s) => s !== sport)
-        : [...prev.sports, sport];
+        : [...prev.sports.filter((s) => s !== 'all'), sport];
       return { ...prev, sports };
     });
   }, []);

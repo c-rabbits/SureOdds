@@ -43,7 +43,7 @@ router.get('/with-odds', async (req, res) => {
       return res.json({ success: true, data: matchesWithOdds, count: matchesWithOdds.length });
     }
 
-    const { sport, limit = 100 } = req.query;
+    const { sport, limit = 500 } = req.query;
 
     let query = supabase
       .from('matches')
@@ -61,11 +61,19 @@ router.get('/with-odds', async (req, res) => {
     const { data, error } = await query;
     if (error) throw error;
 
-    // Filter arbitrage to only active ones
+    // Filter arbitrage to only active ones, then prioritize matches with odds
     const result = (data || []).map((match) => ({
       ...match,
       arbitrage_opportunities: (match.arbitrage_opportunities || []).filter((a) => a.is_active),
     }));
+
+    // Sort: matches with odds first, then by start_time
+    result.sort((a, b) => {
+      const aHasOdds = (a.odds || []).length > 0 ? 1 : 0;
+      const bHasOdds = (b.odds || []).length > 0 ? 1 : 0;
+      if (aHasOdds !== bHasOdds) return bHasOdds - aHasOdds; // odds first
+      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+    });
 
     res.json({ success: true, data: result, count: result.length });
   } catch (err) {

@@ -38,7 +38,7 @@ export default function HomePage() {
   const loadData = useCallback(async () => {
     try {
       const [matchData, quotaData] = await Promise.all([
-        getMatchesWithOdds({ limit: 100 }),
+        getMatchesWithOdds({ limit: 500 }),
         getApiQuota().catch(() => null),
       ]);
 
