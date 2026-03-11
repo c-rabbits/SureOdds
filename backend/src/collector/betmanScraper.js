@@ -28,6 +28,8 @@ const { createServiceLogger } = require('../config/logger');
 
 const log = createServiceLogger('Betman');
 const http = createHttpClient('Betman', { timeout: 15000 });
+// Fast client for round probing — no retries, short timeout
+const httpProbe = require('axios').create({ timeout: 8000 });
 const BETMAN_BASE = 'https://www.betman.co.kr';
 const GAME_INFO_URL = `${BETMAN_BASE}/buyPsblGame/gameInfoInq.do`;
 
@@ -70,7 +72,7 @@ function getLastScrapeResult() {
  * @param {string|number} gmTs - Round number (e.g., 260029)
  * @returns {Promise<object>} API response data
  */
-async function fetchGameInfo(gmId, gmTs) {
+async function fetchGameInfo(gmId, gmTs, { fast = false } = {}) {
   const body = {
     gmId,
     gmTs: String(gmTs),
@@ -78,7 +80,8 @@ async function fetchGameInfo(gmId, gmTs) {
     _sbmInfo: { debugMode: 'false' },
   };
 
-  const { data } = await http.post(GAME_INFO_URL, body, {
+  const client = fast ? httpProbe : http;
+  const { data } = await client.post(GAME_INFO_URL, body, {
     headers: HEADERS,
   });
 
@@ -93,58 +96,70 @@ async function fetchGameInfo(gmId, gmTs) {
  * Returns array of { gmId, gmTs, name, status } objects.
  */
 async function findProtoRounds(includeOnSale = true, includeClosed = true) {
-  const rounds = [];
   const now = new Date();
   const yearPrefix = (now.getFullYear() - 2000) * 10000; // e.g., 260000 for 2026
 
-  // Probe the last 5 rounds to find active ones
-  // Start from a high round number and work backward
-  const probeStart = 40; // start probing from round 40 downward
-  const probeEnd = 1;
+  // Probe rounds in parallel (5 at a time) instead of sequentially.
+  // Estimate current round: ~3 rounds per week, year starts at round 1.
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000);
+  const estimatedRound = Math.ceil(dayOfYear / 7 * 3) + 2; // rough estimate + buffer
+  const probeStart = Math.min(estimatedRound + 3, 60);
+  const probeEnd = Math.max(estimatedRound - 8, 1);
 
-  for (let r = probeStart; r >= probeEnd && rounds.length < 5; r--) {
+  log.info(`Probing rounds ${probeEnd}-${probeStart} (estimated current: ${estimatedRound})`);
+
+  // Fire all probes in parallel with a short timeout
+  const probePromises = [];
+  for (let r = probeStart; r >= probeEnd; r--) {
     const gmTs = yearPrefix + r;
-    try {
-      const data = await fetchGameInfo('G101', gmTs);
-      const cl = data.currentLottery;
-      const recordCount = data.compSchedules?.datas?.length || 0;
+    probePromises.push(
+      fetchGameInfo('G101', gmTs, { fast: true })
+        .then((data) => ({ gmTs, r, data }))
+        .catch(() => null)
+    );
+  }
 
-      if (!cl || !cl.saleStatus || recordCount === 0) continue;
+  const results = await Promise.all(probePromises);
+  const rounds = [];
 
-      const status = cl.saleStatus; // SaleProgress, SaleComplete, SaleBefore
-      const roundNum = cl.gmOsidTs || r;
+  for (const result of results) {
+    if (!result) continue;
+    const { gmTs, r, data } = result;
+    const cl = data.currentLottery;
+    const recordCount = data.compSchedules?.datas?.length || 0;
 
-      let normalizedStatus = 'unknown';
-      if (status === 'SaleProgress') normalizedStatus = 'on_sale';
-      else if (status === 'SaleComplete') normalizedStatus = 'closed';
-      else if (status === 'SaleBefore') normalizedStatus = 'before_sale';
+    if (!cl || !cl.saleStatus || recordCount === 0) continue;
 
-      // Skip SaleBefore — no odds data available yet
-      if (normalizedStatus === 'before_sale') continue;
+    const status = cl.saleStatus;
+    const roundNum = cl.gmOsidTs || r;
 
-      const include =
-        (normalizedStatus === 'on_sale' && includeOnSale) ||
-        (normalizedStatus === 'closed' && includeClosed);
+    let normalizedStatus = 'unknown';
+    if (status === 'SaleProgress') normalizedStatus = 'on_sale';
+    else if (status === 'SaleComplete') normalizedStatus = 'closed';
+    else if (status === 'SaleBefore') normalizedStatus = 'before_sale';
 
-      if (include) {
-        rounds.push({
-          gmId: 'G101',
-          gmTs: String(gmTs),
-          name: `프로토 승부식 ${roundNum}회차`,
-          status: normalizedStatus,
-          recordCount,
-        });
-      }
-    } catch {
-      // Round doesn't exist, skip
+    if (normalizedStatus === 'before_sale') continue;
+
+    const include =
+      (normalizedStatus === 'on_sale' && includeOnSale) ||
+      (normalizedStatus === 'closed' && includeClosed);
+
+    if (include) {
+      rounds.push({
+        gmId: 'G101',
+        gmTs: String(gmTs),
+        name: `프로토 승부식 ${roundNum}회차`,
+        status: normalizedStatus,
+        recordCount,
+      });
     }
   }
 
-  // Sort: on_sale first, then before_sale, then closed
+  // Sort: on_sale first, then closed
   const statusOrder = { on_sale: 0, before_sale: 1, closed: 2, unknown: 3 };
   rounds.sort((a, b) => (statusOrder[a.status] || 3) - (statusOrder[b.status] || 3));
 
-  return rounds;
+  return rounds.slice(0, 5);
 }
 
 /**

@@ -214,7 +214,7 @@ export async function getApiQuota(): Promise<QuotaInfo> {
 // Domestic (국내 배당)
 // ============================================================
 export async function scrapeBetman(): Promise<{ matches: number; oddsRows: number }> {
-  const { data } = await api.post('/api/domestic/betman/scrape');
+  const { data } = await api.post('/api/domestic/betman/scrape', {}, { timeout: 120000 });
   return data.data;
 }
 

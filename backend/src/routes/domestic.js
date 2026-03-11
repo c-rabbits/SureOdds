@@ -66,35 +66,37 @@ router.post('/betman/scrape', async (req, res) => {
     const result = await scrapeBetman();
 
     if (result.matches.length > 0) {
-      // Save matches
-      const newMatches = [];
-      for (const match of result.matches) {
-        const intlMatchId = await findMatchingInternationalMatch(match);
-        if (!intlMatchId) {
-          newMatches.push(match);
-        }
-      }
+      // Check all matches for international counterparts in parallel
+      const matchResults = await Promise.all(
+        result.matches.map(async (match) => {
+          const intlMatchId = await findMatchingInternationalMatch(match);
+          return { match, intlMatchId };
+        })
+      );
+
+      const newMatches = matchResults
+        .filter((r) => !r.intlMatchId)
+        .map((r) => r.match);
 
       if (newMatches.length > 0) {
         await supabase.from('matches').upsert(newMatches, { onConflict: 'external_id' });
       }
 
-      // Get all match IDs (batch to avoid query size limits)
+      // Get all match IDs in parallel batches
       const allExtIds = result.matches.map((m) => m.external_id);
-      const savedMatches = [];
       const ID_BATCH = 50;
+      const batchPromises = [];
       for (let i = 0; i < allExtIds.length; i += ID_BATCH) {
         const batch = allExtIds.slice(i, i + ID_BATCH);
-        const { data } = await supabase
-          .from('matches')
-          .select('id, external_id')
-          .in('external_id', batch);
-        if (data) savedMatches.push(...data);
+        batchPromises.push(
+          supabase.from('matches').select('id, external_id').in('external_id', batch)
+        );
       }
+      const batchResults = await Promise.all(batchPromises);
 
       const idMap = {};
-      if (savedMatches) {
-        for (const m of savedMatches) idMap[m.external_id] = m.id;
+      for (const { data } of batchResults) {
+        if (data) for (const m of data) idMap[m.external_id] = m.id;
       }
       log.info(`idMap size: ${Object.keys(idMap).length}, oddsRows: ${result.oddsRows.length}`);
 
@@ -110,15 +112,21 @@ router.post('/betman/scrape', async (req, res) => {
 
       log.info(`Mapped odds rows with match_id: ${oddsRows.length}`);
 
+      // Upsert odds in parallel batches
       const BATCH_SIZE = 100;
+      const oddsBatchPromises = [];
       for (let i = 0; i < oddsRows.length; i += BATCH_SIZE) {
         const batch = oddsRows.slice(i, i + BATCH_SIZE);
-        const { error: upsertErr } = await supabase.from('odds').upsert(batch, {
-          onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
-        });
-        if (upsertErr) log.error(`Odds upsert error batch ${i}`, { error: upsertErr.message });
-        else log.info(`Odds batch ${i}-${i+batch.length} upserted OK`);
+        oddsBatchPromises.push(
+          supabase.from('odds').upsert(batch, {
+            onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
+          }).then(({ error }) => {
+            if (error) log.error(`Odds upsert error batch ${i}`, { error: error.message });
+            else log.info(`Odds batch ${i}-${i+batch.length} upserted OK`);
+          })
+        );
       }
+      await Promise.all(oddsBatchPromises);
     }
 
     res.json({

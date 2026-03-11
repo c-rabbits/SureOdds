@@ -35,3 +35,11 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Claude
+.claude/
+
+# Misc
+backend/logs/*.json
+sample/
+PLAN.md
