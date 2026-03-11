@@ -52,14 +52,25 @@ export const SPORTS_CONFIG: Record<string, { label: string; category: string; em
  * Get sport emoji.
  */
 export function getSportEmoji(sport: string): string {
-  return SPORTS_CONFIG[sport]?.emoji || '🏆';
+  if (SPORTS_CONFIG[sport]) return SPORTS_CONFIG[sport].emoji;
+  if (sport.startsWith('soccer')) return '⚽';
+  if (sport.startsWith('basketball')) return '🏀';
+  if (sport.startsWith('baseball')) return '⚾';
+  if (sport.startsWith('icehockey') || sport.startsWith('hockey')) return '🏒';
+  return '🏆';
 }
 
 /**
  * Get sport category.
+ * First checks SPORTS_CONFIG, then falls back to prefix matching (e.g. soccer_xxx → soccer).
  */
 export function getSportCategory(sport: string): string {
-  return SPORTS_CONFIG[sport]?.category || 'other';
+  if (SPORTS_CONFIG[sport]) return SPORTS_CONFIG[sport].category;
+  if (sport.startsWith('soccer')) return 'soccer';
+  if (sport.startsWith('basketball')) return 'basketball';
+  if (sport.startsWith('baseball')) return 'baseball';
+  if (sport.startsWith('icehockey') || sport.startsWith('hockey')) return 'hockey';
+  return 'other';
 }
 
 /**
