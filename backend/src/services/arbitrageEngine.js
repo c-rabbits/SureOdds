@@ -73,13 +73,27 @@ function findBestOddsH2H(oddsRecords) {
 }
 
 /**
+ * Check if at least 2 different bookmakers are involved.
+ * Same-bookmaker "arbitrage" is not exploitable in practice.
+ */
+function hasMultipleBookmakers(...bookmakers) {
+  const unique = new Set(bookmakers.filter(Boolean));
+  return unique.size >= 2;
+}
+
+/**
  * Detect h2h arbitrage (2-way and 3-way).
+ * Skips if all best odds come from the same bookmaker.
  */
 function detectH2hArbitrage(match, oddsRecords) {
   const { bestHome, bestDraw, bestAway } = findBestOddsH2H(oddsRecords);
 
   // Try 3-way first if draw odds exist
   if (bestDraw.odds > 0 && bestHome.odds > 0 && bestAway.odds > 0) {
+    // Skip if all best odds are from the same bookmaker
+    if (!hasMultipleBookmakers(bestHome.bookmaker, bestDraw.bookmaker, bestAway.bookmaker)) {
+      return null;
+    }
     const arb3 = calculateArbitrage([bestHome.odds, bestDraw.odds, bestAway.odds]);
     if (arb3 && arb3.isArbitrage) {
       return {
@@ -100,6 +114,10 @@ function detectH2hArbitrage(match, oddsRecords) {
 
   // Try 2-way (home vs away)
   if (bestHome.odds > 0 && bestAway.odds > 0) {
+    // Skip if both best odds are from the same bookmaker
+    if (!hasMultipleBookmakers(bestHome.bookmaker, bestAway.bookmaker)) {
+      return null;
+    }
     const arb2 = calculateArbitrage([bestHome.odds, bestAway.odds]);
     if (arb2 && arb2.isArbitrage) {
       return {
@@ -128,6 +146,10 @@ function detect2WayArbitrage(match, oddsRecords, marketType, handicapPoint) {
   const { bestOutcome1, bestOutcome2 } = findBestOdds2Way(oddsRecords);
 
   if (bestOutcome1.odds > 0 && bestOutcome2.odds > 0) {
+    // Skip if both best odds are from the same bookmaker
+    if (!hasMultipleBookmakers(bestOutcome1.bookmaker, bestOutcome2.bookmaker)) {
+      return null;
+    }
     const arb = calculateArbitrage([bestOutcome1.odds, bestOutcome2.odds]);
     if (arb && arb.isArbitrage) {
       return {
@@ -209,6 +231,7 @@ function distributeStake(totalStake, oddsArray) {
 
 module.exports = {
   calculateArbitrage,
+  hasMultipleBookmakers,
   findBestOdds2Way,
   findBestOddsH2H,
   detectH2hArbitrage,
