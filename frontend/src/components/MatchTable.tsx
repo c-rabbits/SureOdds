@@ -57,6 +57,18 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
       }
     }
 
+    // Filter by bookmaker
+    if (filters.bookmakers.length > 0) {
+      result = result.filter((r) => {
+        const bookmakers = [
+          r.bestOutcome1?.bookmaker,
+          r.bestOutcome2?.bookmaker,
+          r.bestDraw?.bookmaker,
+        ].filter(Boolean) as string[];
+        return bookmakers.some((b) => filters.bookmakers.includes(b));
+      });
+    }
+
     // Filter by min profit (only show rows with arb or all if minProfit is 0)
     if (filters.minProfit > 0) {
       result = result.filter((r) => r.isArbitrage && (r.profitPercent ?? 0) >= filters.minProfit);

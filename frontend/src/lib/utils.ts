@@ -74,45 +74,52 @@ export function getSportCategory(sport: string): string {
 }
 
 /**
+ * Bookmaker configuration for filter UI.
+ * Order determines display order in the toolbar.
+ */
+export interface BookmakerInfo {
+  key: string;
+  name: string;
+  short: string;
+  domestic: boolean;
+}
+
+export const BOOKMAKER_CONFIG: BookmakerInfo[] = [
+  { key: 'pinnacle', name: 'Pinnacle', short: 'PINN', domestic: false },
+  { key: 'bet365', name: 'Bet365', short: 'B365', domestic: false },
+  { key: 'sbobet', name: 'SBOBet', short: 'SBO', domestic: false },
+  { key: 'maxbet', name: 'MaxBet', short: 'MAX', domestic: false },
+  { key: 'stake', name: 'Stake', short: 'STK', domestic: false },
+  { key: 'unibet', name: 'Unibet', short: 'UNI', domestic: false },
+  { key: 'betfair', name: 'Betfair', short: 'BFAR', domestic: false },
+  { key: '1xbet', name: '1xBet', short: '1XB', domestic: false },
+  { key: 'williamhill', name: 'William Hill', short: 'WH', domestic: false },
+  { key: 'bwin', name: 'bwin', short: 'BWIN', domestic: false },
+  { key: 'draftkings', name: 'DraftKings', short: 'DK', domestic: false },
+  { key: 'fanduel', name: 'FanDuel', short: 'FD', domestic: false },
+  { key: 'betman_proto', name: '베트맨 프로토', short: 'BM', domestic: true },
+  { key: 'manual_domestic', name: '수동 입력', short: '수동', domestic: true },
+];
+
+const BOOKMAKER_NAME_MAP: Record<string, string> = Object.fromEntries(
+  BOOKMAKER_CONFIG.map((b) => [b.key, b.name])
+);
+const BOOKMAKER_SHORT_MAP: Record<string, string> = Object.fromEntries(
+  BOOKMAKER_CONFIG.map((b) => [b.key, b.short])
+);
+
+/**
  * Get bookmaker display name.
  */
 export function getBookmakerName(key: string): string {
-  const map: Record<string, string> = {
-    bet365: 'Bet365',
-    pinnacle: 'Pinnacle',
-    stake: 'Stake',
-    unibet: 'Unibet',
-    betfair: 'Betfair',
-    '1xbet': '1xBet',
-    williamhill: 'William Hill',
-    bwin: 'bwin',
-    draftkings: 'DraftKings',
-    fanduel: 'FanDuel',
-    betman_proto: '베트맨 프로토',
-    manual_domestic: '수동 입력',
-  };
-  return map[key] || key;
+  return BOOKMAKER_NAME_MAP[key] || key;
 }
 
 /**
  * Get short bookmaker name for table display.
  */
 export function getBookmakerShort(key: string): string {
-  const map: Record<string, string> = {
-    bet365: 'B365',
-    pinnacle: 'PINN',
-    stake: 'STK',
-    unibet: 'UNI',
-    betfair: 'BFAR',
-    '1xbet': '1XB',
-    williamhill: 'WH',
-    bwin: 'BWIN',
-    draftkings: 'DK',
-    fanduel: 'FD',
-    betman_proto: 'BM',
-    manual_domestic: '수동',
-  };
-  return map[key] || key.toUpperCase().slice(0, 4);
+  return BOOKMAKER_SHORT_MAP[key] || key.toUpperCase().slice(0, 4);
 }
 
 /**

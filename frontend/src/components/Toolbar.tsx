@@ -1,7 +1,7 @@
 'use client';
 
 import { FilterState, MarketType, QuotaInfo, SourceFilter } from '@/types';
-import { SPORT_CATEGORIES, getMarketLabel } from '@/lib/utils';
+import { SPORT_CATEGORIES, getMarketLabel, BOOKMAKER_CONFIG } from '@/lib/utils';
 
 interface Props {
   filters: FilterState;
@@ -10,6 +10,8 @@ interface Props {
   onSetMinProfit: (v: number) => void;
   onSetSort: (field: 'profit' | 'time') => void;
   onSetSourceFilter: (sf: SourceFilter) => void;
+  onToggleBookmaker: (bookmaker: string) => void;
+  availableBookmakers: string[];
   matchCount: number;
   arbCount: number;
   topProfit: number;
@@ -42,6 +44,8 @@ export default function Toolbar({
   onSetMinProfit,
   onSetSort,
   onSetSourceFilter,
+  onToggleBookmaker,
+  availableBookmakers,
   matchCount,
   arbCount,
   topProfit,
@@ -51,6 +55,8 @@ export default function Toolbar({
   quota,
   onOpenAlertSettings,
 }: Props) {
+  // Filter BOOKMAKER_CONFIG to only show bookmakers present in the data
+  const visibleBookmakers = BOOKMAKER_CONFIG.filter((b) => availableBookmakers.includes(b.key));
   return (
     <div className="bg-gray-900 border-b border-gray-800 px-3 py-2 flex items-center gap-x-3 text-xs overflow-x-auto whitespace-nowrap shrink-0">
       {/* 통계 */}
@@ -122,6 +128,36 @@ export default function Toolbar({
       </div>
 
       <div className="h-4 w-px bg-gray-700 shrink-0" />
+
+      {/* 북메이커 필터 */}
+      {visibleBookmakers.length > 0 && (
+        <>
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-gray-500">북메이커:</span>
+            <button
+              onClick={() => onToggleBookmaker('all')}
+              className={`filter-pill ${filters.bookmakers.length === 0 ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+            >
+              전체
+            </button>
+            {visibleBookmakers.map((bm) => {
+              const isActive = filters.bookmakers.includes(bm.key);
+              return (
+                <button
+                  key={bm.key}
+                  onClick={() => onToggleBookmaker(bm.key)}
+                  className={`filter-pill ${isActive ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+                  title={bm.name}
+                >
+                  {bm.domestic ? `🇰🇷${bm.short}` : bm.short}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="h-4 w-px bg-gray-700 shrink-0" />
+        </>
+      )}
 
       {/* 최소 수익률 */}
       <div className="flex items-center gap-1 shrink-0">

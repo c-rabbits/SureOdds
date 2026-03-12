@@ -21,7 +21,7 @@ export default function HomePage() {
   const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
 
-  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter } = useFilters();
+  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker } = useFilters();
 
   // Flatten matches to table rows
   const rows = useMemo(() => flattenMatchesToRows(matches), [matches]);
@@ -33,6 +33,17 @@ export default function HomePage() {
     return arbRows.length > 0 ? Math.max(...arbRows.map((r) => r.profitPercent!)) : 0;
   }, [rows]);
   const uniqueMatches = useMemo(() => new Set(rows.map((r) => r.matchId)).size, [rows]);
+
+  // Collect unique bookmakers from current data for filter UI
+  const availableBookmakers = useMemo(() => {
+    const set = new Set<string>();
+    for (const match of matches) {
+      for (const odd of match.odds || []) {
+        set.add(odd.bookmaker);
+      }
+    }
+    return Array.from(set);
+  }, [matches]);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -120,6 +131,8 @@ export default function HomePage() {
         onSetMinProfit={setMinProfit}
         onSetSort={(field) => setSort(field)}
         onSetSourceFilter={setSourceFilter}
+        onToggleBookmaker={toggleBookmaker}
+        availableBookmakers={availableBookmakers}
         matchCount={uniqueMatches}
         arbCount={arbCount}
         topProfit={topProfit}

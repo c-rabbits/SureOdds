@@ -86,6 +86,19 @@ export function useFilters() {
     setFilters((prev) => ({ ...prev, sourceFilter }));
   }, []);
 
+  const toggleBookmaker = useCallback((bookmaker: string) => {
+    setFilters((prev) => {
+      // "all" 클릭 시 북메이커 필터 초기화
+      if (bookmaker === 'all') {
+        return { ...prev, bookmakers: [] };
+      }
+      const bookmakers = prev.bookmakers.includes(bookmaker)
+        ? prev.bookmakers.filter((b) => b !== bookmaker)
+        : [...prev.bookmakers, bookmaker];
+      return { ...prev, bookmakers };
+    });
+  }, []);
+
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
   }, []);
@@ -99,6 +112,7 @@ export function useFilters() {
     setMinProfit,
     setSort,
     setSourceFilter,
+    toggleBookmaker,
     resetFilters,
   };
 }
