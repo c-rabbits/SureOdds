@@ -88,6 +88,7 @@ export const BOOKMAKER_CONFIG: BookmakerInfo[] = [
   { key: 'pinnacle', name: 'Pinnacle', short: 'PINN', domestic: false },
   { key: 'bet365', name: 'Bet365', short: 'B365', domestic: false },
   { key: 'sbobet', name: 'SBOBet', short: 'SBO', domestic: false },
+  { key: 'dafabet', name: 'DafaBet', short: 'DAFA', domestic: false },
   { key: 'maxbet', name: 'MaxBet', short: 'MAX', domestic: false },
   { key: 'stake', name: 'Stake', short: 'STK', domestic: false },
   { key: 'unibet', name: 'Unibet', short: 'UNI', domestic: false },

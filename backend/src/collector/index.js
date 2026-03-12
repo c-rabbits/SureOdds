@@ -3,6 +3,7 @@ const supabase = require('../config/supabase');
 const { fetchAllOdds, getQuotaInfo } = require('./oddsApi');
 const { scrapeBetman } = require('./betmanScraper');
 const { collectPinnacle, isConfigured: isPinnacleConfigured } = require('./pinnacleApi');
+const { collectOddsApiIo, isConfigured: isOddsApiIoConfigured } = require('./oddsApiIo');
 const { detectAllArbitrageForMatch } = require('../services/arbitrageEngine');
 const { findMatchingInternationalMatch } = require('../services/teamMatcher');
 const { sendArbitrageAlert } = require('../services/telegramBot');
@@ -300,6 +301,68 @@ async function collect(sports, markets) {
       }
     }
 
+    // ─── Odds-API.io (SBOBet, DafaBet/MaxBet) ───
+    let oddsApiIoMatchCount = 0;
+    let oddsApiIoOddsCount = 0;
+    if (isOddsApiIoConfigured()) {
+      try {
+        const oaioData = await collectOddsApiIo();
+        if (oaioData.matches.length > 0) {
+          // Upsert matches
+          const { error: oaioMErr } = await supabase
+            .from('matches')
+            .upsert(oaioData.matches, { onConflict: 'external_id' });
+          if (oaioMErr) log.error('Error upserting Odds-API.io matches', { error: oaioMErr.message });
+
+          // Get match IDs
+          const oaioExtIds = oaioData.matches.map((m) => m.external_id);
+          const oaioIdMap = {};
+          const OAIO_BATCH = 50;
+          for (let i = 0; i < oaioExtIds.length; i += OAIO_BATCH) {
+            const batch = oaioExtIds.slice(i, i + OAIO_BATCH);
+            const { data: oaioSaved } = await supabase
+              .from('matches')
+              .select('id, external_id')
+              .in('external_id', batch);
+            if (oaioSaved) for (const m of oaioSaved) oaioIdMap[m.external_id] = m.id;
+          }
+
+          // Map odds rows to match IDs
+          const oaioOddsWithIds = oaioData.oddsRows
+            .map(({ match_external_id, ...rest }) => ({
+              ...rest,
+              match_id: oaioIdMap[match_external_id],
+              handicap_point: rest.handicap_point ?? 0,
+            }))
+            .filter((o) => o.match_id);
+
+          // Upsert odds in batches
+          for (let i = 0; i < oaioOddsWithIds.length; i += BATCH_SIZE) {
+            const batch = oaioOddsWithIds.slice(i, i + BATCH_SIZE);
+            const { error: oaioOErr } = await supabase.from('odds').upsert(batch, {
+              onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
+            });
+            if (oaioOErr) log.error('Error upserting Odds-API.io odds', { error: oaioOErr.message });
+          }
+
+          oddsApiIoMatchCount = oaioData.matches.length;
+          oddsApiIoOddsCount = oaioOddsWithIds.length;
+
+          // Add to savedMatches for arb detection
+          const existingIds2 = new Set(savedMatches.map((m) => m.id));
+          for (const [eid, id] of Object.entries(oaioIdMap)) {
+            if (!existingIds2.has(id)) {
+              savedMatches.push({ id, external_id: eid });
+              existingIds2.add(id);
+            }
+          }
+        }
+        log.info(`[Odds-API.io] Saved ${oddsApiIoMatchCount} matches, ${oddsApiIoOddsCount} odds rows`);
+      } catch (oaioErr) {
+        log.warn('[Odds-API.io] Collection error (non-fatal)', { error: oaioErr.message });
+      }
+    }
+
     // ─── Betman (domestic) scraping ───
     let betmanMatchCount = 0;
     let betmanOddsCount = 0;
@@ -391,7 +454,7 @@ async function collect(sports, markets) {
     const newOpps = await runArbitrageDetection(savedMatches);
     log.info(`Found ${newOpps.length} new arbitrage opportunities`);
 
-    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${betmanMatchCount} domestic matches`);
+    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${oddsApiIoMatchCount} oddsApiIo + ${betmanMatchCount} domestic matches`);
 
     lastCollectionResult = {
       success: true,
@@ -403,6 +466,7 @@ async function collect(sports, markets) {
       creditsUsed,
       quota: getQuotaInfo(),
       pinnacle: { matches: pinnacleMatchCount, oddsRows: pinnacleOddsCount },
+      oddsApiIo: { matches: oddsApiIoMatchCount, oddsRows: oddsApiIoOddsCount },
       domestic: { matches: betmanMatchCount, oddsRows: betmanOddsCount },
     };
 
