@@ -4,7 +4,7 @@ const { refreshMockData } = require('../mockData');
 
 const USE_MOCK = !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY;
 
-let collect, getLastResult, getQuotaInfo, SPORTS, MARKETS, DEFAULT_SPORTS, getPinnacleStatus, getOddsApiIoStatus;
+let collect, getLastResult, collectOddsApiIoAndSave, getLastOddsApiIoResult, getQuotaInfo, SPORTS, MARKETS, DEFAULT_SPORTS, getPinnacleStatus, getOddsApiIoStatus;
 
 try {
   const collector = require('../collector/index');
@@ -13,6 +13,8 @@ try {
   const oddsApiIo = require('../collector/oddsApiIo');
   collect = collector.collect;
   getLastResult = collector.getLastResult;
+  collectOddsApiIoAndSave = collector.collectOddsApiIoAndSave;
+  getLastOddsApiIoResult = collector.getLastOddsApiIoResult;
   getQuotaInfo = oddsApi.getQuotaInfo;
   SPORTS = oddsApi.SPORTS;
   MARKETS = oddsApi.MARKETS;
@@ -23,6 +25,8 @@ try {
   // Collector modules may not exist yet
   collect = async () => ({ success: true, mock: true });
   getLastResult = () => null;
+  collectOddsApiIoAndSave = async () => ({ success: true, mock: true });
+  getLastOddsApiIoResult = () => null;
   getQuotaInfo = () => ({ used: null, remaining: null, updatedAt: null });
   SPORTS = [];
   MARKETS = ['h2h', 'spreads', 'totals'];
@@ -57,6 +61,17 @@ router.post('/trigger', async (req, res) => {
       sports || undefined,
       markets || undefined,
     );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/collector/trigger-oddsapiio
+// Manually trigger an Odds-API.io collection cycle
+router.post('/trigger-oddsapiio', async (req, res) => {
+  try {
+    const result = await collectOddsApiIoAndSave();
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -99,7 +114,11 @@ router.get('/status', (req, res) => {
         defaultSports: DEFAULT_SPORTS,
       },
       pinnacle: getPinnacleStatus(),
-      oddsApiIo: getOddsApiIoStatus(),
+      oddsApiIo: {
+        ...getOddsApiIoStatus(),
+        schedulerInterval: `${process.env.ODDS_API_IO_INTERVAL || '20'}min`,
+        lastResult: getLastOddsApiIoResult(),
+      },
     },
   });
 });

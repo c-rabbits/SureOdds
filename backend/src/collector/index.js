@@ -13,12 +13,20 @@ require('dotenv').config();
 const log = createServiceLogger('Collector');
 
 const INTERVAL_SECONDS = parseInt(process.env.COLLECTOR_INTERVAL || '300', 10);
+const ODDS_API_IO_INTERVAL_MIN = parseInt(process.env.ODDS_API_IO_INTERVAL || '20', 10);
+const BATCH_SIZE = 100;
 
 // Track last collection result for status reporting
 let lastCollectionResult = null;
+let lastOddsApiIoResult = null;
+let oddsApiIoSchedulerRunning = false;
 
 function getLastResult() {
   return lastCollectionResult;
+}
+
+function getLastOddsApiIoResult() {
+  return lastOddsApiIoResult;
 }
 
 /**
@@ -301,68 +309,6 @@ async function collect(sports, markets) {
       }
     }
 
-    // ─── Odds-API.io (SBOBet, DafaBet/MaxBet) ───
-    let oddsApiIoMatchCount = 0;
-    let oddsApiIoOddsCount = 0;
-    if (isOddsApiIoConfigured()) {
-      try {
-        const oaioData = await collectOddsApiIo();
-        if (oaioData.matches.length > 0) {
-          // Upsert matches
-          const { error: oaioMErr } = await supabase
-            .from('matches')
-            .upsert(oaioData.matches, { onConflict: 'external_id' });
-          if (oaioMErr) log.error('Error upserting Odds-API.io matches', { error: oaioMErr.message });
-
-          // Get match IDs
-          const oaioExtIds = oaioData.matches.map((m) => m.external_id);
-          const oaioIdMap = {};
-          const OAIO_BATCH = 50;
-          for (let i = 0; i < oaioExtIds.length; i += OAIO_BATCH) {
-            const batch = oaioExtIds.slice(i, i + OAIO_BATCH);
-            const { data: oaioSaved } = await supabase
-              .from('matches')
-              .select('id, external_id')
-              .in('external_id', batch);
-            if (oaioSaved) for (const m of oaioSaved) oaioIdMap[m.external_id] = m.id;
-          }
-
-          // Map odds rows to match IDs
-          const oaioOddsWithIds = oaioData.oddsRows
-            .map(({ match_external_id, ...rest }) => ({
-              ...rest,
-              match_id: oaioIdMap[match_external_id],
-              handicap_point: rest.handicap_point ?? 0,
-            }))
-            .filter((o) => o.match_id);
-
-          // Upsert odds in batches
-          for (let i = 0; i < oaioOddsWithIds.length; i += BATCH_SIZE) {
-            const batch = oaioOddsWithIds.slice(i, i + BATCH_SIZE);
-            const { error: oaioOErr } = await supabase.from('odds').upsert(batch, {
-              onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
-            });
-            if (oaioOErr) log.error('Error upserting Odds-API.io odds', { error: oaioOErr.message });
-          }
-
-          oddsApiIoMatchCount = oaioData.matches.length;
-          oddsApiIoOddsCount = oaioOddsWithIds.length;
-
-          // Add to savedMatches for arb detection
-          const existingIds2 = new Set(savedMatches.map((m) => m.id));
-          for (const [eid, id] of Object.entries(oaioIdMap)) {
-            if (!existingIds2.has(id)) {
-              savedMatches.push({ id, external_id: eid });
-              existingIds2.add(id);
-            }
-          }
-        }
-        log.info(`[Odds-API.io] Saved ${oddsApiIoMatchCount} matches, ${oddsApiIoOddsCount} odds rows`);
-      } catch (oaioErr) {
-        log.warn('[Odds-API.io] Collection error (non-fatal)', { error: oaioErr.message });
-      }
-    }
-
     // ─── Betman (domestic) scraping ───
     let betmanMatchCount = 0;
     let betmanOddsCount = 0;
@@ -454,7 +400,7 @@ async function collect(sports, markets) {
     const newOpps = await runArbitrageDetection(savedMatches);
     log.info(`Found ${newOpps.length} new arbitrage opportunities`);
 
-    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${oddsApiIoMatchCount} oddsApiIo + ${betmanMatchCount} domestic matches`);
+    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${betmanMatchCount} domestic matches`);
 
     lastCollectionResult = {
       success: true,
@@ -466,7 +412,6 @@ async function collect(sports, markets) {
       creditsUsed,
       quota: getQuotaInfo(),
       pinnacle: { matches: pinnacleMatchCount, oddsRows: pinnacleOddsCount },
-      oddsApiIo: { matches: oddsApiIoMatchCount, oddsRows: oddsApiIoOddsCount },
       domestic: { matches: betmanMatchCount, oddsRows: betmanOddsCount },
     };
 
@@ -484,22 +429,153 @@ async function collect(sports, markets) {
   }
 }
 
+/**
+ * Standalone Odds-API.io collection cycle.
+ * Runs independently from the main collector on its own schedule (default: 20 min).
+ */
+async function collectOddsApiIoAndSave() {
+  if (!isOddsApiIoConfigured()) {
+    log.info('[Odds-API.io Scheduler] Not configured, skipping');
+    return null;
+  }
+
+  const startTime = Date.now();
+  log.info('[Odds-API.io Scheduler] Starting collection...');
+
+  try {
+    const oaioData = await collectOddsApiIo();
+
+    if (!oaioData || oaioData.skipped || oaioData.matches.length === 0) {
+      lastOddsApiIoResult = {
+        success: true,
+        timestamp: new Date().toISOString(),
+        duration: Date.now() - startTime,
+        matches: 0,
+        oddsRows: 0,
+        arbitrageFound: 0,
+      };
+      log.info('[Odds-API.io Scheduler] No data to process');
+      return lastOddsApiIoResult;
+    }
+
+    // Upsert matches
+    const { error: mErr } = await supabase
+      .from('matches')
+      .upsert(oaioData.matches, { onConflict: 'external_id' });
+    if (mErr) log.error('[Odds-API.io] Error upserting matches', { error: mErr.message });
+
+    // Get match IDs in batches
+    const extIds = oaioData.matches.map((m) => m.external_id);
+    const idMap = {};
+    const ID_BATCH = 50;
+    for (let i = 0; i < extIds.length; i += ID_BATCH) {
+      const batch = extIds.slice(i, i + ID_BATCH);
+      const { data: saved } = await supabase
+        .from('matches')
+        .select('id, external_id')
+        .in('external_id', batch);
+      if (saved) for (const m of saved) idMap[m.external_id] = m.id;
+    }
+
+    // Map odds rows to match IDs
+    const oddsWithIds = oaioData.oddsRows
+      .map(({ match_external_id, ...rest }) => ({
+        ...rest,
+        match_id: idMap[match_external_id],
+        handicap_point: rest.handicap_point ?? 0,
+      }))
+      .filter((o) => o.match_id);
+
+    // Upsert odds in batches
+    for (let i = 0; i < oddsWithIds.length; i += BATCH_SIZE) {
+      const batch = oddsWithIds.slice(i, i + BATCH_SIZE);
+      const { error: oErr } = await supabase.from('odds').upsert(batch, {
+        onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
+      });
+      if (oErr) log.error('[Odds-API.io] Error upserting odds', { error: oErr.message });
+    }
+
+    // Run arbitrage detection for affected matches
+    const savedMatches = Object.entries(idMap).map(([eid, id]) => ({ id, external_id: eid }));
+    const newOpps = await runArbitrageDetection(savedMatches);
+
+    const duration = Date.now() - startTime;
+    lastOddsApiIoResult = {
+      success: true,
+      timestamp: new Date().toISOString(),
+      duration,
+      matches: oaioData.matches.length,
+      oddsRows: oddsWithIds.length,
+      arbitrageFound: newOpps.length,
+    };
+
+    log.info(
+      `[Odds-API.io Scheduler] Complete: ${oaioData.matches.length} matches, ${oddsWithIds.length} odds, ${newOpps.length} arbs (${duration}ms)`,
+    );
+    return lastOddsApiIoResult;
+  } catch (err) {
+    log.error('[Odds-API.io Scheduler] Error', { error: err.message, stack: err.stack });
+    lastOddsApiIoResult = {
+      success: false,
+      timestamp: new Date().toISOString(),
+      duration: Date.now() - startTime,
+      error: err.message,
+    };
+    return lastOddsApiIoResult;
+  }
+}
+
+/**
+ * Start the independent Odds-API.io scheduler.
+ * Default: every 20 minutes (configurable via ODDS_API_IO_INTERVAL env var).
+ */
+function startOddsApiIoScheduler() {
+  if (!isOddsApiIoConfigured()) {
+    log.info('[Odds-API.io Scheduler] Not configured (ODDS_API_IO_KEY missing), scheduler disabled');
+    return;
+  }
+  if (oddsApiIoSchedulerRunning) {
+    log.warn('[Odds-API.io Scheduler] Already running, skipping duplicate start');
+    return;
+  }
+
+  oddsApiIoSchedulerRunning = true;
+  const minutes = Math.max(1, ODDS_API_IO_INTERVAL_MIN);
+  const cronExpression = `*/${minutes} * * * *`;
+
+  // Run once immediately on start
+  collectOddsApiIoAndSave();
+
+  cron.schedule(cronExpression, () => collectOddsApiIoAndSave());
+  log.info(`[Odds-API.io Scheduler] Started — running every ${minutes} minutes`);
+}
+
 // Only auto-run when executed directly (not when imported as module)
 if (require.main === module) {
   // Run immediately on start
   collect();
 
-  // Schedule recurring collection
+  // Schedule recurring collection (main: The Odds API + Pinnacle + Betman)
   if (INTERVAL_SECONDS >= 60) {
     const minutes = Math.floor(INTERVAL_SECONDS / 60);
     const cronExpression = `*/${minutes} * * * *`;
     cron.schedule(cronExpression, () => collect());
-    log.info(`Odds collector started. Running every ${minutes} minutes.`);
+    log.info(`Main collector started. Running every ${minutes} minutes.`);
   } else {
     const cronExpression = `*/${Math.max(1, INTERVAL_SECONDS)} * * * * *`;
     cron.schedule(cronExpression, () => collect());
-    log.info(`Odds collector started. Running every ${INTERVAL_SECONDS} seconds.`);
+    log.info(`Main collector started. Running every ${INTERVAL_SECONDS} seconds.`);
   }
+
+  // Start Odds-API.io on separate schedule
+  startOddsApiIoScheduler();
 }
 
-module.exports = { collect, getLastResult, transformOddsData };
+module.exports = {
+  collect,
+  getLastResult,
+  transformOddsData,
+  collectOddsApiIoAndSave,
+  startOddsApiIoScheduler,
+  getLastOddsApiIoResult,
+};

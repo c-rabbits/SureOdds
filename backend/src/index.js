@@ -11,6 +11,7 @@ const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const { requireAuth } = require('./middleware/auth');
 const { logger, createServiceLogger, requestLogger } = require('./config/logger');
+const { startOddsApiIoScheduler } = require('./collector/index');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -58,6 +59,9 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   log.info(`SureOdds API running on port ${PORT}`);
+
+  // Start Odds-API.io independent scheduler (every 20 min)
+  startOddsApiIoScheduler();
 });
 
 module.exports = app;
