@@ -47,6 +47,9 @@ const sinceCache = {
   odds: {},      // { sportId: sinceValue }
 };
 
+// Track API access status (updated after first request)
+let apiAccessStatus = null; // null = untested, 'ok' | 'no_access' | 'auth_failed'
+
 // In-memory cache of fixtures for matching odds to teams
 const fixturesCache = {}; // { eventId: { home, away, league, starts, sportId } }
 
@@ -121,13 +124,18 @@ async function fetchFixtures(sportId, useDelta = true) {
       }
     }
 
+    apiAccessStatus = 'ok';
     log.info(`Fixtures sportId=${sportId}: ${eventCount} events cached`);
     return data;
   } catch (err) {
     if (err.response?.status === 429) {
       log.warn(`Fixtures rate limited for sportId=${sportId}, will retry next cycle`);
     } else if (err.response?.status === 401) {
+      apiAccessStatus = 'auth_failed';
       log.error('Pinnacle auth failed — check PINNACLE_USERNAME/PASSWORD');
+    } else if (err.response?.status === 403) {
+      apiAccessStatus = 'no_access';
+      log.error('Pinnacle API access denied (403) — account not permitted. Apply at api@pinnacle.com');
     } else {
       log.error(`Fixtures error sportId=${sportId}`, { error: err.message });
     }
@@ -162,6 +170,10 @@ async function fetchOdds(sportId, useDelta = true) {
   } catch (err) {
     if (err.response?.status === 429) {
       log.warn(`Odds rate limited for sportId=${sportId}`);
+    } else if (err.response?.status === 401) {
+      log.error('Pinnacle auth failed — check PINNACLE_USERNAME/PASSWORD');
+    } else if (err.response?.status === 403) {
+      log.error('Pinnacle API access denied (403) — account not permitted. Apply at api@pinnacle.com');
     } else {
       log.error(`Odds error sportId=${sportId}`, { error: err.message });
     }
@@ -325,7 +337,13 @@ async function collectPinnacle() {
 
   for (const sportId of SPORT_IDS) {
     // Step 1: Fetch fixtures (to get team names, leagues)
-    await fetchFixtures(sportId);
+    const fixtureData = await fetchFixtures(sportId);
+
+    // If access denied, stop trying other sports
+    if (apiAccessStatus === 'no_access' || apiAccessStatus === 'auth_failed') {
+      log.warn(`Pinnacle API access issue (${apiAccessStatus}), stopping collection`);
+      return { matches: [], oddsRows: [], error: apiAccessStatus };
+    }
 
     // Small delay to respect rate limits
     await new Promise((r) => setTimeout(r, 2000));
@@ -359,6 +377,7 @@ async function collectPinnacle() {
 function getPinnacleStatus() {
   return {
     configured: isConfigured(),
+    apiAccess: apiAccessStatus, // null=untested, 'ok', 'no_access', 'auth_failed'
     sportIds: SPORT_IDS,
     cachedFixtures: Object.keys(fixturesCache).length,
     sinceValues: {
