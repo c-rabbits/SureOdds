@@ -4,17 +4,19 @@ const { refreshMockData } = require('../mockData');
 
 const USE_MOCK = !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY;
 
-let collect, getLastResult, getQuotaInfo, SPORTS, MARKETS, DEFAULT_SPORTS;
+let collect, getLastResult, getQuotaInfo, SPORTS, MARKETS, DEFAULT_SPORTS, getPinnacleStatus;
 
 try {
   const collector = require('../collector/index');
   const oddsApi = require('../collector/oddsApi');
+  const pinnacleApi = require('../collector/pinnacleApi');
   collect = collector.collect;
   getLastResult = collector.getLastResult;
   getQuotaInfo = oddsApi.getQuotaInfo;
   SPORTS = oddsApi.SPORTS;
   MARKETS = oddsApi.MARKETS;
   DEFAULT_SPORTS = oddsApi.DEFAULT_SPORTS;
+  getPinnacleStatus = pinnacleApi.getPinnacleStatus;
 } catch (e) {
   // Collector modules may not exist yet
   collect = async () => ({ success: true, mock: true });
@@ -23,6 +25,7 @@ try {
   SPORTS = [];
   MARKETS = ['h2h', 'spreads', 'totals'];
   DEFAULT_SPORTS = [];
+  getPinnacleStatus = () => ({ configured: false });
 }
 
 // POST /api/collector/trigger
@@ -92,6 +95,7 @@ router.get('/status', (req, res) => {
         markets: MARKETS,
         defaultSports: DEFAULT_SPORTS,
       },
+      pinnacle: getPinnacleStatus(),
     },
   });
 });

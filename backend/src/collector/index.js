@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const supabase = require('../config/supabase');
 const { fetchAllOdds, getQuotaInfo } = require('./oddsApi');
 const { scrapeBetman } = require('./betmanScraper');
+const { collectPinnacle, isConfigured: isPinnacleConfigured } = require('./pinnacleApi');
 const { detectAllArbitrageForMatch } = require('../services/arbitrageEngine');
 const { findMatchingInternationalMatch } = require('../services/teamMatcher');
 const { sendArbitrageAlert } = require('../services/telegramBot');
@@ -237,6 +238,68 @@ async function collect(sports, markets) {
     const savedMatches = await saveToDatabase(matches, oddsRows);
     log.info(`Saved ${savedMatches.length} matches, ${oddsRows.length} odds rows`);
 
+    // ─── Pinnacle direct API ───
+    let pinnacleMatchCount = 0;
+    let pinnacleOddsCount = 0;
+    if (isPinnacleConfigured()) {
+      try {
+        const pinnData = await collectPinnacle();
+        if (pinnData.matches.length > 0) {
+          // Upsert Pinnacle matches
+          const { error: pmError } = await supabase
+            .from('matches')
+            .upsert(pinnData.matches, { onConflict: 'external_id' });
+          if (pmError) log.error('Error upserting Pinnacle matches', { error: pmError.message });
+
+          // Get match IDs
+          const pinnExtIds = pinnData.matches.map((m) => m.external_id);
+          const pinnIdMap = {};
+          const PIN_BATCH = 50;
+          for (let i = 0; i < pinnExtIds.length; i += PIN_BATCH) {
+            const batch = pinnExtIds.slice(i, i + PIN_BATCH);
+            const { data: pSaved } = await supabase
+              .from('matches')
+              .select('id, external_id')
+              .in('external_id', batch);
+            if (pSaved) for (const m of pSaved) pinnIdMap[m.external_id] = m.id;
+          }
+
+          // Map odds rows to match IDs
+          const pinnOddsWithIds = pinnData.oddsRows
+            .map(({ match_external_id, ...rest }) => ({
+              ...rest,
+              match_id: pinnIdMap[match_external_id],
+              handicap_point: rest.handicap_point ?? 0,
+            }))
+            .filter((o) => o.match_id);
+
+          // Upsert Pinnacle odds in batches
+          for (let i = 0; i < pinnOddsWithIds.length; i += BATCH_SIZE) {
+            const batch = pinnOddsWithIds.slice(i, i + BATCH_SIZE);
+            const { error: poError } = await supabase.from('odds').upsert(batch, {
+              onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
+            });
+            if (poError) log.error('Error upserting Pinnacle odds', { error: poError.message });
+          }
+
+          pinnacleMatchCount = pinnData.matches.length;
+          pinnacleOddsCount = pinnOddsWithIds.length;
+
+          // Add to savedMatches for arb detection
+          const existingIds = new Set(savedMatches.map((m) => m.id));
+          for (const [eid, id] of Object.entries(pinnIdMap)) {
+            if (!existingIds.has(id)) {
+              savedMatches.push({ id, external_id: eid });
+              existingIds.add(id);
+            }
+          }
+        }
+        log.info(`[Pinnacle] Saved ${pinnacleMatchCount} matches, ${pinnacleOddsCount} odds rows`);
+      } catch (pinnErr) {
+        log.warn('[Pinnacle] Collection error (non-fatal)', { error: pinnErr.message });
+      }
+    }
+
     // ─── Betman (domestic) scraping ───
     let betmanMatchCount = 0;
     let betmanOddsCount = 0;
@@ -328,7 +391,7 @@ async function collect(sports, markets) {
     const newOpps = await runArbitrageDetection(savedMatches);
     log.info(`Found ${newOpps.length} new arbitrage opportunities`);
 
-    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${betmanMatchCount} domestic matches`);
+    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${betmanMatchCount} domestic matches`);
 
     lastCollectionResult = {
       success: true,
@@ -339,6 +402,7 @@ async function collect(sports, markets) {
       arbitrageFound: newOpps.length,
       creditsUsed,
       quota: getQuotaInfo(),
+      pinnacle: { matches: pinnacleMatchCount, oddsRows: pinnacleOddsCount },
       domestic: { matches: betmanMatchCount, oddsRows: betmanOddsCount },
     };
 
