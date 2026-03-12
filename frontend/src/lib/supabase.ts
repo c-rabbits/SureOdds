@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -8,10 +9,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 let supabase: SupabaseClient;
 
 if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 } else {
   // 빌드 타임 또는 미설정 시 더미 URL로 생성 (실제 API 호출은 실패함)
-  supabase = createClient(
+  supabase = createBrowserClient(
     'https://placeholder.supabase.co',
     'placeholder-anon-key'
   );
