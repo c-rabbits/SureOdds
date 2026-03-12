@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 4000;
 const log = createServiceLogger('Server');
 
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000' }));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 // 요청 로깅 미들웨어
 app.use(requestLogger);
