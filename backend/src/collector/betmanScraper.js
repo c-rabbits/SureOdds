@@ -135,7 +135,7 @@ async function findProtoRounds(includeOnSale = true, includeClosed = true) {
 
     let normalizedStatus = 'unknown';
     if (status === 'SaleProgress') normalizedStatus = 'on_sale';
-    else if (status === 'SaleComplete') normalizedStatus = 'closed';
+    else if (status === 'SaleComplete' || status === 'PayoStart' || status === 'PayoEnd') normalizedStatus = 'closed';
     else if (status === 'SaleBefore') normalizedStatus = 'before_sale';
 
     if (normalizedStatus === 'before_sale') continue;

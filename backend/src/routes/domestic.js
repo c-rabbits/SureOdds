@@ -203,6 +203,98 @@ router.post('/match-link', async (req, res) => {
 });
 
 /**
+ * POST /api/domestic/betman/save
+ * Receive pre-scraped Betman data from the frontend (client-side scraping via Vercel Edge proxy).
+ * The frontend scrapes betman.co.kr through a Korean edge function, then sends the parsed data here.
+ */
+router.post('/betman/save', async (req, res) => {
+  try {
+    const { matches, oddsRows } = req.body;
+
+    if (!matches || !oddsRows) {
+      return res.status(400).json({ error: 'matches and oddsRows are required' });
+    }
+
+    log.info(`Receiving client-scraped data: ${matches.length} matches, ${oddsRows.length} odds rows`);
+
+    if (matches.length > 0) {
+      // Check all matches for international counterparts in parallel
+      const matchResults = await Promise.all(
+        matches.map(async (match) => {
+          const intlMatchId = await findMatchingInternationalMatch(match);
+          return { match, intlMatchId };
+        })
+      );
+
+      const newMatches = matchResults
+        .filter((r) => !r.intlMatchId)
+        .map((r) => r.match);
+
+      if (newMatches.length > 0) {
+        await supabase.from('matches').upsert(newMatches, { onConflict: 'external_id' });
+      }
+
+      // Get all match IDs in parallel batches
+      const allExtIds = matches.map((m) => m.external_id);
+      const ID_BATCH = 50;
+      const batchPromises = [];
+      for (let i = 0; i < allExtIds.length; i += ID_BATCH) {
+        const batch = allExtIds.slice(i, i + ID_BATCH);
+        batchPromises.push(
+          supabase.from('matches').select('id, external_id').in('external_id', batch)
+        );
+      }
+      const batchResults = await Promise.all(batchPromises);
+
+      const idMap = {};
+      for (const { data } of batchResults) {
+        if (data) for (const m of data) idMap[m.external_id] = m.id;
+      }
+      log.info(`idMap size: ${Object.keys(idMap).length}, oddsRows: ${oddsRows.length}`);
+
+      // Map odds rows with match_id
+      const mappedOdds = oddsRows
+        .map(({ match_external_id, ...rest }) => ({
+          ...rest,
+          match_id: idMap[match_external_id],
+          handicap_point: rest.handicap_point ?? 0,
+          source_type: 'domestic',
+        }))
+        .filter((o) => o.match_id);
+
+      log.info(`Mapped odds rows with match_id: ${mappedOdds.length}`);
+
+      // Upsert odds in parallel batches
+      const BATCH_SIZE = 100;
+      const oddsBatchPromises = [];
+      for (let i = 0; i < mappedOdds.length; i += BATCH_SIZE) {
+        const batch = mappedOdds.slice(i, i + BATCH_SIZE);
+        oddsBatchPromises.push(
+          supabase.from('odds').upsert(batch, {
+            onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
+          }).then(({ error }) => {
+            if (error) log.error(`Odds upsert error batch ${i}`, { error: error.message });
+            else log.info(`Odds batch ${i}-${i+batch.length} upserted OK`);
+          })
+        );
+      }
+      await Promise.all(oddsBatchPromises);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        matches: matches.length,
+        oddsRows: oddsRows.length,
+      },
+    });
+  } catch (err) {
+    log.error('Error saving client-scraped Betman data', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * POST /api/domestic/scrape-with-auth
  * Scrape a Korean site that requires login.
  * Credentials are used once and NOT stored.

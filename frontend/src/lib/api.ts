@@ -214,7 +214,21 @@ export async function getApiQuota(): Promise<QuotaInfo> {
 // Domestic (국내 배당)
 // ============================================================
 export async function scrapeBetman(): Promise<{ matches: number; oddsRows: number }> {
-  const { data } = await api.post('/api/domestic/betman/scrape', {}, { timeout: 120000 });
+  // Client-side scraping via Vercel Edge proxy (Korea ICN)
+  // to bypass betman.co.kr geo-blocking on overseas servers
+  const { scrapeBetmanViaProxy } = await import('@/lib/betmanScraper');
+  const result = await scrapeBetmanViaProxy();
+
+  if (result.matches.length === 0 && result.oddsRows.length === 0) {
+    return { matches: 0, oddsRows: 0 };
+  }
+
+  // Send scraped data to backend for DB storage
+  const { data } = await api.post('/api/domestic/betman/save', {
+    matches: result.matches,
+    oddsRows: result.oddsRows,
+  }, { timeout: 60000 });
+
   return data.data;
 }
 
