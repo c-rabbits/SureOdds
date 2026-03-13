@@ -366,7 +366,7 @@ export async function updateSiteRequest(
 }
 
 // Admin: get all site registrations
-export async function getAdminSiteRegistrations(): Promise<SiteRegistration[]> {
+export async function getAdminSiteRegistrations(): Promise<(SiteRegistration & { profiles?: { email: string; display_name: string | null } })[]> {
   const { data } = await api.get('/api/admin/site-registrations');
   return data.data;
 }
@@ -377,5 +377,20 @@ export async function updateAdminSiteRegistration(
   payload: { status?: string; isActive?: boolean }
 ): Promise<SiteRegistration> {
   const { data } = await api.patch(`/api/admin/site-registrations/${id}`, payload);
+  return data.data;
+}
+
+// Admin: get all site requests
+export async function getAdminSiteRequests(): Promise<(SiteRequest & { profiles?: { email: string; display_name: string | null } })[]> {
+  const { data } = await api.get('/api/admin/site-requests');
+  return data.data;
+}
+
+// Admin: update site request status
+export async function updateAdminSiteRequest(
+  id: string,
+  payload: { status?: string; adminNotes?: string }
+): Promise<SiteRequest> {
+  const { data } = await api.patch(`/api/domestic/site-requests/${id}`, payload);
   return data.data;
 }
