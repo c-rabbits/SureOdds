@@ -71,6 +71,9 @@ const LEAGUE_MAP = {
   'usa-nhl': 'icehockey_nhl',
 };
 
+// Minimum hours before match start to bother collecting (skip matches starting very soon)
+const MIN_HOURS_BEFORE_START = 1;
+
 // Track request count for rate limiting
 let requestCount = 0;
 let requestCountResetAt = null;
@@ -261,8 +264,68 @@ function transformData(eventsWithOdds) {
 }
 
 /**
+ * Check if a league slug is a "major" league (defined in LEAGUE_MAP).
+ */
+function isMajorLeague(leagueSlug) {
+  return !!LEAGUE_MAP[leagueSlug];
+}
+
+/**
+ * Prioritize and filter events for efficient API usage.
+ *
+ * Strategy:
+ * 1. Skip events starting within MIN_HOURS_BEFORE_START (they'll expire from frontend soon)
+ * 2. Major leagues (LEAGUE_MAP) first — these are what users care about
+ * 3. Within each group, sort by start_time ascending (nearest future first)
+ * 4. Cap minor league events to avoid wasting API requests
+ */
+function prioritizeEvents(events) {
+  const cutoff = new Date(Date.now() + MIN_HOURS_BEFORE_START * 3600000);
+
+  // Filter out events starting too soon
+  const future = events.filter((e) => {
+    if (!e.date) return true; // keep if no date (let API decide)
+    return new Date(e.date) > cutoff;
+  });
+
+  const skipped = events.length - future.length;
+  if (skipped > 0) {
+    log.info(`Skipped ${skipped} events starting within ${MIN_HOURS_BEFORE_START}h`);
+  }
+
+  // Split into major vs minor leagues
+  const major = [];
+  const minor = [];
+  for (const ev of future) {
+    if (isMajorLeague(ev.league?.slug || '')) {
+      major.push(ev);
+    } else {
+      minor.push(ev);
+    }
+  }
+
+  // Sort each group by start_time ascending
+  const byTime = (a, b) => new Date(a.date || 0) - new Date(b.date || 0);
+  major.sort(byTime);
+  minor.sort(byTime);
+
+  // Cap minor events to leave room for major leagues
+  // Allocate: ~60 batches for major, ~20 batches for minor → ~200 minor events max
+  const MAX_MINOR = 200;
+  const cappedMinor = minor.slice(0, MAX_MINOR);
+  if (minor.length > MAX_MINOR) {
+    log.info(`Capped minor league events: ${MAX_MINOR}/${minor.length}`);
+  }
+
+  log.info(`Prioritized: ${major.length} major + ${cappedMinor.length} minor = ${major.length + cappedMinor.length} events`);
+
+  // Major first, then minor
+  return [...major, ...cappedMinor];
+}
+
+/**
  * Main collection function.
- * Fetches events → batches odds → transforms.
+ * Fetches events → prioritizes → batches odds → transforms.
  */
 async function collectOddsApiIo() {
   if (!isConfigured()) {
@@ -290,12 +353,20 @@ async function collectOddsApiIo() {
     return { matches: [], oddsRows: [] };
   }
 
-  // Step 2: Fetch odds in batches of 10 (using /odds/multi)
+  // Step 2: Prioritize — major leagues first, skip near-start events
+  const prioritized = prioritizeEvents(allEvents);
+
+  if (prioritized.length === 0) {
+    log.info('No events after prioritization');
+    return { matches: [], oddsRows: [] };
+  }
+
+  // Step 3: Fetch odds in batches of 10 (using /odds/multi)
   const BATCH_SIZE = 10;
   const eventsWithOdds = [];
 
-  for (let i = 0; i < allEvents.length; i += BATCH_SIZE) {
-    const batch = allEvents.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < prioritized.length; i += BATCH_SIZE) {
+    const batch = prioritized.slice(i, i + BATCH_SIZE);
     const eventIds = batch.map((e) => e.id);
 
     const oddsData = await fetchOddsBatch(eventIds);
@@ -309,12 +380,12 @@ async function collectOddsApiIo() {
 
     // Check rate limit
     if (requestCount >= 90) {
-      log.warn(`Rate limit approaching, processed ${i + BATCH_SIZE}/${allEvents.length} events`);
+      log.warn(`Rate limit approaching, processed ${i + BATCH_SIZE}/${prioritized.length} events`);
       break;
     }
   }
 
-  // Step 3: Transform to our format
+  // Step 4: Transform to our format
   const { matches, oddsRows } = transformData(eventsWithOdds);
 
   const duration = Date.now() - startTime;
