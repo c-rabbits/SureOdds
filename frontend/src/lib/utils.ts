@@ -91,7 +91,6 @@ export const BOOKMAKER_CONFIG: BookmakerInfo[] = [
   { key: 'dafabet', name: 'DafaBet', short: 'DAFA', domestic: false },
   { key: 'maxbet', name: 'MaxBet', short: 'MAX', domestic: false },
   { key: 'stake', name: 'Stake', short: 'STK', domestic: false },
-  { key: 'unibet', name: 'Unibet', short: 'UNI', domestic: false },
   { key: 'betfair', name: 'Betfair', short: 'BFAR', domestic: false },
   { key: '1xbet', name: '1xBet', short: '1XB', domestic: false },
   { key: 'williamhill', name: 'William Hill', short: 'WH', domestic: false },
@@ -101,6 +100,27 @@ export const BOOKMAKER_CONFIG: BookmakerInfo[] = [
   { key: 'betman_proto', name: '베트맨 프로토', short: 'BM', domestic: true },
   { key: 'manual_domestic', name: '수동 입력', short: '수동', domestic: true },
 ];
+
+/**
+ * Bookmaker betting page URLs.
+ * Used for "바로가기" (Go to) links in the detail panel.
+ */
+export const BOOKMAKER_URLS: Record<string, string> = {
+  pinnacle: 'https://www.pinnacle.com',
+  sbobet: 'https://www.sbobet.com',
+  dafabet: 'https://www.maxbet.com',
+  maxbet: 'https://www.maxbet.com',
+  bet365: 'https://www.bet365.com',
+  betman_proto: 'https://www.betman.co.kr/main/mainPage/gamebuy/gameSlip.do',
+};
+
+/**
+ * Get betting page URL for a bookmaker.
+ * Returns the URL string or null if not configured.
+ */
+export function getBookmakerUrl(key: string): string | null {
+  return BOOKMAKER_URLS[key] || null;
+}
 
 const BOOKMAKER_NAME_MAP: Record<string, string> = Object.fromEntries(
   BOOKMAKER_CONFIG.map((b) => [b.key, b.name])

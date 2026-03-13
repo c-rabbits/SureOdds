@@ -7,11 +7,13 @@ import {
   formatMatchTime,
   getSportEmoji,
   getBookmakerName,
+  getBookmakerUrl,
   formatOdds,
   formatHandicap,
   getMarketLabel,
   getOutcomeLabels,
   findBestOdds,
+  isDomesticBookmaker,
 } from '@/lib/utils';
 
 interface Props {
@@ -156,13 +158,19 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
                 )}
                 <th className="text-center py-1 pb-2">{label2}</th>
                 <th className="text-right py-1 pb-2">갱신</th>
+                <th className="text-center py-1 pb-2 w-16">바로가기</th>
               </tr>
             </thead>
             <tbody>
-              {activeOdds.map((o) => (
+              {activeOdds.map((o) => {
+                const bmUrl = getBookmakerUrl(o.bookmaker);
+                return (
                 <tr key={o.id} className="border-t border-gray-800/50">
                   <td className="py-1.5 text-gray-300 font-medium">
-                    {o.bookmaker_title || getBookmakerName(o.bookmaker)}
+                    <span className="flex items-center gap-1.5">
+                      {isDomesticBookmaker(o.bookmaker) && <span className="text-[10px]">🇰🇷</span>}
+                      {o.bookmaker_title || getBookmakerName(o.bookmaker)}
+                    </span>
                   </td>
                   <td className="py-1.5 text-center font-mono">
                     <span className={best1 && o.outcome_1_odds === best1.odds ? 'text-green-400 font-bold' : 'text-gray-300'}>
@@ -184,8 +192,27 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
                   <td className="py-1.5 text-right text-gray-600">
                     {new Date(o.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </td>
+                  <td className="py-1.5 text-center">
+                    {bmUrl ? (
+                      <a
+                        href={bmUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+                        title={`${o.bookmaker_title || getBookmakerName(o.bookmaker)} 베팅 페이지로 이동`}
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        이동
+                      </a>
+                    ) : (
+                      <span className="text-gray-700">-</span>
+                    )}
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

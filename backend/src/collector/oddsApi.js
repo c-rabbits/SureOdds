@@ -38,7 +38,7 @@ const MARKETS = process.env.ODDS_MARKETS
   : DEFAULT_MARKETS;
 
 // Bookmakers to track
-const BOOKMAKERS = ['bet365', 'pinnacle', 'stake', 'unibet', 'betfair'];
+const BOOKMAKERS = ['bet365', 'pinnacle', 'stake', 'betfair'];
 
 // Track remaining API quota from response headers
 let lastQuotaInfo = { used: null, remaining: null, updatedAt: null };
