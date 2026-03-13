@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS odds (
   outcome_1_odds    DECIMAL(6,3),                       -- home (h2h/spreads) or over (totals)
   outcome_2_odds    DECIMAL(6,3),                       -- away (h2h/spreads) or under (totals)
   outcome_draw_odds DECIMAL(6,3),                       -- draw (h2h 3-way only), NULL otherwise
+  event_url         TEXT DEFAULT NULL,                    -- deep link to bookmaker's event page
   updated_at        TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (match_id, bookmaker, market_type, COALESCE(handicap_point, 0))
 );

@@ -216,9 +216,14 @@ function transformData(eventsWithOdds) {
     }
 
     // Process bookmakers
+    // Capture per-bookmaker deep links from urls field (e.g. { Sbobet: "https://..." })
+    const eventUrls = event.urls || {};
+
     for (const [bmName, markets] of Object.entries(event.bookmakers || {})) {
       const bmKey = BM_KEY_MAP[bmName] || bmName.toLowerCase();
       const bmTitle = BM_TITLE_MAP[bmName] || bmName;
+      // Use event-level URL if it's a real link (not "N/A")
+      const bmEventUrl = (eventUrls[bmName] && eventUrls[bmName] !== 'N/A') ? eventUrls[bmName] : null;
 
       for (const market of markets) {
         const odds = market.odds;
@@ -240,6 +245,7 @@ function transformData(eventsWithOdds) {
               outcome_2_odds: parseFloat(mainLine.away),
               outcome_draw_odds: mainLine.draw ? parseFloat(mainLine.draw) : null,
               source_type: 'international',
+              event_url: bmEventUrl,
             });
           }
         } else if (market.name === 'Spread' || market.name === 'Spread HT') {
@@ -255,6 +261,7 @@ function transformData(eventsWithOdds) {
               outcome_2_odds: parseFloat(mainLine.away),
               outcome_draw_odds: null,
               source_type: 'international',
+              event_url: bmEventUrl,
             });
           }
         } else if (market.name === 'Totals' || market.name === 'Totals HT') {
@@ -270,6 +277,7 @@ function transformData(eventsWithOdds) {
               outcome_2_odds: parseFloat(mainLine.under),
               outcome_draw_odds: null,
               source_type: 'international',
+              event_url: bmEventUrl,
             });
           }
         }

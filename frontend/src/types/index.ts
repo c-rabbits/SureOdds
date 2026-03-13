@@ -24,6 +24,7 @@ export interface Odds {
   outcome_2_odds: number | null;  // away (h2h/spreads) or under (totals)
   outcome_draw_odds: number | null; // draw (h2h 3-way only)
   source_type: SourceType;
+  event_url: string | null;         // deep link to bookmaker's event page
   updated_at: string;
 }
 

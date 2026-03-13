@@ -113,10 +113,38 @@ export const BOOKMAKER_URLS: Record<string, string> = {
 };
 
 /**
+ * Pinnacle league-level URL mapping.
+ * Since Pinnacle doesn't support event-level deep links via API,
+ * we link to the specific league matchups page instead of the homepage.
+ */
+const PINNACLE_LEAGUE_URLS: Record<string, string> = {
+  soccer_epl: 'https://www.pinnacle.com/en/soccer/england-premier-league/matchups/',
+  soccer_spain_la_liga: 'https://www.pinnacle.com/en/soccer/spain-la-liga/matchups/',
+  soccer_germany_bundesliga: 'https://www.pinnacle.com/en/soccer/germany-bundesliga/matchups/',
+  soccer_italy_serie_a: 'https://www.pinnacle.com/en/soccer/italy-serie-a/matchups/',
+  soccer_france_ligue_one: 'https://www.pinnacle.com/en/soccer/france-ligue-1/matchups/',
+  soccer_uefa_champs_league: 'https://www.pinnacle.com/en/soccer/uefa-champions-league/matchups/',
+  soccer_uefa_europa_league: 'https://www.pinnacle.com/en/soccer/uefa-europa-league/matchups/',
+  soccer_korea_kleague1: 'https://www.pinnacle.com/en/soccer/korea-republic-k-league-1/matchups/',
+  soccer_japan_j_league: 'https://www.pinnacle.com/en/soccer/japan-j-league/matchups/',
+  basketball_nba: 'https://www.pinnacle.com/en/basketball/nba/matchups/',
+  basketball_euroleague: 'https://www.pinnacle.com/en/basketball/euroleague/matchups/',
+  baseball_mlb: 'https://www.pinnacle.com/en/baseball/mlb/matchups/',
+  baseball_kbo: 'https://www.pinnacle.com/en/baseball/south-korea-kbo/matchups/',
+  baseball_npb: 'https://www.pinnacle.com/en/baseball/japan-npb/matchups/',
+  icehockey_nhl: 'https://www.pinnacle.com/en/hockey/nhl/matchups/',
+};
+
+/**
  * Get betting page URL for a bookmaker.
+ * For Pinnacle, returns league-specific matchups page if sport is provided.
  * Returns the URL string or null if not configured.
  */
-export function getBookmakerUrl(key: string): string | null {
+export function getBookmakerUrl(key: string, sport?: string): string | null {
+  // Pinnacle: prefer league-level URL
+  if (key === 'pinnacle' && sport) {
+    return PINNACLE_LEAGUE_URLS[sport] || BOOKMAKER_URLS[key] || null;
+  }
   return BOOKMAKER_URLS[key] || null;
 }
 

@@ -163,7 +163,8 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
             </thead>
             <tbody>
               {activeOdds.map((o) => {
-                const bmUrl = getBookmakerUrl(o.bookmaker);
+                // Priority: event_url (per-match deep link) > league URL > homepage
+                const bmUrl = o.event_url || getBookmakerUrl(o.bookmaker, match.sport);
                 return (
                 <tr key={o.id} className="border-t border-gray-800/50">
                   <td className="py-1.5 text-gray-300 font-medium">

@@ -50,6 +50,11 @@ function transformOddsData(rawData) {
 
     for (const bookmaker of event.bookmakers || []) {
       for (const market of bookmaker.markets || []) {
+        // Deep link: prefer market.link, then first non-null outcome.link
+        const eventUrl = market.link
+          || (market.outcomes && market.outcomes.find((o) => o.link))?.link
+          || null;
+
         if (market.key === 'h2h') {
           const homeOutcome = market.outcomes.find((o) => o.name === event.home_team);
           const awayOutcome = market.outcomes.find((o) => o.name === event.away_team);
@@ -64,6 +69,7 @@ function transformOddsData(rawData) {
             outcome_1_odds: homeOutcome?.price || null,
             outcome_2_odds: awayOutcome?.price || null,
             outcome_draw_odds: drawOutcome?.price || null,
+            event_url: eventUrl,
           });
         } else if (market.key === 'spreads') {
           const homeOutcome = market.outcomes.find((o) => o.name === event.home_team);
@@ -79,6 +85,7 @@ function transformOddsData(rawData) {
               outcome_1_odds: homeOutcome.price,
               outcome_2_odds: awayOutcome.price,
               outcome_draw_odds: null,
+              event_url: eventUrl,
             });
           }
         } else if (market.key === 'totals') {
@@ -95,6 +102,7 @@ function transformOddsData(rawData) {
               outcome_1_odds: overOutcome.price,
               outcome_2_odds: underOutcome.price,
               outcome_draw_odds: null,
+              event_url: eventUrl,
             });
           }
         }

@@ -61,6 +61,7 @@ async function fetchOdds(sport, markets = MARKETS) {
         markets: markets.join(','),
         bookmakers: BOOKMAKERS.join(','),
         oddsFormat: 'decimal',
+        includeLinks: 'true',
       },
     });
 
