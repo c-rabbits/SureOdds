@@ -88,8 +88,7 @@ export const BOOKMAKER_CONFIG: BookmakerInfo[] = [
   { key: 'pinnacle', name: 'Pinnacle', short: 'PINN', domestic: false },
   { key: 'bet365', name: 'Bet365', short: 'B365', domestic: false },
   { key: 'sbobet', name: 'SBOBet', short: 'SBO', domestic: false },
-  { key: 'dafabet', name: 'DafaBet', short: 'DAFA', domestic: false },
-  { key: 'maxbet', name: 'MaxBet', short: 'MAX', domestic: false },
+  { key: 'dafabet', name: 'MaxBet', short: 'MAX', domestic: false },
   { key: 'stake', name: 'Stake', short: 'STK', domestic: false },
   { key: 'betfair', name: 'Betfair', short: 'BFAR', domestic: false },
   { key: '1xbet', name: '1xBet', short: '1XB', domestic: false },
@@ -109,7 +108,6 @@ export const BOOKMAKER_URLS: Record<string, string> = {
   pinnacle: 'https://www.pinnacle.com',
   sbobet: 'https://www.sbobet.com',
   dafabet: 'https://www.maxbet.com',
-  maxbet: 'https://www.maxbet.com',
   bet365: 'https://www.bet365.com',
   betman_proto: 'https://www.betman.co.kr/main/mainPage/gamebuy/gameSlip.do',
 };

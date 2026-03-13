@@ -4,7 +4,7 @@
  * Fetches odds from Odds-API.io (api.odds-api.io) for Asian bookmakers
  * that are not available on The Odds API (the-odds-api.com).
  *
- * Configured bookmakers: SBOBet, DafaBet (MaxBet white-label)
+ * Configured bookmakers: SBOBet, MaxBet (DafaBet white-label)
  *
  * Free tier: 100 requests/hour, 2 bookmakers
  * Endpoints:
@@ -34,7 +34,7 @@ const BM_KEY_MAP = {
 // Bookmaker display title mapping
 const BM_TITLE_MAP = {
   Sbobet: 'SBOBet',
-  DafaBet: 'DafaBet (MaxBet)',
+  DafaBet: 'MaxBet',
 };
 
 // Sports to track (Odds-API.io slug format)
