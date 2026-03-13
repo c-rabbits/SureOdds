@@ -136,7 +136,7 @@ CREATE POLICY "Allow service write on api_usage"
 -- ============================================================
 CREATE TABLE IF NOT EXISTS site_registrations (
   id                  UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id             UUID NOT NULL,
+  user_id             UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   site_url            TEXT NOT NULL,
   site_name           TEXT NOT NULL,
   group_name          TEXT DEFAULT '기본',
@@ -162,7 +162,7 @@ CREATE POLICY "Service full access on site_registrations"
 -- ============================================================
 CREATE TABLE IF NOT EXISTS site_requests (
   id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  user_id      UUID NOT NULL,
+  user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   site_url     TEXT NOT NULL,
   site_name    TEXT,
   notes        TEXT,
