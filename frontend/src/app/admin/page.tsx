@@ -12,8 +12,12 @@ import {
   updateAdminSiteRegistration,
   getAdminSiteRequests,
   updateAdminSiteRequest,
+  getAdminAvailableSites,
+  createAvailableSite,
+  updateAvailableSite,
+  deleteAvailableSite,
 } from '@/lib/api';
-import { UserProfile, SiteRegistration, SiteRequest } from '@/types';
+import { UserProfile, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
 
 type AdminTab = 'users' | 'sites' | 'requests';
 
@@ -50,6 +54,13 @@ export default function AdminPage() {
   const [sites, setSites] = useState<SiteRegWithProfile[]>([]);
   const [sitesLoading, setSitesLoading] = useState(true);
 
+  // ─── 마스터 사이트 목록 ───
+  const [availableSites, setAvailableSites] = useState<AvailableSite[]>([]);
+  const [newSiteUrl, setNewSiteUrl] = useState('');
+  const [newSiteName, setNewSiteName] = useState('');
+  const [newSiteDesc, setNewSiteDesc] = useState('');
+  const [addingSite, setAddingSite] = useState(false);
+
   // ─── 작업요청 관리 ───
   const [requests, setRequests] = useState<SiteReqWithProfile[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
@@ -76,17 +87,29 @@ export default function AdminPage() {
     }
   }, []);
 
+  const loadAvailableSites = useCallback(async () => {
+    try {
+      const data = await getAdminAvailableSites();
+      setAvailableSites(data);
+    } catch (err) {
+      console.error('Failed to load available sites:', err);
+    }
+  }, []);
+
   const loadSites = useCallback(async () => {
     try {
       setSitesLoading(true);
-      const data = await getAdminSiteRegistrations();
-      setSites(data);
+      const [regData] = await Promise.all([
+        getAdminSiteRegistrations(),
+        loadAvailableSites(),
+      ]);
+      setSites(regData);
     } catch (err) {
       console.error('Failed to load sites:', err);
     } finally {
       setSitesLoading(false);
     }
-  }, []);
+  }, [loadAvailableSites]);
 
   const loadRequests = useCallback(async () => {
     try {
@@ -161,7 +184,41 @@ export default function AdminPage() {
     }
   }
 
-  // ─── 사이트 관리 핸들러 ───
+  // ─── 마스터 사이트 핸들러 ───
+  async function handleAddAvailableSite() {
+    if (!newSiteUrl.trim() || !newSiteName.trim()) return;
+    setAddingSite(true);
+    try {
+      await createAvailableSite({ siteUrl: newSiteUrl.trim(), siteName: newSiteName.trim(), description: newSiteDesc.trim() || undefined });
+      setNewSiteUrl(''); setNewSiteName(''); setNewSiteDesc('');
+      await loadAvailableSites();
+    } catch (err) {
+      console.error('Add available site failed:', err);
+    } finally {
+      setAddingSite(false);
+    }
+  }
+
+  async function handleToggleAvailableSite(site: AvailableSite) {
+    try {
+      await updateAvailableSite(site.id, { isActive: !site.is_active });
+      await loadAvailableSites();
+    } catch (err) {
+      console.error('Toggle available site failed:', err);
+    }
+  }
+
+  async function handleDeleteAvailableSite(site: AvailableSite) {
+    if (!confirm(`"${site.site_name}" 사이트를 마스터 목록에서 삭제하시겠습니까?`)) return;
+    try {
+      await deleteAvailableSite(site.id);
+      await loadAvailableSites();
+    } catch (err) {
+      console.error('Delete available site failed:', err);
+    }
+  }
+
+  // ─── 사이트 등록 관리 핸들러 ───
   async function handleSiteStatusChange(siteId: string, status: string) {
     try {
       await updateAdminSiteRegistration(siteId, { status });
@@ -404,7 +461,75 @@ export default function AdminPage() {
       {/* ═══════════════════════════════════════════════════════ */}
       {activeTab === 'sites' && (
         <>
-          {/* 사이트 통계 */}
+          {/* ── 마스터 사이트 목록 관리 ── */}
+          <div className="card p-4 mb-4">
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <span>&#x1F4CB;</span> 크롤링 가능 사이트 목록
+              <span className="text-[10px] text-gray-500 font-normal">(사용자 드롭다운에 표시)</span>
+            </h3>
+
+            {/* 추가 폼 */}
+            <div className="flex gap-2 mb-3 items-end">
+              <div className="flex-1">
+                <label className="block text-[10px] text-gray-500 mb-0.5">사이트 URL</label>
+                <input type="text" value={newSiteUrl} onChange={(e) => setNewSiteUrl(e.target.value)} placeholder="https://example.com"
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:border-green-500 focus:outline-none" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] text-gray-500 mb-0.5">사이트명</label>
+                <input type="text" value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} placeholder="사이트 이름"
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:border-green-500 focus:outline-none" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] text-gray-500 mb-0.5">설명 (선택)</label>
+                <input type="text" value={newSiteDesc} onChange={(e) => setNewSiteDesc(e.target.value)} placeholder="설명"
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:border-green-500 focus:outline-none" />
+              </div>
+              <button onClick={handleAddAvailableSite} disabled={addingSite || !newSiteUrl.trim() || !newSiteName.trim()}
+                className="btn-primary text-xs py-1.5 px-3 whitespace-nowrap disabled:opacity-40">
+                {addingSite ? '추가중...' : '+ 추가'}
+              </button>
+            </div>
+
+            {/* 목록 */}
+            {availableSites.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-700 text-gray-400">
+                      <th className="text-left py-1.5 px-2">상태</th>
+                      <th className="text-left py-1.5 px-2">사이트명</th>
+                      <th className="text-left py-1.5 px-2">URL</th>
+                      <th className="text-left py-1.5 px-2">설명</th>
+                      <th className="text-center py-1.5 px-2">작업</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {availableSites.map((as) => (
+                      <tr key={as.id} className={`border-b border-gray-800 ${!as.is_active ? 'opacity-40' : ''}`}>
+                        <td className="py-1.5 px-2">
+                          <button onClick={() => handleToggleAvailableSite(as)}
+                            className={`w-2.5 h-2.5 rounded-full ${as.is_active ? 'bg-green-500' : 'bg-red-500'}`}
+                            title={as.is_active ? '활성' : '비활성'} />
+                        </td>
+                        <td className="py-1.5 px-2 text-white font-medium">{as.site_name}</td>
+                        <td className="py-1.5 px-2 text-gray-400">{as.site_url}</td>
+                        <td className="py-1.5 px-2 text-gray-500">{as.description || '-'}</td>
+                        <td className="py-1.5 px-2 text-center">
+                          <button onClick={() => handleDeleteAvailableSite(as)}
+                            className="text-red-400 hover:text-red-300 text-[10px]">삭제</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-3 text-gray-500 text-xs">등록된 사이트가 없습니다.</div>
+            )}
+          </div>
+
+          {/* ── 사용자 등록 사이트 통계 ── */}
           <div className="grid grid-cols-4 gap-3 mb-4">
             <div className="card p-3 text-center">
               <div className="text-xl font-bold text-white">{sites.length}</div>

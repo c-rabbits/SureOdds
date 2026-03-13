@@ -121,11 +121,24 @@ export interface UserProfile {
 }
 
 // ============================================================
+// Available Sites (관리자가 관리하는 마스터 사이트 목록)
+// ============================================================
+export interface AvailableSite {
+  id: string;
+  site_url: string;
+  site_name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ============================================================
 // Site management types (사이트 추가 / 작업요청)
 // ============================================================
 export interface SiteRegistration {
   id: string;
   user_id: string;
+  available_site_id?: string;
   site_url: string;
   site_name: string;
   group_name: string;

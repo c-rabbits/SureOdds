@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import axiosRetry from 'axios-retry';
-import { Match, Odds, ArbitrageOpportunity, StakeCalculation, MatchWithOdds, CollectorStatus, QuotaInfo, MarketType, UserProfile, SiteRegistration, SiteRequest } from '@/types';
+import { Match, Odds, ArbitrageOpportunity, StakeCalculation, MatchWithOdds, CollectorStatus, QuotaInfo, MarketType, UserProfile, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
 import { supabase } from '@/lib/supabase';
 
 const api = axios.create({
@@ -293,11 +293,45 @@ export async function deleteUser(id: string): Promise<void> {
 }
 
 // ============================================================
+// Available Sites (마스터 사이트 목록 - 드롭다운용)
+// ============================================================
+export async function getAvailableSites(): Promise<AvailableSite[]> {
+  const { data } = await api.get('/api/domestic/available-sites');
+  return data.data;
+}
+
+// Admin: available sites CRUD
+export async function getAdminAvailableSites(): Promise<AvailableSite[]> {
+  const { data } = await api.get('/api/admin/available-sites');
+  return data.data;
+}
+
+export async function createAvailableSite(payload: {
+  siteUrl: string;
+  siteName: string;
+  description?: string;
+}): Promise<AvailableSite> {
+  const { data } = await api.post('/api/admin/available-sites', payload);
+  return data.data;
+}
+
+export async function updateAvailableSite(
+  id: string,
+  payload: { siteName?: string; siteUrl?: string; description?: string; isActive?: boolean }
+): Promise<AvailableSite> {
+  const { data } = await api.patch(`/api/admin/available-sites/${id}`, payload);
+  return data.data;
+}
+
+export async function deleteAvailableSite(id: string): Promise<void> {
+  await api.delete(`/api/admin/available-sites/${id}`);
+}
+
+// ============================================================
 // Site Registration (사이트 추가)
 // ============================================================
 export async function createSiteRegistration(payload: {
-  siteUrl: string;
-  siteName: string;
+  availableSiteId: string;
   groupName?: string;
   loginId?: string;
   loginPw?: string;

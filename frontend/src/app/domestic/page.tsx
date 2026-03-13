@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { MatchWithOdds, SiteRegistration, SiteRequest } from '@/types';
+import { MatchWithOdds, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
 import {
   getMatchesWithOdds,
   scrapeBetman,
   getBetmanRounds,
+  getAvailableSites,
   createSiteRegistration,
   getSiteRegistrations,
   updateSiteRegistration,
@@ -41,9 +42,9 @@ export default function DomesticPage() {
   const [scrapeResult, setScrapeResult] = useState<string | null>(null);
 
   // ─── 사이트 추가 state ───
+  const [availableSites, setAvailableSites] = useState<AvailableSite[]>([]);
   const [sites, setSites] = useState<SiteRegistration[]>([]);
-  const [siteUrl, setSiteUrl] = useState('');
-  const [siteName, setSiteName] = useState('');
+  const [selectedSiteId, setSelectedSiteId] = useState('');
   const [siteGroup, setSiteGroup] = useState('기본');
   const [siteLoginId, setSiteLoginId] = useState('');
   const [siteLoginPw, setSiteLoginPw] = useState('');
@@ -67,14 +68,16 @@ export default function DomesticPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [matchData, roundData, siteData, reqData] = await Promise.all([
+      const [matchData, roundData, avSites, siteData, reqData] = await Promise.all([
         getMatchesWithOdds({ limit: 100 }),
         getBetmanRounds().catch(() => []),
+        getAvailableSites().catch(() => []),
         getSiteRegistrations().catch(() => []),
         getSiteRequests().catch(() => []),
       ]);
       setMatches(matchData || []);
       setRounds(roundData || []);
+      setAvailableSites(avSites || []);
       setSites(siteData || []);
       setRequests(reqData || []);
     } catch {
@@ -105,8 +108,7 @@ export default function DomesticPage() {
 
   // ─── 사이트 추가 ───
   const resetSiteForm = () => {
-    setSiteUrl('');
-    setSiteName('');
+    setSelectedSiteId('');
     setSiteGroup('기본');
     setSiteLoginId('');
     setSiteLoginPw('');
@@ -119,8 +121,8 @@ export default function DomesticPage() {
   };
 
   const handleAddSite = async () => {
-    if (!siteUrl.trim() || !siteName.trim()) {
-      setSiteMsg('사이트 URL과 사이트명은 필수입니다.');
+    if (!selectedSiteId && !editingSiteId) {
+      setSiteMsg('사이트를 선택해주세요.');
       return;
     }
 
@@ -129,7 +131,6 @@ export default function DomesticPage() {
     try {
       if (editingSiteId) {
         await updateSiteRegistration(editingSiteId, {
-          siteName: siteName.trim(),
           groupName: siteGroup,
           loginId: siteLoginId,
           loginPw: siteLoginPw || undefined,
@@ -142,8 +143,7 @@ export default function DomesticPage() {
         setSiteMsg('사이트 수정 완료');
       } else {
         await createSiteRegistration({
-          siteUrl: siteUrl.trim(),
-          siteName: siteName.trim(),
+          availableSiteId: selectedSiteId,
           groupName: siteGroup,
           loginId: siteLoginId,
           loginPw: siteLoginPw,
@@ -167,8 +167,7 @@ export default function DomesticPage() {
 
   const handleEditSite = (site: SiteRegistration) => {
     setEditingSiteId(site.id);
-    setSiteUrl(site.site_url);
-    setSiteName(site.site_name);
+    setSelectedSiteId(site.available_site_id || '');
     setSiteGroup(site.group_name);
     setSiteLoginId(site.login_id || '');
     setSiteLoginPw('');
@@ -325,20 +324,25 @@ export default function DomesticPage() {
 
           {/* 등록 폼 */}
           <div className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 space-y-4">
-            {/* Row 1: URL + 그룹 + 사이트명 */}
+            {/* Row 1: 사이트 선택 + 그룹 */}
             <div className="grid grid-cols-12 gap-3 items-end">
-              <div className="col-span-5">
-                <label className="block text-xs text-gray-400 mb-1">사이트 주소</label>
-                <input
-                  type="text"
-                  placeholder="https://example.com"
-                  value={siteUrl}
-                  onChange={(e) => setSiteUrl(e.target.value)}
+              <div className="col-span-8">
+                <label className="block text-xs text-gray-400 mb-1">사이트 선택</label>
+                <select
+                  value={selectedSiteId}
+                  onChange={(e) => setSelectedSiteId(e.target.value)}
                   disabled={!!editingSiteId}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 disabled:opacity-50"
-                />
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white disabled:opacity-50"
+                >
+                  <option value="">-- 사이트를 선택하세요 --</option>
+                  {availableSites.map((as) => (
+                    <option key={as.id} value={as.id}>
+                      {as.site_name} ({as.site_url})
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-4">
                 <label className="block text-xs text-gray-400 mb-1">그룹</label>
                 <select
                   value={siteGroup}
@@ -350,16 +354,6 @@ export default function DomesticPage() {
                   <option value="B그룹">B그룹</option>
                   <option value="C그룹">C그룹</option>
                 </select>
-              </div>
-              <div className="col-span-5">
-                <label className="block text-xs text-gray-400 mb-1">사이트명</label>
-                <input
-                  type="text"
-                  placeholder="사이트 이름 입력"
-                  value={siteName}
-                  onChange={(e) => setSiteName(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
-                />
               </div>
             </div>
 
@@ -432,7 +426,7 @@ export default function DomesticPage() {
                 )}
                 <button
                   onClick={handleAddSite}
-                  disabled={siteSubmitting || !siteName.trim() || !siteUrl.trim()}
+                  disabled={siteSubmitting || (!editingSiteId && !selectedSiteId)}
                   className="btn-primary px-5 py-2 text-sm disabled:opacity-40"
                 >
                   {siteSubmitting ? '저장 중...' : editingSiteId ? '사이트 수정' : '+ 사이트추가'}

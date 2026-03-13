@@ -252,4 +252,88 @@ router.get('/site-requests', async (req, res) => {
   }
 });
 
+// ============================================================
+// Available Sites 관리 (마스터 사이트 목록)
+// ============================================================
+
+// GET /api/admin/available-sites - 전체 목록
+router.get('/available-sites', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('available_sites')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    log.error('List available sites error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/available-sites - 새 사이트 추가
+router.post('/available-sites', async (req, res) => {
+  try {
+    const { siteUrl, siteName, description } = req.body;
+
+    if (!siteUrl || !siteName) {
+      return res.status(400).json({ success: false, error: '사이트 URL과 이름은 필수입니다.' });
+    }
+
+    const { data, error } = await supabase
+      .from('available_sites')
+      .insert({ site_url: siteUrl.trim(), site_name: siteName.trim(), description: description || null })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (err) {
+    log.error('Create available site error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/admin/available-sites/:id - 수정
+router.patch('/available-sites/:id', async (req, res) => {
+  try {
+    const { siteName, siteUrl, description, isActive } = req.body;
+    const updates = {};
+    if (siteName !== undefined) updates.site_name = siteName;
+    if (siteUrl !== undefined) updates.site_url = siteUrl;
+    if (description !== undefined) updates.description = description;
+    if (isActive !== undefined) updates.is_active = isActive;
+
+    const { data, error } = await supabase
+      .from('available_sites')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (err) {
+    log.error('Update available site error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/admin/available-sites/:id - 삭제
+router.delete('/available-sites/:id', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('available_sites')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    log.error('Delete available site error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

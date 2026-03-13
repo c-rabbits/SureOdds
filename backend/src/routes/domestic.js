@@ -324,6 +324,29 @@ router.post('/betman/save', async (req, res) => {
 });
 
 // ============================================================
+// Available Sites (관리자가 관리하는 사이트 마스터 목록)
+// ============================================================
+
+/**
+ * GET /api/domestic/available-sites
+ * 사용자 드롭다운용 - 활성화된 사이트 목록
+ */
+router.get('/available-sites', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('available_sites')
+      .select('*')
+      .eq('is_active', true)
+      .order('site_name');
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ data: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
 // Site Registrations (사이트 추가)
 // ============================================================
 const crypto = require('crypto');
@@ -363,16 +386,29 @@ router.post('/site-registrations', async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
 
-    const { siteUrl, siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableExtHandicap, enableExtOU } = req.body;
+    const { availableSiteId, siteUrl, siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableExtHandicap, enableExtOU } = req.body;
 
-    if (!siteUrl || !siteName) {
-      return res.status(400).json({ error: '사이트 URL과 사이트명은 필수입니다.' });
+    if (!availableSiteId) {
+      return res.status(400).json({ error: '사이트를 선택해주세요.' });
+    }
+
+    // available_sites에서 사이트 정보 가져오기
+    const { data: avSite, error: avErr } = await supabase
+      .from('available_sites')
+      .select('*')
+      .eq('id', availableSiteId)
+      .eq('is_active', true)
+      .single();
+
+    if (avErr || !avSite) {
+      return res.status(400).json({ error: '유효하지 않은 사이트입니다.' });
     }
 
     const row = {
       user_id: userId,
-      site_url: siteUrl.trim(),
-      site_name: siteName.trim(),
+      available_site_id: availableSiteId,
+      site_url: avSite.site_url,
+      site_name: avSite.site_name,
       group_name: groupName || '기본',
       login_id: loginId || null,
       login_pw_encrypted: encrypt(loginPw),
