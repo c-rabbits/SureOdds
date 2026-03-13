@@ -77,6 +77,7 @@ const MIN_HOURS_BEFORE_START = 1;
 // Track request count for rate limiting
 let requestCount = 0;
 let requestCountResetAt = null;
+let rateLimitHit = false; // True when API returns 429
 
 /**
  * Check if Odds-API.io is configured.
@@ -94,6 +95,12 @@ async function rateLimitedFetch(url) {
   if (!requestCountResetAt || now > requestCountResetAt) {
     requestCount = 0;
     requestCountResetAt = now + 3600000; // Reset after 1 hour
+    rateLimitHit = false; // Reset 429 flag on new window
+  }
+
+  if (rateLimitHit) {
+    // API already returned 429, skip all further requests until reset
+    return null;
   }
 
   if (requestCount >= 90) {
@@ -103,8 +110,17 @@ async function rateLimitedFetch(url) {
   }
 
   requestCount++;
-  const { data } = await http.get(url);
-  return data;
+  try {
+    const { data } = await http.get(url);
+    return data;
+  } catch (err) {
+    if (err.response && err.response.status === 429) {
+      log.warn('API rate limit hit (429), stopping all further requests until reset');
+      rateLimitHit = true;
+      return null;
+    }
+    throw err; // Re-throw non-429 errors for caller to handle
+  }
 }
 
 /**
