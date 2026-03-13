@@ -130,3 +130,48 @@ CREATE POLICY "Allow service write on arbitrage_opportunities"
   ON arbitrage_opportunities FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "Allow service write on api_usage"
   ON api_usage FOR ALL USING (auth.role() = 'service_role');
+
+-- ============================================================
+-- SITE REGISTRATIONS TABLE (사이트 추가)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS site_registrations (
+  id                  UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id             UUID NOT NULL,
+  site_url            TEXT NOT NULL,
+  site_name           TEXT NOT NULL,
+  group_name          TEXT DEFAULT '기본',
+  login_id            TEXT,
+  login_pw_encrypted  TEXT,
+  check_interval      INTEGER DEFAULT 60,
+  enable_cross        BOOLEAN DEFAULT true,
+  enable_handicap     BOOLEAN DEFAULT true,
+  enable_ext_handicap BOOLEAN DEFAULT false,
+  enable_ext_ou       BOOLEAN DEFAULT false,
+  is_active           BOOLEAN DEFAULT true,
+  status              TEXT DEFAULT 'pending',
+  created_at          TIMESTAMPTZ DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE site_registrations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service full access on site_registrations"
+  ON site_registrations FOR ALL USING (auth.role() = 'service_role');
+
+-- ============================================================
+-- SITE REQUESTS TABLE (사이트 작업요청)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS site_requests (
+  id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id      UUID NOT NULL,
+  site_url     TEXT NOT NULL,
+  site_name    TEXT,
+  notes        TEXT,
+  status       TEXT DEFAULT 'pending',
+  admin_notes  TEXT,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE site_requests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service full access on site_requests"
+  ON site_requests FOR ALL USING (auth.role() = 'service_role');

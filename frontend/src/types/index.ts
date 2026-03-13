@@ -120,6 +120,39 @@ export interface UserProfile {
   email_confirmed_at?: string | null;
 }
 
+// ============================================================
+// Site management types (사이트 추가 / 작업요청)
+// ============================================================
+export interface SiteRegistration {
+  id: string;
+  user_id: string;
+  site_url: string;
+  site_name: string;
+  group_name: string;
+  login_id: string;
+  check_interval: number;
+  enable_cross: boolean;
+  enable_handicap: boolean;
+  enable_ext_handicap: boolean;
+  enable_ext_ou: boolean;
+  is_active: boolean;
+  status: 'pending' | 'approved' | 'active' | 'paused';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SiteRequest {
+  id: string;
+  user_id: string;
+  site_url: string;
+  site_name: string | null;
+  notes: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Flattened row for the data table
 export interface TableRow {
   matchId: string;

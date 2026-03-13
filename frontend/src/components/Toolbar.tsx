@@ -56,7 +56,8 @@ export default function Toolbar({
   onOpenAlertSettings,
 }: Props) {
   // Filter BOOKMAKER_CONFIG to only show bookmakers present in the data
-  const visibleBookmakers = BOOKMAKER_CONFIG.filter((b) => availableBookmakers.includes(b.key));
+  // 국내 북메이커(betman_proto, manual_domestic)는 소스 필터(🇰🇷국내)로 제어 → 북메이커 칩에서 제외
+  const visibleBookmakers = BOOKMAKER_CONFIG.filter((b) => !b.domestic && availableBookmakers.includes(b.key));
   return (
     <div className="bg-gray-900 border-b border-gray-800 px-3 py-2 flex items-center gap-x-3 text-xs overflow-x-auto whitespace-nowrap shrink-0">
       {/* 통계 */}

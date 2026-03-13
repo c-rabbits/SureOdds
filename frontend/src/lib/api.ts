@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import axiosRetry from 'axios-retry';
-import { Match, Odds, ArbitrageOpportunity, StakeCalculation, MatchWithOdds, CollectorStatus, QuotaInfo, MarketType, UserProfile } from '@/types';
+import { Match, Odds, ArbitrageOpportunity, StakeCalculation, MatchWithOdds, CollectorStatus, QuotaInfo, MarketType, UserProfile, SiteRegistration, SiteRequest } from '@/types';
 import { supabase } from '@/lib/supabase';
 
 const api = axios.create({
@@ -290,4 +290,92 @@ export async function updateUser(
 
 export async function deleteUser(id: string): Promise<void> {
   await api.delete(`/api/admin/users/${id}`);
+}
+
+// ============================================================
+// Site Registration (사이트 추가)
+// ============================================================
+export async function createSiteRegistration(payload: {
+  siteUrl: string;
+  siteName: string;
+  groupName?: string;
+  loginId?: string;
+  loginPw?: string;
+  checkInterval?: number;
+  enableCross?: boolean;
+  enableHandicap?: boolean;
+  enableExtHandicap?: boolean;
+  enableExtOU?: boolean;
+}): Promise<SiteRegistration> {
+  const { data } = await api.post('/api/domestic/site-registrations', payload);
+  return data.data;
+}
+
+export async function getSiteRegistrations(): Promise<SiteRegistration[]> {
+  const { data } = await api.get('/api/domestic/site-registrations');
+  return data.data;
+}
+
+export async function updateSiteRegistration(
+  id: string,
+  payload: Partial<{
+    siteName: string;
+    groupName: string;
+    loginId: string;
+    loginPw: string;
+    checkInterval: number;
+    enableCross: boolean;
+    enableHandicap: boolean;
+    enableExtHandicap: boolean;
+    enableExtOU: boolean;
+    isActive: boolean;
+  }>
+): Promise<SiteRegistration> {
+  const { data } = await api.patch(`/api/domestic/site-registrations/${id}`, payload);
+  return data.data;
+}
+
+export async function deleteSiteRegistration(id: string): Promise<void> {
+  await api.delete(`/api/domestic/site-registrations/${id}`);
+}
+
+// ============================================================
+// Site Requests (사이트 작업요청)
+// ============================================================
+export async function createSiteRequest(payload: {
+  siteUrl: string;
+  siteName?: string;
+  notes?: string;
+}): Promise<SiteRequest> {
+  const { data } = await api.post('/api/domestic/site-requests', payload);
+  return data.data;
+}
+
+export async function getSiteRequests(): Promise<SiteRequest[]> {
+  const { data } = await api.get('/api/domestic/site-requests');
+  return data.data;
+}
+
+// Admin: update site request status
+export async function updateSiteRequest(
+  id: string,
+  payload: { status?: string; adminNotes?: string }
+): Promise<SiteRequest> {
+  const { data } = await api.patch(`/api/domestic/site-requests/${id}`, payload);
+  return data.data;
+}
+
+// Admin: get all site registrations
+export async function getAdminSiteRegistrations(): Promise<SiteRegistration[]> {
+  const { data } = await api.get('/api/admin/site-registrations');
+  return data.data;
+}
+
+// Admin: update site registration status
+export async function updateAdminSiteRegistration(
+  id: string,
+  payload: { status?: string; isActive?: boolean }
+): Promise<SiteRegistration> {
+  const { data } = await api.patch(`/api/admin/site-registrations/${id}`, payload);
+  return data.data;
 }

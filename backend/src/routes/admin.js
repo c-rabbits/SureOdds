@@ -186,4 +186,70 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
+// ============================================================
+// GET /api/admin/site-registrations - 전체 사이트 등록 목록 (관리자)
+// ============================================================
+router.get('/site-registrations', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('site_registrations')
+      .select('*, profiles:user_id(email, display_name)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Strip encrypted passwords
+    const safe = (data || []).map(({ login_pw_encrypted, ...rest }) => rest);
+    res.json({ success: true, data: safe });
+  } catch (err) {
+    log.error('List site registrations error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
+// PATCH /api/admin/site-registrations/:id - 사이트 상태 변경 (관리자)
+// ============================================================
+router.patch('/site-registrations/:id', async (req, res) => {
+  try {
+    const { status, isActive } = req.body;
+    const updates = {};
+    if (status) updates.status = status;
+    if (isActive !== undefined) updates.is_active = isActive;
+
+    const { data, error } = await supabase
+      .from('site_registrations')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (data) delete data.login_pw_encrypted;
+
+    res.json({ success: true, data });
+  } catch (err) {
+    log.error('Update site registration error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
+// GET /api/admin/site-requests - 전체 사이트 요청 목록 (관리자)
+// ============================================================
+router.get('/site-requests', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('site_requests')
+      .select('*, profiles:user_id(email, display_name)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    log.error('List site requests error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

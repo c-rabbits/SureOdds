@@ -323,17 +323,252 @@ router.post('/betman/save', async (req, res) => {
   }
 });
 
+// ============================================================
+// Site Registrations (사이트 추가)
+// ============================================================
+const crypto = require('crypto');
+
+// AES-256-GCM encryption for site passwords
+const ENCRYPT_KEY = process.env.SITE_ENCRYPT_KEY || 'sureodds-default-key-change-me!!'; // 32 bytes
+function encrypt(text) {
+  if (!text) return null;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(ENCRYPT_KEY.padEnd(32).slice(0, 32)), iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const tag = cipher.getAuthTag().toString('hex');
+  return `${iv.toString('hex')}:${tag}:${encrypted}`;
+}
+
+function decrypt(encryptedText) {
+  if (!encryptedText) return null;
+  try {
+    const [ivHex, tagHex, encrypted] = encryptedText.split(':');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(ENCRYPT_KEY.padEnd(32).slice(0, 32)), Buffer.from(ivHex, 'hex'));
+    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * POST /api/domestic/scrape-with-auth
- * Scrape a Korean site that requires login.
- * Credentials are used once and NOT stored.
+ * POST /api/domestic/site-registrations
+ * User registers a site for crawling.
  */
-router.post('/scrape-with-auth', async (req, res) => {
-  // Placeholder for future login-required sites
-  res.status(501).json({
-    error: 'Not implemented yet. Betman does not require login for odds viewing.',
-    hint: 'This endpoint is reserved for future Korean sites that require authentication.',
-  });
+router.post('/site-registrations', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const { siteUrl, siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableExtHandicap, enableExtOU } = req.body;
+
+    if (!siteUrl || !siteName) {
+      return res.status(400).json({ error: '사이트 URL과 사이트명은 필수입니다.' });
+    }
+
+    const row = {
+      user_id: userId,
+      site_url: siteUrl.trim(),
+      site_name: siteName.trim(),
+      group_name: groupName || '기본',
+      login_id: loginId || null,
+      login_pw_encrypted: encrypt(loginPw),
+      check_interval: checkInterval || 60,
+      enable_cross: enableCross !== false,
+      enable_handicap: enableHandicap !== false,
+      enable_ext_handicap: enableExtHandicap === true,
+      enable_ext_ou: enableExtOU === true,
+      is_active: true,
+      status: 'pending',
+    };
+
+    const { data, error } = await supabase.from('site_registrations').insert(row).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Don't expose encrypted password in response
+    if (data) delete data.login_pw_encrypted;
+
+    res.json({ success: true, data });
+  } catch (err) {
+    log.error('Error creating site registration', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/domestic/site-registrations
+ * Get current user's registered sites.
+ */
+router.get('/site-registrations', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const { data, error } = await supabase
+      .from('site_registrations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Strip encrypted passwords from response
+    const safe = (data || []).map(({ login_pw_encrypted, ...rest }) => rest);
+    res.json({ data: safe });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * PATCH /api/domestic/site-registrations/:id
+ * User updates their own site registration.
+ */
+router.patch('/site-registrations/:id', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const { id } = req.params;
+    const { siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableExtHandicap, enableExtOU, isActive } = req.body;
+
+    const updates = {};
+    if (siteName !== undefined) updates.site_name = siteName;
+    if (groupName !== undefined) updates.group_name = groupName;
+    if (loginId !== undefined) updates.login_id = loginId;
+    if (loginPw !== undefined) updates.login_pw_encrypted = encrypt(loginPw);
+    if (checkInterval !== undefined) updates.check_interval = checkInterval;
+    if (enableCross !== undefined) updates.enable_cross = enableCross;
+    if (enableHandicap !== undefined) updates.enable_handicap = enableHandicap;
+    if (enableExtHandicap !== undefined) updates.enable_ext_handicap = enableExtHandicap;
+    if (enableExtOU !== undefined) updates.enable_ext_ou = enableExtOU;
+    if (isActive !== undefined) updates.is_active = isActive;
+
+    const { data, error } = await supabase
+      .from('site_registrations')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', userId) // ensure user owns it
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (data) delete data.login_pw_encrypted;
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/domestic/site-registrations/:id
+ * User deletes their own site registration.
+ */
+router.delete('/site-registrations/:id', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const { error } = await supabase
+      .from('site_registrations')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('user_id', userId);
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// Site Requests (사이트 작업요청)
+// ============================================================
+
+/**
+ * POST /api/domestic/site-requests
+ * User requests a site to be added.
+ */
+router.post('/site-requests', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const { siteUrl, siteName, notes } = req.body;
+    if (!siteUrl) return res.status(400).json({ error: '사이트 URL은 필수입니다.' });
+
+    const row = {
+      user_id: userId,
+      site_url: siteUrl.trim(),
+      site_name: siteName?.trim() || null,
+      notes: notes?.trim() || null,
+      status: 'pending',
+    };
+
+    const { data, error } = await supabase.from('site_requests').insert(row).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    log.error('Error creating site request', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/domestic/site-requests
+ * Get current user's site requests.
+ */
+router.get('/site-requests', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const { data, error } = await supabase
+      .from('site_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ data: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * PATCH /api/domestic/site-requests/:id
+ * Admin updates a site request status.
+ */
+router.patch('/site-requests/:id', async (req, res) => {
+  try {
+    if (req.user?.profile?.role !== 'admin') {
+      return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+    }
+
+    const { status, adminNotes } = req.body;
+    const updates = {};
+    if (status) updates.status = status;
+    if (adminNotes !== undefined) updates.admin_notes = adminNotes;
+
+    const { data, error } = await supabase
+      .from('site_requests')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
