@@ -25,11 +25,21 @@
 
 const { createHttpClient } = require('../config/httpClient');
 const { createServiceLogger } = require('../config/logger');
+require('dotenv').config();
 
 const log = createServiceLogger('Betman');
 const http = createHttpClient('Betman', { timeout: 15000 });
 // Fast client for round probing — no retries, short timeout
 const httpProbe = require('axios').create({ timeout: 8000 });
+
+// ─── Betman access strategy ───
+// betman.co.kr blocks non-Korean IPs, so we route through a Vercel Edge proxy
+// deployed in Incheon (ICN) region. Bypass header required for Deployment Protection.
+const VERCEL_PROXY_URL = process.env.VERCEL_PROXY_URL || 'https://sureodds-studio-coni.vercel.app';
+const VERCEL_BYPASS_SECRET = process.env.VERCEL_BYPASS_SECRET || '';
+const PROXY_ENDPOINT = `${VERCEL_PROXY_URL}/api/betman-proxy`;
+
+// Fallback: direct betman.co.kr (works only from Korean IPs)
 const BETMAN_BASE = 'https://www.betman.co.kr';
 const GAME_INFO_URL = `${BETMAN_BASE}/buyPsblGame/gameInfoInq.do`;
 
@@ -68,11 +78,46 @@ function getLastScrapeResult() {
 
 /**
  * Call the Betman JSON API for a specific round.
+ * Routes through the Vercel Edge proxy (Korea ICN) to bypass geo-blocking.
+ * Falls back to direct betman.co.kr access if proxy fails.
+ *
  * @param {string} gmId - Game ID (e.g., 'G101')
  * @param {string|number} gmTs - Round number (e.g., 260029)
  * @returns {Promise<object>} API response data
  */
-async function fetchGameInfo(gmId, gmTs, { fast = false } = {}) {
+async function fetchGameInfo(gmId, gmTs, { fast = false, retries = 1 } = {}) {
+  const client = fast ? httpProbe : http;
+
+  const proxyHeaders = {
+    'Content-Type': 'application/json',
+  };
+  if (VERCEL_BYPASS_SECRET) {
+    proxyHeaders['x-vercel-protection-bypass'] = VERCEL_BYPASS_SECRET;
+  }
+
+  // Strategy 1: Vercel Edge Proxy (Korean server) — with retry
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const { data } = await client.post(
+        PROXY_ENDPOINT,
+        { gmId, gmTs: String(gmTs) },
+        { headers: proxyHeaders },
+      );
+      return data;
+    } catch (proxyErr) {
+      const status = proxyErr.response?.status;
+      if (attempt < retries) {
+        // Wait before retry (300ms * attempt)
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      } else if (status === 401) {
+        log.warn(`Vercel proxy returned 401 (Deployment Protection) for gmTs=${gmTs}`);
+      } else {
+        log.warn(`Vercel proxy failed for gmTs=${gmTs}: ${proxyErr.message}`);
+      }
+    }
+  }
+
+  // Strategy 2: Direct betman.co.kr (works only from Korean IPs)
   const body = {
     gmId,
     gmTs: String(gmTs),
@@ -80,7 +125,6 @@ async function fetchGameInfo(gmId, gmTs, { fast = false } = {}) {
     _sbmInfo: { debugMode: 'false' },
   };
 
-  const client = fast ? httpProbe : http;
   const { data } = await client.post(GAME_INFO_URL, body, {
     headers: HEADERS,
   });
@@ -108,18 +152,29 @@ async function findProtoRounds(includeOnSale = true, includeClosed = true) {
 
   log.info(`Probing rounds ${probeEnd}-${probeStart} (estimated current: ${estimatedRound})`);
 
-  // Fire all probes in parallel with a short timeout
-  const probePromises = [];
+  // Fire probes in small batches to avoid overwhelming the Edge proxy
+  const PROBE_BATCH = 4;
+  const allGmTs = [];
   for (let r = probeStart; r >= probeEnd; r--) {
-    const gmTs = yearPrefix + r;
-    probePromises.push(
-      fetchGameInfo('G101', gmTs, { fast: true })
-        .then((data) => ({ gmTs, r, data }))
-        .catch(() => null)
-    );
+    allGmTs.push({ gmTs: yearPrefix + r, r });
   }
 
-  const results = await Promise.all(probePromises);
+  const results = [];
+  for (let i = 0; i < allGmTs.length; i += PROBE_BATCH) {
+    const batch = allGmTs.slice(i, i + PROBE_BATCH);
+    const batchResults = await Promise.all(
+      batch.map(({ gmTs, r }) =>
+        fetchGameInfo('G101', gmTs, { fast: true, retries: 1 })
+          .then((data) => ({ gmTs, r, data }))
+          .catch(() => null),
+      ),
+    );
+    results.push(...batchResults);
+    // Small delay between batches
+    if (i + PROBE_BATCH < allGmTs.length) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
   const rounds = [];
 
   for (const result of results) {
@@ -157,7 +212,7 @@ async function findProtoRounds(includeOnSale = true, includeClosed = true) {
 
   // Sort: on_sale first, then closed
   const statusOrder = { on_sale: 0, before_sale: 1, closed: 2, unknown: 3 };
-  rounds.sort((a, b) => (statusOrder[a.status] || 3) - (statusOrder[b.status] || 3));
+  rounds.sort((a, b) => (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3));
 
   return rounds.slice(0, 5);
 }
