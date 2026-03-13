@@ -117,9 +117,10 @@ async function fetchEvents(sport) {
     );
     if (!data) return [];
 
-    // Filter to upcoming and live events only
+    // Filter to pending/upcoming and live events only
+    // Note: Odds-API.io uses "pending" (not "upcoming") for future events
     const active = data.filter(
-      (e) => e.status === 'upcoming' || e.status === 'live',
+      (e) => e.status === 'pending' || e.status === 'upcoming' || e.status === 'live',
     );
     log.info(`Events ${sport}: ${active.length} active (${data.length} total)`);
     return active;
