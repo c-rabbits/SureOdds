@@ -74,6 +74,20 @@ router.post('/betman/scrape', async (req, res) => {
         })
       );
 
+      // Build a pre-filled mapping: domestic_external_id → international match UUID
+      // This is the KEY step for cross-arbitrage: domestic odds get assigned
+      // to the same match_id as international odds.
+      const linkedIdMap = {};
+      let linkedCount = 0;
+      for (const r of matchResults) {
+        if (r.intlMatchId) {
+          linkedIdMap[r.match.external_id] = r.intlMatchId;
+          linkedCount++;
+        }
+      }
+      log.info(`Match linking: ${linkedCount} linked to international, ${matchResults.length - linkedCount} domestic-only`);
+
+      // Only insert matches that DON'T have international counterparts
       const newMatches = matchResults
         .filter((r) => !r.intlMatchId)
         .map((r) => r.match);
@@ -82,23 +96,25 @@ router.post('/betman/scrape', async (req, res) => {
         await supabase.from('matches').upsert(newMatches, { onConflict: 'external_id' });
       }
 
-      // Get all match IDs in parallel batches
-      const allExtIds = result.matches.map((m) => m.external_id);
-      const ID_BATCH = 50;
-      const batchPromises = [];
-      for (let i = 0; i < allExtIds.length; i += ID_BATCH) {
-        const batch = allExtIds.slice(i, i + ID_BATCH);
-        batchPromises.push(
-          supabase.from('matches').select('id, external_id').in('external_id', batch)
-        );
-      }
-      const batchResults = await Promise.all(batchPromises);
+      // Get match IDs for domestic-only matches (newly inserted)
+      const domesticOnlyExtIds = newMatches.map((m) => m.external_id);
+      const idMap = { ...linkedIdMap }; // Start with linked international UUIDs
 
-      const idMap = {};
-      for (const { data } of batchResults) {
-        if (data) for (const m of data) idMap[m.external_id] = m.id;
+      if (domesticOnlyExtIds.length > 0) {
+        const ID_BATCH = 50;
+        const batchPromises = [];
+        for (let i = 0; i < domesticOnlyExtIds.length; i += ID_BATCH) {
+          const batch = domesticOnlyExtIds.slice(i, i + ID_BATCH);
+          batchPromises.push(
+            supabase.from('matches').select('id, external_id').in('external_id', batch)
+          );
+        }
+        const batchResults = await Promise.all(batchPromises);
+        for (const { data } of batchResults) {
+          if (data) for (const m of data) idMap[m.external_id] = m.id;
+        }
       }
-      log.info(`idMap size: ${Object.keys(idMap).length}, oddsRows: ${result.oddsRows.length}`);
+      log.info(`idMap size: ${Object.keys(idMap).length} (${linkedCount} linked + ${Object.keys(idMap).length - linkedCount} domestic-only), oddsRows: ${result.oddsRows.length}`);
 
       // Upsert odds
       const oddsRows = result.oddsRows
@@ -226,6 +242,17 @@ router.post('/betman/save', async (req, res) => {
         })
       );
 
+      // Build pre-filled mapping: domestic_external_id → international match UUID
+      const linkedIdMap = {};
+      let linkedCount = 0;
+      for (const r of matchResults) {
+        if (r.intlMatchId) {
+          linkedIdMap[r.match.external_id] = r.intlMatchId;
+          linkedCount++;
+        }
+      }
+      log.info(`[save] Match linking: ${linkedCount} linked to international, ${matchResults.length - linkedCount} domestic-only`);
+
       const newMatches = matchResults
         .filter((r) => !r.intlMatchId)
         .map((r) => r.match);
@@ -234,23 +261,25 @@ router.post('/betman/save', async (req, res) => {
         await supabase.from('matches').upsert(newMatches, { onConflict: 'external_id' });
       }
 
-      // Get all match IDs in parallel batches
-      const allExtIds = matches.map((m) => m.external_id);
-      const ID_BATCH = 50;
-      const batchPromises = [];
-      for (let i = 0; i < allExtIds.length; i += ID_BATCH) {
-        const batch = allExtIds.slice(i, i + ID_BATCH);
-        batchPromises.push(
-          supabase.from('matches').select('id, external_id').in('external_id', batch)
-        );
-      }
-      const batchResults = await Promise.all(batchPromises);
+      // Get match IDs for domestic-only matches
+      const domesticOnlyExtIds = newMatches.map((m) => m.external_id);
+      const idMap = { ...linkedIdMap };
 
-      const idMap = {};
-      for (const { data } of batchResults) {
-        if (data) for (const m of data) idMap[m.external_id] = m.id;
+      if (domesticOnlyExtIds.length > 0) {
+        const ID_BATCH = 50;
+        const batchPromises = [];
+        for (let i = 0; i < domesticOnlyExtIds.length; i += ID_BATCH) {
+          const batch = domesticOnlyExtIds.slice(i, i + ID_BATCH);
+          batchPromises.push(
+            supabase.from('matches').select('id, external_id').in('external_id', batch)
+          );
+        }
+        const batchResults = await Promise.all(batchPromises);
+        for (const { data } of batchResults) {
+          if (data) for (const m of data) idMap[m.external_id] = m.id;
+        }
       }
-      log.info(`idMap size: ${Object.keys(idMap).length}, oddsRows: ${oddsRows.length}`);
+      log.info(`[save] idMap size: ${Object.keys(idMap).length} (${linkedCount} linked), oddsRows: ${oddsRows.length}`);
 
       // Map odds rows with match_id
       const mappedOdds = oddsRows
