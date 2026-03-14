@@ -253,55 +253,58 @@ export default function DomesticPage() {
           </div>
         </div>
 
-        {/* ─── Section 1: Auto Scrape ─── */}
-        <div className="card p-5">
-          <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-            <span>&#x1F577;&#xFE0F;</span> 베트맨 자동 크롤링
-          </h2>
-          <p className="text-sm text-gray-400 mb-4">
-            베트맨 프로토 승부식 배당률을 자동으로 수집합니다. 로그인 불필요.
-          </p>
+        {/* ─── Section 1: Auto Scrape (관리자 전용) ─── */}
+        {isAdmin && (
+          <div className="card p-5">
+            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <span>&#x1F577;&#xFE0F;</span> 베트맨 자동 크롤링
+              <span className="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded">관리자</span>
+            </h2>
+            <p className="text-sm text-gray-400 mb-4">
+              베트맨 프로토 승부식 배당률을 자동으로 수집합니다. 로그인 불필요.
+            </p>
 
-          {rounds.length > 0 && (
-            <div className="mb-4">
-              <div className="text-xs text-gray-500 mb-1">사용 가능한 프로토 회차:</div>
-              <div className="flex flex-wrap gap-2">
-                {rounds.map((r) => (
-                  <span
-                    key={`${r.gmId}_${r.gmTs}`}
-                    className={`text-xs px-2 py-1 rounded ${
-                      r.status === 'on_sale'
-                        ? 'bg-green-900/30 text-green-400 border border-green-800'
-                        : 'bg-gray-800 text-gray-400 border border-gray-700'
-                    }`}
-                  >
-                    {r.name} {r.status === 'on_sale' ? '(발매중)' : '(마감)'}
-                  </span>
-                ))}
+            {rounds.length > 0 && (
+              <div className="mb-4">
+                <div className="text-xs text-gray-500 mb-1">사용 가능한 프로토 회차:</div>
+                <div className="flex flex-wrap gap-2">
+                  {rounds.map((r) => (
+                    <span
+                      key={`${r.gmId}_${r.gmTs}`}
+                      className={`text-xs px-2 py-1 rounded ${
+                        r.status === 'on_sale'
+                          ? 'bg-green-900/30 text-green-400 border border-green-800'
+                          : 'bg-gray-800 text-gray-400 border border-gray-700'
+                      }`}
+                    >
+                      {r.name} {r.status === 'on_sale' ? '(발매중)' : '(마감)'}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <button
-            onClick={handleScrape}
-            disabled={scraping}
-            className="btn-primary px-6 py-2 text-sm disabled:opacity-50"
-          >
-            {scraping ? '크롤링 중...' : '베트맨 크롤링 시작'}
-          </button>
-
-          {scrapeResult && (
-            <div
-              className={`mt-3 text-sm p-3 rounded ${
-                scrapeResult.includes('오류')
-                  ? 'bg-red-900/20 text-red-400'
-                  : 'bg-green-900/20 text-green-400'
-              }`}
+            <button
+              onClick={handleScrape}
+              disabled={scraping}
+              className="btn-primary px-6 py-2 text-sm disabled:opacity-50"
             >
-              {scrapeResult}
-            </div>
-          )}
-        </div>
+              {scraping ? '크롤링 중...' : '베트맨 크롤링 시작'}
+            </button>
+
+            {scrapeResult && (
+              <div
+                className={`mt-3 text-sm p-3 rounded ${
+                  scrapeResult.includes('오류')
+                    ? 'bg-red-900/20 text-red-400'
+                    : 'bg-green-900/20 text-green-400'
+                }`}
+              >
+                {scrapeResult}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ─── Section 2: 사이트 추가 ─── */}
         <div className="card p-5">
