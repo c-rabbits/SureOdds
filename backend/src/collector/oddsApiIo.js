@@ -172,8 +172,8 @@ function mapSportKey(sportSlug, leagueSlug, leagueName) {
 
   // Generate from sport prefix + league slug
   const prefix = SPORT_PREFIX_MAP[sportSlug] || sportSlug;
-  const cleanSlug = leagueSlug.replace(/[^a-z0-9]+/g, '_');
-  return `${prefix}_${cleanSlug}`;
+  const cleanSlug = leagueSlug.replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  return `${prefix}_${cleanSlug || 'unknown'}`;
 }
 
 /**

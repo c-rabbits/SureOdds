@@ -235,26 +235,26 @@ function mapSportKey(itemCode, leagueName) {
     if (upper.includes('K리그') || upper.includes('K-LEAGUE') || upper.includes('KLEAGUE')) return 'soccer_korea_kleague1';
     if (upper.includes('J리그') || upper.includes('J-LEAGUE')) return 'soccer_japan_j_league';
     if (upper.includes('A리그') || upper.includes('A-LEAGUE')) return 'soccer_australia_aleague';
-    return `soccer_${leagueName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    return `soccer_${(leagueName || 'unknown').toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
   }
   if (sport === 'basketball') {
     if (upper.includes('NBA')) return 'basketball_nba';
     if (upper.includes('KBL')) return 'basketball_kbl';
-    return `basketball_${leagueName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    return `basketball_${(leagueName || 'unknown').toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
   }
   if (sport === 'baseball') {
     if (upper.includes('MLB')) return 'baseball_mlb';
     if (upper.includes('KBO')) return 'baseball_kbo';
     if (upper.includes('WBC')) return 'baseball_wbc';
     if (upper.includes('NPB')) return 'baseball_npb';
-    return `baseball_${leagueName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    return `baseball_${(leagueName || 'unknown').toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
   }
   if (sport === 'hockey') {
     if (upper.includes('NHL')) return 'icehockey_nhl';
-    return `icehockey_${leagueName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    return `icehockey_${(leagueName || 'unknown').toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
   }
 
-  return `${sport}_${(leagueName || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  return `${sport}_${(leagueName || 'unknown').toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}`;
 }
 
 /**

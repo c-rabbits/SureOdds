@@ -165,15 +165,68 @@ async function saveToDatabase(matches, oddsRows) {
 }
 
 /**
+ * Deactivate arbitrage opportunities for matches that have already started.
+ * This runs every collection cycle to clean up stale entries.
+ */
+async function deactivateExpiredArbitrage() {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('arbitrage_opportunities')
+    .update({ is_active: false })
+    .eq('is_active', true)
+    .lt('matches.start_time', now)
+    .select('id');
+
+  // Fallback: direct query if join filter doesn't work
+  if (error) {
+    // Get all active arbs, check match start_time
+    const { data: activeArbs } = await supabase
+      .from('arbitrage_opportunities')
+      .select('id, match_id')
+      .eq('is_active', true);
+
+    if (activeArbs && activeArbs.length > 0) {
+      const matchIds = [...new Set(activeArbs.map((a) => a.match_id))];
+      const { data: pastMatches } = await supabase
+        .from('matches')
+        .select('id')
+        .in('id', matchIds)
+        .lt('start_time', now);
+
+      if (pastMatches && pastMatches.length > 0) {
+        const pastMatchIds = pastMatches.map((m) => m.id);
+        const expiredArbIds = activeArbs
+          .filter((a) => pastMatchIds.includes(a.match_id))
+          .map((a) => a.id);
+
+        if (expiredArbIds.length > 0) {
+          await supabase
+            .from('arbitrage_opportunities')
+            .update({ is_active: false })
+            .in('id', expiredArbIds);
+          log.info(`Deactivated ${expiredArbIds.length} expired arbitrage opportunities`);
+        }
+      }
+    }
+  } else {
+    const count = data ? data.length : 0;
+    if (count > 0) log.info(`Deactivated ${count} expired arbitrage opportunities`);
+  }
+}
+
+/**
  * Run arbitrage detection for all current matches across all market types.
  */
 async function runArbitrageDetection(savedMatches) {
   if (!savedMatches.length) return [];
 
+  // First, clean up any expired arbs from past matches
+  await deactivateExpiredArbitrage();
+
   const matchIds = savedMatches.map((m) => m.id);
   const newOpportunities = [];
 
-  // Fetch all matches with their odds
+  // Fetch all matches with their odds — only future matches
   const { data: matches } = await supabase
     .from('matches')
     .select('*')
@@ -182,7 +235,7 @@ async function runArbitrageDetection(savedMatches) {
 
   if (!matches) return [];
 
-  // Mark old opportunities as inactive
+  // Mark old opportunities as inactive for these matches
   await supabase
     .from('arbitrage_opportunities')
     .update({ is_active: false })

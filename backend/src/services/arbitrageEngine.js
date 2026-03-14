@@ -3,13 +3,30 @@
  *
  * Supports h2h, spreads, and totals markets.
  *
- * For a 2-way market (spreads, totals, or h2h without draw):
+ * For a 2-way market (spreads, totals, or h2h in non-draw sports):
  *   arb = 1/odds1 + 1/odds2
  *   if arb < 1  →  arbitrage opportunity exists
  *
- * For a 3-way market (h2h with draw):
+ * For a 3-way market (h2h with draw — soccer/football):
  *   arb = 1/oddsHome + 1/oddsDraw + 1/oddsAway
+ *
+ * IMPORTANT: Soccer h2h MUST use 3-way. 2-way h2h is only valid for
+ * non-draw sports (basketball, baseball, ice hockey, etc.)
  */
+
+/**
+ * Sports that have draws in h2h markets — require 3-way arbitrage.
+ * 2-way h2h is invalid for these sports.
+ */
+const DRAW_SPORTS = [
+  'soccer', 'football', 'volleyball',
+];
+
+function isSportWithDraw(sportKey) {
+  if (!sportKey) return true; // default to 3-way (safer)
+  const lower = sportKey.toLowerCase();
+  return DRAW_SPORTS.some((s) => lower.startsWith(s) || lower.includes(s));
+}
 
 /**
  * Calculate the arbitrage percentage and profit for given odds.
@@ -82,11 +99,36 @@ function hasMultipleBookmakers(...bookmakers) {
 }
 
 /**
+ * Deduplicate odds records: keep only the latest per bookmaker.
+ * Prevents false arbs from same bookmaker with different source_types
+ * (e.g. pinnacle from The Odds API + Pinnacle Direct API).
+ */
+function deduplicateByBookmaker(oddsRecords) {
+  const byBookmaker = {};
+  for (const record of oddsRecords) {
+    const existing = byBookmaker[record.bookmaker];
+    if (!existing || (record.updated_at && (!existing.updated_at || record.updated_at > existing.updated_at))) {
+      byBookmaker[record.bookmaker] = record;
+    }
+  }
+  return Object.values(byBookmaker);
+}
+
+/**
  * Detect h2h arbitrage (2-way and 3-way).
- * Skips if all best odds come from the same bookmaker.
+ * - Soccer/football: REQUIRES 3-way (home/draw/away). Skips if no draw odds.
+ * - Basketball/baseball/etc: Uses 2-way (home/away).
+ * - Skips if all best odds come from the same bookmaker.
+ * - Deduplicates same bookmaker from multiple sources.
  */
 function detectH2hArbitrage(match, oddsRecords) {
-  const { bestHome, bestDraw, bestAway } = findBestOddsH2H(oddsRecords);
+  // Deduplicate: keep only latest odds per bookmaker to prevent
+  // false arbs from same bookmaker via different API sources
+  const dedupedRecords = deduplicateByBookmaker(oddsRecords);
+  if (dedupedRecords.length < 2) return null;
+
+  const { bestHome, bestDraw, bestAway } = findBestOddsH2H(dedupedRecords);
+  const drawSport = isSportWithDraw(match.sport);
 
   // Try 3-way first if draw odds exist
   if (bestDraw.odds > 0 && bestHome.odds > 0 && bestAway.odds > 0) {
@@ -112,7 +154,12 @@ function detectH2hArbitrage(match, oddsRecords) {
     }
   }
 
-  // Try 2-way (home vs away)
+  // For draw sports (soccer), do NOT fall back to 2-way — it produces fake 25-30% profits
+  if (drawSport) {
+    return null;
+  }
+
+  // Try 2-way only for non-draw sports (basketball, baseball, ice hockey, etc.)
   if (bestHome.odds > 0 && bestAway.odds > 0) {
     // Skip if both best odds are from the same bookmaker
     if (!hasMultipleBookmakers(bestHome.bookmaker, bestAway.bookmaker)) {
@@ -143,7 +190,9 @@ function detectH2hArbitrage(match, oddsRecords) {
  * Detect arbitrage for a 2-way market (spreads or totals).
  */
 function detect2WayArbitrage(match, oddsRecords, marketType, handicapPoint) {
-  const { bestOutcome1, bestOutcome2 } = findBestOdds2Way(oddsRecords);
+  const dedupedRecords = deduplicateByBookmaker(oddsRecords);
+  if (dedupedRecords.length < 2) return null;
+  const { bestOutcome1, bestOutcome2 } = findBestOdds2Way(dedupedRecords);
 
   if (bestOutcome1.odds > 0 && bestOutcome2.odds > 0) {
     // Skip if both best odds are from the same bookmaker
@@ -171,9 +220,13 @@ function detect2WayArbitrage(match, oddsRecords, marketType, handicapPoint) {
   return null;
 }
 
+// Maximum realistic arbitrage profit (%). Anything above this is likely data error.
+const MAX_REALISTIC_PROFIT = 15;
+
 /**
  * Detect arbitrage across all market types for a match.
  * Groups odds by (market_type, handicap_point) and checks each.
+ * Filters out unrealistically high profits (>15%) as data errors.
  */
 function detectAllArbitrageForMatch(match, allOddsRecords) {
   const opportunities = [];
@@ -194,11 +247,20 @@ function detectAllArbitrageForMatch(match, allOddsRecords) {
 
     if (marketType === 'h2h') {
       const opp = detectH2hArbitrage(match, records);
-      if (opp) opportunities.push(opp);
+      if (opp) {
+        // Filter out unrealistically high profits (likely data errors or stale odds)
+        if (opp.profit_percent <= MAX_REALISTIC_PROFIT) {
+          opportunities.push(opp);
+        }
+      }
     } else {
       // spreads or totals: 2-way
       const opp = detect2WayArbitrage(match, records, marketType, handicapPoint);
-      if (opp) opportunities.push(opp);
+      if (opp) {
+        if (opp.profit_percent <= MAX_REALISTIC_PROFIT) {
+          opportunities.push(opp);
+        }
+      }
     }
   }
 
@@ -238,4 +300,6 @@ module.exports = {
   detect2WayArbitrage,
   detectAllArbitrageForMatch,
   distributeStake,
+  deduplicateByBookmaker,
+  isSportWithDraw,
 };
