@@ -339,8 +339,7 @@ export async function createSiteRegistration(payload: {
   checkInterval?: number;
   enableCross?: boolean;
   enableHandicap?: boolean;
-  enableExtHandicap?: boolean;
-  enableExtOU?: boolean;
+  enableOU?: boolean;
 }): Promise<SiteRegistration> {
   const { data } = await api.post('/api/domestic/site-registrations', payload);
   return data.data;
@@ -361,8 +360,7 @@ export async function updateSiteRegistration(
     checkInterval: number;
     enableCross: boolean;
     enableHandicap: boolean;
-    enableExtHandicap: boolean;
-    enableExtOU: boolean;
+    enableOU: boolean;
     isActive: boolean;
   }>
 ): Promise<SiteRegistration> {

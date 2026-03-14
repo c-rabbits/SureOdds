@@ -726,8 +726,9 @@ export default function AdminPage() {
                             <th>URL</th>
                             <th>아이디</th>
                             <th className="text-center">간격</th>
-                            <th className="text-center">크로스</th>
+                            <th className="text-center">1X2</th>
                             <th className="text-center">핸디</th>
+                            <th className="text-center">O/U</th>
                             <th className="text-center">활성</th>
                             <th>등록일</th>
                             <th className="text-center pr-4">작업</th>
@@ -761,6 +762,7 @@ export default function AdminPage() {
                                 <td className="text-center text-gray-300 text-xs">{site.check_interval}s</td>
                                 <td className="text-center">{site.enable_cross ? <span className="text-green-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
                                 <td className="text-center">{site.enable_handicap ? <span className="text-purple-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
+                                <td className="text-center">{site.enable_ou ? <span className="text-orange-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
                                 <td className="text-center">
                                   <button
                                     onClick={() => handleSiteToggleActive(site)}

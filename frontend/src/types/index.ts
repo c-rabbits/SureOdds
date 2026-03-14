@@ -147,8 +147,7 @@ export interface SiteRegistration {
   check_interval: number;
   enable_cross: boolean;
   enable_handicap: boolean;
-  enable_ext_handicap: boolean;
-  enable_ext_ou: boolean;
+  enable_ou: boolean;
   is_active: boolean;
   status: 'active' | 'paused' | 'pending' | 'approved' | 'rejected';
   created_at: string;

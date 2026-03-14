@@ -386,7 +386,7 @@ router.post('/site-registrations', async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
 
-    const { availableSiteId, siteUrl, siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableExtHandicap, enableExtOU } = req.body;
+    const { availableSiteId, siteUrl, siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableOU } = req.body;
 
     if (!availableSiteId) {
       return res.status(400).json({ error: '사이트를 선택해주세요.' });
@@ -415,8 +415,7 @@ router.post('/site-registrations', async (req, res) => {
       check_interval: checkInterval || 60,
       enable_cross: enableCross !== false,
       enable_handicap: enableHandicap !== false,
-      enable_ext_handicap: enableExtHandicap === true,
-      enable_ext_ou: enableExtOU === true,
+      enable_ou: enableOU === true,
       is_active: true,
       status: 'active',
     };
@@ -469,7 +468,7 @@ router.patch('/site-registrations/:id', async (req, res) => {
     if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
 
     const { id } = req.params;
-    const { siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableExtHandicap, enableExtOU, isActive } = req.body;
+    const { siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableOU, isActive } = req.body;
 
     const updates = {};
     if (siteName !== undefined) updates.site_name = siteName;
@@ -479,8 +478,7 @@ router.patch('/site-registrations/:id', async (req, res) => {
     if (checkInterval !== undefined) updates.check_interval = checkInterval;
     if (enableCross !== undefined) updates.enable_cross = enableCross;
     if (enableHandicap !== undefined) updates.enable_handicap = enableHandicap;
-    if (enableExtHandicap !== undefined) updates.enable_ext_handicap = enableExtHandicap;
-    if (enableExtOU !== undefined) updates.enable_ext_ou = enableExtOU;
+    if (enableOU !== undefined) updates.enable_ou = enableOU;
     if (isActive !== undefined) updates.is_active = isActive;
 
     const { data, error } = await supabase

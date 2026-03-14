@@ -50,8 +50,7 @@ export default function DomesticPage() {
   const [siteCheckInterval, setSiteCheckInterval] = useState(60);
   const [siteCross, setSiteCross] = useState(true);
   const [siteHandicap, setSiteHandicap] = useState(true);
-  const [siteExtHandicap, setSiteExtHandicap] = useState(false);
-  const [siteExtOU, setSiteExtOU] = useState(false);
+  const [siteOU, setSiteOU] = useState(false);
   const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
   const [siteSubmitting, setSiteSubmitting] = useState(false);
   const [siteMsg, setSiteMsg] = useState<string | null>(null);
@@ -113,8 +112,7 @@ export default function DomesticPage() {
     setSiteCheckInterval(60);
     setSiteCross(true);
     setSiteHandicap(true);
-    setSiteExtHandicap(false);
-    setSiteExtOU(false);
+    setSiteOU(false);
     setEditingSiteId(null);
   };
 
@@ -134,8 +132,7 @@ export default function DomesticPage() {
           checkInterval: siteCheckInterval,
           enableCross: siteCross,
           enableHandicap: siteHandicap,
-          enableExtHandicap: siteExtHandicap,
-          enableExtOU: siteExtOU,
+          enableOU: siteOU,
         });
         setSiteMsg('사이트 수정 완료');
       } else {
@@ -146,8 +143,7 @@ export default function DomesticPage() {
           checkInterval: siteCheckInterval,
           enableCross: siteCross,
           enableHandicap: siteHandicap,
-          enableExtHandicap: siteExtHandicap,
-          enableExtOU: siteExtOU,
+          enableOU: siteOU,
         });
         setSiteMsg('사이트 추가 완료! 크롤링이 시작됩니다.');
       }
@@ -169,8 +165,7 @@ export default function DomesticPage() {
     setSiteCheckInterval(site.check_interval);
     setSiteCross(site.enable_cross);
     setSiteHandicap(site.enable_handicap);
-    setSiteExtHandicap(site.enable_ext_handicap);
-    setSiteExtOU(site.enable_ext_ou);
+    setSiteOU(site.enable_ou);
   };
 
   const handleDeleteSite = async (id: string) => {
@@ -390,12 +385,8 @@ export default function DomesticPage() {
                   <span className="text-sm text-white">핸디</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" checked={siteExtHandicap} onChange={(e) => setSiteExtHandicap(e.target.checked)} className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500" />
-                  <span className="text-sm text-white">연장(핸디)</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" checked={siteExtOU} onChange={(e) => setSiteExtOU(e.target.checked)} className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-orange-500 focus:ring-orange-500" />
-                  <span className="text-sm text-white">연장(OU)</span>
+                  <input type="checkbox" checked={siteOU} onChange={(e) => setSiteOU(e.target.checked)} className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-orange-500 focus:ring-orange-500" />
+                  <span className="text-sm text-white">O/U</span>
                 </label>
               </div>
               <div className="flex items-center gap-2">
@@ -432,10 +423,9 @@ export default function DomesticPage() {
                     <th className="text-left py-2 px-2">주소</th>
                     <th className="text-left py-2 px-2">아이디</th>
                     <th className="text-center py-2 px-2">체크간격</th>
-                    <th className="text-center py-2 px-2">크로스</th>
+                    <th className="text-center py-2 px-2">1X2</th>
                     <th className="text-center py-2 px-2">핸디</th>
-                    <th className="text-center py-2 px-2">연장(H)</th>
-                    <th className="text-center py-2 px-2">연장(OU)</th>
+                    <th className="text-center py-2 px-2">O/U</th>
                     <th className="text-center py-2 px-2">승인</th>
                     <th className="text-center py-2 px-2">기능</th>
                   </tr>
@@ -461,8 +451,7 @@ export default function DomesticPage() {
                         <td className="py-2 px-2 text-center text-gray-300">{site.check_interval}초</td>
                         <td className="py-2 px-2 text-center">{site.enable_cross ? <span className="text-green-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">{site.enable_handicap ? <span className="text-purple-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
-                        <td className="py-2 px-2 text-center">{site.enable_ext_handicap ? <span className="text-blue-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
-                        <td className="py-2 px-2 text-center">{site.enable_ext_ou ? <span className="text-orange-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
+                        <td className="py-2 px-2 text-center">{site.enable_ou ? <span className="text-orange-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded border ${st.color}`}>{st.label}</span>
                         </td>
