@@ -290,6 +290,10 @@ export function flattenMatchesToRows(matches: MatchWithOdds[]): TableRow[] {
     }
 
     for (const [key, oddsRecords] of Object.entries(groups)) {
+      // Skip markets with only one bookmaker — no comparison possible
+      const uniqueBookmakers = new Set(oddsRecords.map((o) => o.bookmaker));
+      if (uniqueBookmakers.size < 2) continue;
+
       const [marketType, pointStr] = key.split('|');
       const handicapPoint = pointStr === 'null' ? null : parseFloat(pointStr);
       const { best1, best2, bestDraw } = findBestOdds(oddsRecords);
