@@ -576,8 +576,10 @@ export default function AdminPage() {
                       <tr key={as.id} className={`border-b border-gray-800 ${!as.is_active ? 'opacity-40' : ''}`}>
                         <td className="py-1.5 px-2">
                           <button onClick={() => handleToggleAvailableSite(as)}
-                            className={`w-2.5 h-2.5 rounded-full ${as.is_active ? 'bg-green-500' : 'bg-red-500'}`}
-                            title={as.is_active ? '활성' : '비활성'} />
+                            className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${as.is_active ? 'bg-green-600' : 'bg-gray-600'}`}
+                            title={as.is_active ? 'ON - 클릭하여 비활성화' : 'OFF - 클릭하여 활성화'}>
+                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${as.is_active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                          </button>
                         </td>
                         <td className="py-1.5 px-2 text-white font-medium">{as.site_name}</td>
                         <td className="py-1.5 px-2 text-gray-400">{as.site_url}</td>
