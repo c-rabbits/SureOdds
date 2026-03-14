@@ -601,6 +601,26 @@ router.patch('/site-requests/:id', async (req, res) => {
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // 완료 처리 시 available_sites에 자동 추가 (중복 체크)
+    if (status === 'completed' && data.site_url) {
+      const { data: existing } = await supabase
+        .from('available_sites')
+        .select('id')
+        .eq('site_url', data.site_url.trim())
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from('available_sites').insert({
+          site_url: data.site_url.trim(),
+          site_name: data.site_name?.trim() || data.site_url.trim(),
+          description: data.notes || null,
+          is_active: true,
+        });
+        log.info('Auto-added to available_sites from completed request', { siteUrl: data.site_url });
+      }
+    }
+
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ error: err.message });
