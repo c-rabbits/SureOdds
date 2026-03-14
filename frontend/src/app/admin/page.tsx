@@ -722,7 +722,6 @@ export default function AdminPage() {
                             </th>
                             <th>상태</th>
                             <th>사용자</th>
-                            <th>그룹</th>
                             <th>사이트명</th>
                             <th>URL</th>
                             <th>아이디</th>
@@ -756,7 +755,6 @@ export default function AdminPage() {
                                     <div className="text-gray-500">{site.profiles?.username || site.profiles?.email || '-'}</div>
                                   </div>
                                 </td>
-                                <td className="text-gray-400 text-xs">{site.group_name}</td>
                                 <td className="text-white font-medium text-xs">{site.site_name}</td>
                                 <td className="text-gray-500 text-xs max-w-[120px] truncate" title={site.site_url}>{site.site_url}</td>
                                 <td className="text-gray-300 text-xs">{site.login_id || '-'}</td>

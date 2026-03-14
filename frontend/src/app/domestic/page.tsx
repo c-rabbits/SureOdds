@@ -45,7 +45,6 @@ export default function DomesticPage() {
   const [availableSites, setAvailableSites] = useState<AvailableSite[]>([]);
   const [sites, setSites] = useState<SiteRegistration[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState('');
-  const [siteGroup, setSiteGroup] = useState('기본');
   const [siteLoginId, setSiteLoginId] = useState('');
   const [siteLoginPw, setSiteLoginPw] = useState('');
   const [siteCheckInterval, setSiteCheckInterval] = useState(60);
@@ -109,7 +108,6 @@ export default function DomesticPage() {
   // ─── 사이트 추가 ───
   const resetSiteForm = () => {
     setSelectedSiteId('');
-    setSiteGroup('기본');
     setSiteLoginId('');
     setSiteLoginPw('');
     setSiteCheckInterval(60);
@@ -131,7 +129,6 @@ export default function DomesticPage() {
     try {
       if (editingSiteId) {
         await updateSiteRegistration(editingSiteId, {
-          groupName: siteGroup,
           loginId: siteLoginId,
           loginPw: siteLoginPw || undefined,
           checkInterval: siteCheckInterval,
@@ -144,7 +141,6 @@ export default function DomesticPage() {
       } else {
         await createSiteRegistration({
           availableSiteId: selectedSiteId,
-          groupName: siteGroup,
           loginId: siteLoginId,
           loginPw: siteLoginPw,
           checkInterval: siteCheckInterval,
@@ -168,7 +164,6 @@ export default function DomesticPage() {
   const handleEditSite = (site: SiteRegistration) => {
     setEditingSiteId(site.id);
     setSelectedSiteId(site.available_site_id || '');
-    setSiteGroup(site.group_name);
     setSiteLoginId(site.login_id || '');
     setSiteLoginPw('');
     setSiteCheckInterval(site.check_interval);
@@ -324,37 +319,22 @@ export default function DomesticPage() {
 
           {/* 등록 폼 */}
           <div className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 space-y-4">
-            {/* Row 1: 사이트 선택 + 그룹 */}
-            <div className="grid grid-cols-12 gap-3 items-end">
-              <div className="col-span-8">
-                <label className="block text-xs text-gray-400 mb-1">사이트 선택</label>
-                <select
-                  value={selectedSiteId}
-                  onChange={(e) => setSelectedSiteId(e.target.value)}
-                  disabled={!!editingSiteId}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white disabled:opacity-50"
-                >
-                  <option value="">-- 사이트를 선택하세요 --</option>
-                  {availableSites.map((as) => (
-                    <option key={as.id} value={as.id}>
-                      {as.site_name} ({as.site_url})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-span-4">
-                <label className="block text-xs text-gray-400 mb-1">그룹</label>
-                <select
-                  value={siteGroup}
-                  onChange={(e) => setSiteGroup(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
-                >
-                  <option value="기본">기본</option>
-                  <option value="A그룹">A그룹</option>
-                  <option value="B그룹">B그룹</option>
-                  <option value="C그룹">C그룹</option>
-                </select>
-              </div>
+            {/* Row 1: 사이트 선택 */}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">사이트 선택</label>
+              <select
+                value={selectedSiteId}
+                onChange={(e) => setSelectedSiteId(e.target.value)}
+                disabled={!!editingSiteId}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white disabled:opacity-50"
+              >
+                <option value="">-- 사이트를 선택하세요 --</option>
+                {availableSites.map((as) => (
+                  <option key={as.id} value={as.id}>
+                    {as.site_name} ({as.site_url})
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Row 2: 아이디 + 비밀번호 + 체크간격 */}
@@ -448,7 +428,6 @@ export default function DomesticPage() {
                 <thead>
                   <tr className="border-b border-gray-700 text-gray-400 text-xs">
                     <th className="text-left py-2 px-2">상태</th>
-                    <th className="text-left py-2 px-2">그룹</th>
                     <th className="text-left py-2 px-2">사이트명</th>
                     <th className="text-left py-2 px-2">주소</th>
                     <th className="text-left py-2 px-2">아이디</th>
@@ -476,7 +455,6 @@ export default function DomesticPage() {
                             title={site.is_active ? '활성' : '비활성'}
                           />
                         </td>
-                        <td className="py-2 px-2 text-gray-400">{site.group_name}</td>
                         <td className="py-2 px-2 text-white font-medium">{site.site_name}</td>
                         <td className="py-2 px-2 text-gray-500 max-w-[150px] truncate" title={site.site_url}>{site.site_url || '-'}</td>
                         <td className="py-2 px-2 text-gray-300">{site.login_id || '-'}</td>
