@@ -289,14 +289,26 @@ export function flattenMatchesToRows(matches: MatchWithOdds[]): TableRow[] {
       arbMap[key] = { profitPercent: Number(arb.profit_percent), arbFactor: Number(arb.arb_factor) };
     }
 
+    // Betman Proto closes betting ~2 hours before match start.
+    // Exclude betman odds for matches starting within 2 hours.
+    const BETMAN_CLOSE_HOURS = 2;
+    const betmanCutoff = new Date(Date.now() + BETMAN_CLOSE_HOURS * 60 * 60 * 1000);
+    const matchStart = new Date(match.start_time);
+    const betmanLikelyClosed = matchStart <= betmanCutoff;
+
     for (const [key, oddsRecords] of Object.entries(groups)) {
+      // Filter out betman odds if match is within cutoff (betting likely closed)
+      const effectiveOdds = betmanLikelyClosed
+        ? oddsRecords.filter((o) => !isDomesticBookmaker(o.bookmaker))
+        : oddsRecords;
+
       // Skip markets with only one bookmaker — no comparison possible
-      const uniqueBookmakers = new Set(oddsRecords.map((o) => o.bookmaker));
+      const uniqueBookmakers = new Set(effectiveOdds.map((o) => o.bookmaker));
       if (uniqueBookmakers.size < 2) continue;
 
       const [marketType, pointStr] = key.split('|');
       const handicapPoint = pointStr === 'null' ? null : parseFloat(pointStr);
-      const { best1, best2, bestDraw } = findBestOdds(oddsRecords);
+      const { best1, best2, bestDraw } = findBestOdds(effectiveOdds);
 
       // Skip if best odds for both outcomes come from the same bookmaker
       if (best1 && best2 && best1.bookmaker === best2.bookmaker) continue;
