@@ -50,7 +50,7 @@ export default function DomesticPage() {
   const [siteCheckInterval, setSiteCheckInterval] = useState(60);
   const [siteCross, setSiteCross] = useState(true);
   const [siteHandicap, setSiteHandicap] = useState(true);
-  const [siteOU, setSiteOU] = useState(false);
+  const [siteOU, setSiteOU] = useState(true);
   const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
   const [siteSubmitting, setSiteSubmitting] = useState(false);
   const [siteMsg, setSiteMsg] = useState<string | null>(null);

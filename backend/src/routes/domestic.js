@@ -415,7 +415,7 @@ router.post('/site-registrations', async (req, res) => {
       check_interval: checkInterval || 60,
       enable_cross: enableCross !== false,
       enable_handicap: enableHandicap !== false,
-      enable_ou: enableOU === true,
+      enable_ou: enableOU !== false,
       is_active: true,
       status: 'active',
     };
