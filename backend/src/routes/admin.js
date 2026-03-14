@@ -343,15 +343,37 @@ router.patch('/available-sites/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/available-sites/:id - 삭제
+// DELETE /api/admin/available-sites/:id - 삭제 (연관 사이트 등록도 함께 삭제)
 router.delete('/available-sites/:id', async (req, res) => {
   try {
+    // 1. Get the site info first (to find site_url for cascading delete)
+    const { data: site, error: fetchError } = await supabase
+      .from('available_sites')
+      .select('site_url, site_name')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // 2. Delete all user site_registrations with matching site_url
+    const { error: regError } = await supabase
+      .from('site_registrations')
+      .delete()
+      .eq('site_url', site.site_url);
+
+    if (regError) {
+      log.warn('Error deleting related site_registrations', { error: regError.message });
+    }
+
+    // 3. Delete the available_site itself
     const { error } = await supabase
       .from('available_sites')
       .delete()
       .eq('id', req.params.id);
 
     if (error) throw error;
+
+    log.info(`Deleted available site: ${site.site_name} (${site.site_url}) and related registrations`);
     res.json({ success: true });
   } catch (err) {
     log.error('Delete available site error', { error: err.message });
