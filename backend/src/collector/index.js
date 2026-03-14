@@ -13,7 +13,7 @@ require('dotenv').config();
 const log = createServiceLogger('Collector');
 
 const INTERVAL_SECONDS = parseInt(process.env.COLLECTOR_INTERVAL || '300', 10);
-const ODDS_API_IO_INTERVAL_MIN = parseInt(process.env.ODDS_API_IO_INTERVAL || '20', 10);
+const ODDS_API_IO_INTERVAL_MIN = parseInt(process.env.ODDS_API_IO_INTERVAL || '10', 10);
 const BATCH_SIZE = 100;
 
 // Track last collection result for status reporting
