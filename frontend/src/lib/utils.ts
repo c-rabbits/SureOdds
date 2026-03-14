@@ -297,6 +297,10 @@ export function flattenMatchesToRows(matches: MatchWithOdds[]): TableRow[] {
       const [marketType, pointStr] = key.split('|');
       const handicapPoint = pointStr === 'null' ? null : parseFloat(pointStr);
       const { best1, best2, bestDraw } = findBestOdds(oddsRecords);
+
+      // Skip if best odds for both outcomes come from the same bookmaker
+      if (best1 && best2 && best1.bookmaker === best2.bookmaker) continue;
+
       const arb = arbMap[key];
 
       let arbFactor: number | null = arb?.arbFactor ?? null;
