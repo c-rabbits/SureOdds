@@ -217,10 +217,10 @@ export default function AdminPage() {
   }
 
   async function handleDeleteAvailableSite(site: AvailableSite) {
-    if (!confirm(`"${site.site_name}" 사이트를 마스터 목록에서 삭제하시겠습니까?`)) return;
+    if (!confirm(`"${site.site_name}" 사이트를 삭제하시겠습니까?\n해당 사이트를 등록한 유저의 사이트도 함께 삭제됩니다.`)) return;
     try {
       await deleteAvailableSite(site.id);
-      await loadAvailableSites();
+      await Promise.all([loadAvailableSites(), loadSites()]);
     } catch (err) {
       console.error('Delete available site failed:', err);
     }
