@@ -364,7 +364,9 @@ async function scrapeBetman() {
   log.info('Starting scrape');
 
   try {
-    const rounds = await findProtoRounds(true, true);
+    // Only scrape rounds that are currently on sale (발매 중)
+    // Closed rounds cannot accept new bets, so arb opportunities are not actionable
+    const rounds = await findProtoRounds(true, false);
     log.info(`Found ${rounds.length} Proto rounds`);
 
     if (rounds.length === 0) {

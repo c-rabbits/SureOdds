@@ -242,11 +242,23 @@ async function runArbitrageDetection(savedMatches) {
     .in('match_id', matchIds)
     .eq('is_active', true);
 
+  // Determine freshness threshold: betman odds older than 2× collection interval
+  // are likely from a closed round and should be excluded from arb detection
+  const STALE_MINUTES = Math.max(15, (INTERVAL_SECONDS / 60) * 2);
+  const staleThreshold = new Date(Date.now() - STALE_MINUTES * 60 * 1000).toISOString();
+
   for (const match of matches) {
     const { data: oddsRecords } = await supabase.from('odds').select('*').eq('match_id', match.id);
     if (!oddsRecords || oddsRecords.length < 2) continue;
 
-    const opportunities = detectAllArbitrageForMatch(match, oddsRecords);
+    // Filter out stale betman odds (likely from closed/expired rounds)
+    const freshOdds = oddsRecords.filter((r) => {
+      if (r.bookmaker === 'betman_proto' && r.updated_at < staleThreshold) return false;
+      return true;
+    });
+    if (freshOdds.length < 2) continue;
+
+    const opportunities = detectAllArbitrageForMatch(match, freshOdds);
     if (!opportunities || opportunities.length === 0) continue;
 
     for (const opp of opportunities) {
@@ -371,6 +383,9 @@ async function collect(sports, markets) {
     }
 
     // ─── Betman (domestic) scraping ───
+    // Betman only scrapes on_sale rounds now (closed rounds are excluded).
+    // Deactivate arbs involving betman_proto where betman odds are stale
+    // (i.e. no longer refreshed because the round closed).
     let betmanMatchCount = 0;
     let betmanOddsCount = 0;
     try {
