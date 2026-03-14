@@ -17,10 +17,8 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (identifier: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: string | null }>;
-  updatePassword: (password: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -80,7 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (identifier: string, password: string) => {
+    // 아이디(@없음) → 내부 이메일로 변환, 이메일(@포함) → 그대로 사용
+    const email = identifier.includes('@') ? identifier : `${identifier}@sureodds.local`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message || null };
   }, []);
@@ -89,18 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-  }, []);
-
-  const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
-    });
-    return { error: error?.message || null };
-  }, []);
-
-  const updatePassword = useCallback(async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    return { error: error?.message || null };
   }, []);
 
   return (
@@ -112,8 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: user?.role === 'admin',
         signIn,
         signOut,
-        resetPassword,
-        updatePassword,
       }}
     >
       {children}

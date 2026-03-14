@@ -111,6 +111,7 @@ export type UserRole = 'admin' | 'user';
 export interface UserProfile {
   id: string;
   email: string;
+  username: string | null;
   display_name: string | null;
   role: UserRole;
   is_active: boolean;

@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // 인증 불필요 경로
-const PUBLIC_PATHS = ['/login', '/reset-password', '/update-password'];
+const PUBLIC_PATHS = ['/login'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

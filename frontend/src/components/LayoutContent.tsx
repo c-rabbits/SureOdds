@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 
 // 인증 불필요 경로
-const publicPaths = ['/login', '/reset-password', '/update-password'];
+const publicPaths = ['/login'];
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

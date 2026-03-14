@@ -57,21 +57,7 @@ router.get('/users', async (req, res) => {
 // ============================================================
 router.post('/users', async (req, res) => {
   try {
-    const { email, password, display_name, role = 'user' } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: '이메일과 비밀번호는 필수입니다.',
-      });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        error: '비밀번호는 최소 6자 이상이어야 합니다.',
-      });
-    }
+    const { email, username, password, display_name, role = 'user' } = req.body;
 
     if (!['admin', 'user'].includes(role)) {
       return res.status(400).json({
@@ -80,37 +66,76 @@ router.post('/users', async (req, res) => {
       });
     }
 
-    // Supabase Admin API로 사용자 생성 (이메일 확인 건너뜀)
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: '비밀번호는 최소 6자 이상이어야 합니다.',
+      });
+    }
+
+    let authEmail;
+    let userDisplayName;
+
+    if (role === 'admin') {
+      // 관리자: 이메일 필수
+      if (!email) {
+        return res.status(400).json({ success: false, error: '관리자는 이메일이 필수입니다.' });
+      }
+      authEmail = email;
+      userDisplayName = display_name || email.split('@')[0];
+    } else {
+      // 일반회원: 아이디 필수
+      if (!username) {
+        return res.status(400).json({ success: false, error: '아이디는 필수입니다.' });
+      }
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        return res.status(400).json({
+          success: false,
+          error: '아이디는 영문, 숫자, 밑줄(_)만 사용하여 3~20자로 입력하세요.',
+        });
+      }
+      authEmail = `${username}@sureodds.local`;
+      userDisplayName = display_name || username;
+    }
+
+    // Supabase Admin API로 사용자 생성
     const { data, error } = await supabase.auth.admin.createUser({
-      email,
+      email: authEmail,
       password,
       email_confirm: true,
       user_metadata: {
-        display_name: display_name || email.split('@')[0],
+        display_name: userDisplayName,
         role,
+        username: role === 'user' ? username : undefined,
       },
     });
 
-    if (error) throw error;
-
-    // 트리거로 profiles 생성되지만, role이 admin인 경우 확실히 업데이트
-    if (role === 'admin' || display_name) {
-      await supabase
-        .from('profiles')
-        .update({
-          role,
-          display_name: display_name || email.split('@')[0],
-        })
-        .eq('id', data.user.id);
+    if (error) {
+      // 중복 이메일 에러를 아이디 중복으로 변환
+      if (error.message.includes('already been registered') && role === 'user') {
+        throw new Error('이미 사용 중인 아이디입니다.');
+      }
+      throw error;
     }
+
+    // profiles 업데이트 (role, display_name, username 확실히 세팅)
+    await supabase
+      .from('profiles')
+      .update({
+        role,
+        display_name: userDisplayName,
+        username: role === 'user' ? username : null,
+      })
+      .eq('id', data.user.id);
 
     res.json({
       success: true,
       data: {
         id: data.user.id,
-        email: data.user.email,
+        email: authEmail,
+        username: role === 'user' ? username : null,
         role,
-        display_name: display_name || email.split('@')[0],
+        display_name: userDisplayName,
       },
     });
   } catch (err) {
@@ -127,14 +152,12 @@ router.patch('/users/:id', async (req, res) => {
     const { role, is_active, display_name } = req.body;
     const updates = {};
 
+    // 역할 변경 불가
     if (role !== undefined) {
-      if (!['admin', 'user'].includes(role)) {
-        return res.status(400).json({
-          success: false,
-          error: '역할은 admin 또는 user만 가능합니다.',
-        });
-      }
-      updates.role = role;
+      return res.status(400).json({
+        success: false,
+        error: '역할 변경은 지원하지 않습니다.',
+      });
     }
     if (is_active !== undefined) updates.is_active = is_active;
     if (display_name !== undefined) updates.display_name = display_name;
@@ -193,7 +216,7 @@ router.get('/site-registrations', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('site_registrations')
-      .select('*, profiles:user_id(email, display_name)')
+      .select('*, profiles:user_id(email, display_name, username)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -241,7 +264,7 @@ router.get('/site-requests', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('site_requests')
-      .select('*, profiles:user_id(email, display_name)')
+      .select('*, profiles:user_id(email, display_name, username)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;

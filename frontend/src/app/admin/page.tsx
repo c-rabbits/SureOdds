@@ -30,8 +30,8 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   completed: { label: '완료', color: 'bg-green-900/30 text-green-400 border-green-800' },
 };
 
-type SiteRegWithProfile = SiteRegistration & { profiles?: { email: string; display_name: string | null } };
-type SiteReqWithProfile = SiteRequest & { profiles?: { email: string; display_name: string | null } };
+type SiteRegWithProfile = SiteRegistration & { profiles?: { email: string; display_name: string | null; username: string | null } };
+type SiteReqWithProfile = SiteRequest & { profiles?: { email: string; display_name: string | null; username: string | null } };
 
 export default function AdminPage() {
   const { user, isAdmin, loading: authLoading } = useAuth();
@@ -44,6 +44,7 @@ export default function AdminPage() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newEmail, setNewEmail] = useState('');
+  const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
@@ -133,8 +134,16 @@ export default function AdminPage() {
   // ─── 회원 관리 핸들러 ───
   async function handleCreate() {
     setCreateError('');
-    if (!newEmail || !newPassword) {
-      setCreateError('이메일과 비밀번호는 필수입니다.');
+    if (newRole === 'admin' && !newEmail) {
+      setCreateError('관리자는 이메일이 필수입니다.');
+      return;
+    }
+    if (newRole === 'user' && !newUsername) {
+      setCreateError('아이디는 필수입니다.');
+      return;
+    }
+    if (newRole === 'user' && !/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
+      setCreateError('아이디는 영문, 숫자, 밑줄(_)만 사용하여 3~20자로 입력하세요.');
       return;
     }
     if (newPassword.length < 6) {
@@ -143,8 +152,11 @@ export default function AdminPage() {
     }
     setCreating(true);
     try {
-      await createUser({ email: newEmail, password: newPassword, display_name: newName || undefined, role: newRole });
-      setNewEmail(''); setNewPassword(''); setNewName(''); setNewRole('user');
+      const payload = newRole === 'admin'
+        ? { email: newEmail, password: newPassword, display_name: newName || undefined, role: 'admin' as const }
+        : { username: newUsername, password: newPassword, display_name: newName || undefined, role: 'user' as const };
+      await createUser(payload);
+      setNewEmail(''); setNewUsername(''); setNewPassword(''); setNewName(''); setNewRole('user');
       setShowCreateForm(false);
       await loadUsers();
     } catch (err: unknown) {
@@ -164,17 +176,9 @@ export default function AdminPage() {
     }
   }
 
-  async function handleToggleRole(u: UserProfile) {
-    try {
-      await updateUser(u.id, { role: u.role === 'admin' ? 'user' : 'admin' });
-      await loadUsers();
-    } catch (err) {
-      console.error('Toggle role failed:', err);
-    }
-  }
-
   async function handleDelete(u: UserProfile) {
-    if (!confirm(`정말 "${u.email}" 사용자를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    const displayId = u.role === 'admin' ? u.email : (u.username || u.email);
+    if (!confirm(`정말 "${displayId}" 사용자를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     try {
       await deleteUser(u.id);
       await loadUsers();
@@ -342,10 +346,26 @@ export default function AdminPage() {
               <h3 className="text-sm font-semibold text-white mb-3">새 회원 생성</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">이메일 *</label>
-                  <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500" placeholder="email@example.com" />
+                  <label className="block text-xs text-gray-400 mb-1">역할</label>
+                  <select value={newRole} onChange={(e) => { setNewRole(e.target.value as 'user' | 'admin'); setNewEmail(''); setNewUsername(''); }}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500">
+                    <option value="user">일반 사용자</option>
+                    <option value="admin">관리자</option>
+                  </select>
                 </div>
+                {newRole === 'admin' ? (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">이메일 *</label>
+                    <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500" placeholder="email@example.com" />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">아이디 *</label>
+                    <input type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500" placeholder="영문/숫자 3~20자" />
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">비밀번호 *</label>
                   <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
@@ -355,14 +375,6 @@ export default function AdminPage() {
                   <label className="block text-xs text-gray-400 mb-1">이름</label>
                   <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500" placeholder="홍길동" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">역할</label>
-                  <select value={newRole} onChange={(e) => setNewRole(e.target.value as 'user' | 'admin')}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500">
-                    <option value="user">일반 사용자</option>
-                    <option value="admin">관리자</option>
-                  </select>
                 </div>
               </div>
               {createError && (
@@ -388,7 +400,7 @@ export default function AdminPage() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th className="pl-4">이메일</th>
+                      <th className="pl-4">아이디/이메일</th>
                       <th>이름</th>
                       <th>역할</th>
                       <th>상태</th>
@@ -401,7 +413,7 @@ export default function AdminPage() {
                     {users.map((u) => (
                       <tr key={u.id} className={!u.is_active ? 'opacity-50' : ''}>
                         <td className="pl-4">
-                          <span className="text-white">{u.email}</span>
+                          <span className="text-white">{u.role === 'admin' ? u.email : (u.username || u.email)}</span>
                           {u.id === user?.id && (
                             <span className="ml-1.5 text-[10px] text-green-400 font-medium">(나)</span>
                           )}
@@ -432,11 +444,6 @@ export default function AdminPage() {
                                   className={`btn-sm ${u.is_active ? 'text-yellow-400 hover:bg-yellow-500/10' : 'text-green-400 hover:bg-green-500/10'}`}
                                   title={u.is_active ? '비활성화' : '활성화'}>
                                   {u.is_active ? '비활성화' : '활성화'}
-                                </button>
-                                <button onClick={() => handleToggleRole(u)}
-                                  className="btn-sm text-purple-400 hover:bg-purple-500/10"
-                                  title={u.role === 'admin' ? '사용자로 변경' : '관리자로 변경'}>
-                                  {u.role === 'admin' ? '→사용자' : '→관리자'}
                                 </button>
                                 <button onClick={() => handleDelete(u)}
                                   className="btn-sm text-red-400 hover:bg-red-500/10" title="삭제">
@@ -584,7 +591,7 @@ export default function AdminPage() {
                           <td>
                             <div className="text-xs">
                               <div className="text-white">{site.profiles?.display_name || '-'}</div>
-                              <div className="text-gray-500">{site.profiles?.email || '-'}</div>
+                              <div className="text-gray-500">{site.profiles?.username || site.profiles?.email || '-'}</div>
                             </div>
                           </td>
                           <td className="text-gray-400 text-xs">{site.group_name}</td>
@@ -697,7 +704,7 @@ export default function AdminPage() {
                           <td>
                             <div className="text-xs">
                               <div className="text-white">{req.profiles?.display_name || '-'}</div>
-                              <div className="text-gray-500">{req.profiles?.email || '-'}</div>
+                              <div className="text-gray-500">{req.profiles?.username || req.profiles?.email || '-'}</div>
                             </div>
                           </td>
                           <td className="text-white text-xs">{req.site_name || '-'}</td>

@@ -271,11 +271,12 @@ export async function getUsers(): Promise<UserProfile[]> {
 }
 
 export async function createUser(payload: {
-  email: string;
+  email?: string;
+  username?: string;
   password: string;
   display_name?: string;
   role?: string;
-}): Promise<{ id: string; email: string }> {
+}): Promise<{ id: string; email: string; username?: string }> {
   const { data } = await api.post('/api/admin/users', payload);
   return data.data;
 }
@@ -400,7 +401,7 @@ export async function updateSiteRequest(
 }
 
 // Admin: get all site registrations
-export async function getAdminSiteRegistrations(): Promise<(SiteRegistration & { profiles?: { email: string; display_name: string | null } })[]> {
+export async function getAdminSiteRegistrations(): Promise<(SiteRegistration & { profiles?: { email: string; display_name: string | null; username: string | null } })[]> {
   const { data } = await api.get('/api/admin/site-registrations');
   return data.data;
 }
@@ -415,7 +416,7 @@ export async function updateAdminSiteRegistration(
 }
 
 // Admin: get all site requests
-export async function getAdminSiteRequests(): Promise<(SiteRequest & { profiles?: { email: string; display_name: string | null } })[]> {
+export async function getAdminSiteRequests(): Promise<(SiteRequest & { profiles?: { email: string; display_name: string | null; username: string | null } })[]> {
   const { data } = await api.get('/api/admin/site-requests');
   return data.data;
 }

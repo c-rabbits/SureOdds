@@ -2,7 +2,6 @@
 
 import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 
 function LoginForm() {
@@ -11,7 +10,7 @@ function LoginForm() {
   const redirectTo = searchParams.get('redirectTo') || '/';
   const { signIn, user, loading: authLoading } = useAuth();
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,10 +27,10 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
-    const { error: signInError } = await signIn(email, password);
+    const { error: signInError } = await signIn(identifier, password);
 
     if (signInError) {
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      setError('아이디(이메일) 또는 비밀번호가 올바르지 않습니다.');
       setLoading(false);
       return;
     }
@@ -57,15 +56,15 @@ function LoginForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">이메일</label>
+              <label className="block text-sm text-gray-400 mb-1">아이디 또는 이메일</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="username"
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-green-500 transition-colors"
-                placeholder="email@example.com"
+                placeholder="아이디 또는 이메일"
               />
             </div>
 
@@ -106,15 +105,6 @@ function LoginForm() {
               )}
             </button>
           </form>
-
-          <div className="mt-4 text-center">
-            <Link
-              href="/reset-password"
-              className="text-xs text-gray-500 hover:text-green-400 transition-colors"
-            >
-              비밀번호를 잊으셨나요?
-            </Link>
-          </div>
         </div>
 
         {/* 하단 안내 */}
