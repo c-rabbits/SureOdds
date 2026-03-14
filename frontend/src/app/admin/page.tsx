@@ -54,6 +54,10 @@ export default function AdminPage() {
   // ─── 사이트 관리 ───
   const [sites, setSites] = useState<SiteRegWithProfile[]>([]);
   const [sitesLoading, setSitesLoading] = useState(true);
+  const [siteSearchUser, setSiteSearchUser] = useState('');
+  const [siteFilterSite, setSiteFilterSite] = useState('');
+  const [siteFilterStatus, setSiteFilterStatus] = useState('');
+  const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set());
 
   // ─── 마스터 사이트 목록 ───
   const [availableSites, setAvailableSites] = useState<AvailableSite[]>([]);
@@ -239,6 +243,61 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Site toggle active failed:', err);
     }
+  }
+
+  // ─── 사이트 일괄 액션 ───
+  async function handleBulkSiteAction(action: 'pause' | 'resume') {
+    if (selectedSiteIds.size === 0) return;
+    const newStatus = action === 'pause' ? 'paused' : 'active';
+    try {
+      await Promise.all(
+        Array.from(selectedSiteIds).map((id) =>
+          updateAdminSiteRegistration(id, { status: newStatus })
+        )
+      );
+      setSelectedSiteIds(new Set());
+      await loadSites();
+    } catch (err) {
+      console.error('Bulk action failed:', err);
+    }
+  }
+
+  function toggleSiteSelection(id: string) {
+    setSelectedSiteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllSites(filteredSites: SiteRegWithProfile[]) {
+    if (selectedSiteIds.size === filteredSites.length) {
+      setSelectedSiteIds(new Set());
+    } else {
+      setSelectedSiteIds(new Set(filteredSites.map((s) => s.id)));
+    }
+  }
+
+  // 사이트별 사용자 수 계산
+  function getSiteUserCount(siteUrl: string): number {
+    return sites.filter((s) => s.site_url === siteUrl && s.status === 'active').length;
+  }
+
+  // 필터링된 사이트 목록
+  function getFilteredSites(): SiteRegWithProfile[] {
+    return sites.filter((s) => {
+      if (siteSearchUser) {
+        const q = siteSearchUser.toLowerCase();
+        const name = (s.profiles?.display_name || '').toLowerCase();
+        const uname = (s.profiles?.username || '').toLowerCase();
+        const email = (s.profiles?.email || '').toLowerCase();
+        if (!name.includes(q) && !uname.includes(q) && !email.includes(q)) return false;
+      }
+      if (siteFilterSite && s.site_name !== siteFilterSite) return false;
+      if (siteFilterStatus && s.status !== siteFilterStatus) return false;
+      return true;
+    });
   }
 
   // ─── 작업요청 관리 핸들러 ───
@@ -508,6 +567,7 @@ export default function AdminPage() {
                       <th className="text-left py-1.5 px-2">사이트명</th>
                       <th className="text-left py-1.5 px-2">URL</th>
                       <th className="text-left py-1.5 px-2">설명</th>
+                      <th className="text-center py-1.5 px-2">사용자</th>
                       <th className="text-center py-1.5 px-2">작업</th>
                     </tr>
                   </thead>
@@ -522,6 +582,13 @@ export default function AdminPage() {
                         <td className="py-1.5 px-2 text-white font-medium">{as.site_name}</td>
                         <td className="py-1.5 px-2 text-gray-400">{as.site_url}</td>
                         <td className="py-1.5 px-2 text-gray-500">{as.description || '-'}</td>
+                        <td className="py-1.5 px-2 text-center">
+                          {getSiteUserCount(as.site_url) > 0 ? (
+                            <span className="text-green-400 font-medium">{getSiteUserCount(as.site_url)}명</span>
+                          ) : (
+                            <span className="text-gray-600">0</span>
+                          )}
+                        </td>
                         <td className="py-1.5 px-2 text-center">
                           <button onClick={() => handleDeleteAvailableSite(as)}
                             className="text-red-400 hover:text-red-300 text-[10px]">삭제</button>
@@ -552,79 +619,181 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="card p-0 overflow-hidden">
-            {sitesLoading ? (
-              <div className="text-center py-8 text-gray-500 text-sm">로딩 중...</div>
-            ) : sites.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">등록된 사이트가 없습니다.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th className="pl-4">상태</th>
-                      <th>사용자</th>
-                      <th>그룹</th>
-                      <th>사이트명</th>
-                      <th>URL</th>
-                      <th>아이디</th>
-                      <th className="text-center">간격</th>
-                      <th className="text-center">크로스</th>
-                      <th className="text-center">핸디</th>
-                      <th className="text-center">활성</th>
-                      <th>등록일</th>
-                      <th className="text-center pr-4">작업</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sites.map((site) => {
-                      const st = STATUS_MAP[site.status] || STATUS_MAP.pending;
-                      return (
-                        <tr key={site.id} className={!site.is_active ? 'opacity-50' : ''}>
-                          <td className="pl-4">
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${st.color}`}>{st.label}</span>
-                          </td>
-                          <td>
-                            <div className="text-xs">
-                              <div className="text-white">{site.profiles?.display_name || '-'}</div>
-                              <div className="text-gray-500">{site.profiles?.username || site.profiles?.email || '-'}</div>
-                            </div>
-                          </td>
-                          <td className="text-gray-400 text-xs">{site.group_name}</td>
-                          <td className="text-white font-medium text-xs">{site.site_name}</td>
-                          <td className="text-gray-500 text-xs max-w-[120px] truncate" title={site.site_url}>{site.site_url}</td>
-                          <td className="text-gray-300 text-xs">{site.login_id || '-'}</td>
-                          <td className="text-center text-gray-300 text-xs">{site.check_interval}s</td>
-                          <td className="text-center">{site.enable_cross ? <span className="text-green-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
-                          <td className="text-center">{site.enable_handicap ? <span className="text-purple-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
-                          <td className="text-center">
-                            <button
-                              onClick={() => handleSiteToggleActive(site)}
-                              className={`w-2.5 h-2.5 rounded-full ${site.is_active ? 'bg-green-500' : 'bg-red-500'}`}
-                              title={site.is_active ? '활성 → 비활성' : '비활성 → 활성'}
-                            />
-                          </td>
-                          <td className="text-gray-500 text-xs">{formatDate(site.created_at)}</td>
-                          <td className="pr-4">
-                            <div className="flex items-center justify-center gap-1 flex-wrap">
-                              {site.status === 'active' && (
-                                <button onClick={() => handleSiteStatusChange(site.id, 'paused')}
-                                  className="btn-sm text-yellow-400 hover:bg-yellow-500/10 text-[10px]">일시정지</button>
-                              )}
-                              {site.status === 'paused' && (
-                                <button onClick={() => handleSiteStatusChange(site.id, 'active')}
-                                  className="btn-sm text-green-400 hover:bg-green-500/10 text-[10px]">재개</button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          {/* ── 필터 + 일괄 액션 ── */}
+          {(() => {
+            const filteredSites = getFilteredSites();
+            const uniqueSiteNames = Array.from(new Set(sites.map((s) => s.site_name))).sort();
+            return (
+              <>
+                <div className="card p-3 mb-4">
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-[10px] text-gray-500 mb-0.5">사용자 검색</label>
+                      <input
+                        type="text"
+                        value={siteSearchUser}
+                        onChange={(e) => setSiteSearchUser(e.target.value)}
+                        placeholder="아이디, 이름으로 검색"
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:border-green-500 focus:outline-none"
+                      />
+                    </div>
+                    <div className="min-w-[120px]">
+                      <label className="block text-[10px] text-gray-500 mb-0.5">사이트</label>
+                      <select
+                        value={siteFilterSite}
+                        onChange={(e) => setSiteFilterSite(e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-green-500 focus:outline-none"
+                      >
+                        <option value="">전체 사이트</option>
+                        {uniqueSiteNames.map((name) => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="min-w-[100px]">
+                      <label className="block text-[10px] text-gray-500 mb-0.5">상태</label>
+                      <select
+                        value={siteFilterStatus}
+                        onChange={(e) => setSiteFilterStatus(e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-green-500 focus:outline-none"
+                      >
+                        <option value="">전체 상태</option>
+                        <option value="active">운영중</option>
+                        <option value="paused">일시정지</option>
+                      </select>
+                    </div>
+                    {(siteSearchUser || siteFilterSite || siteFilterStatus) && (
+                      <button
+                        onClick={() => { setSiteSearchUser(''); setSiteFilterSite(''); setSiteFilterStatus(''); }}
+                        className="text-gray-400 hover:text-white text-xs py-1.5 px-2"
+                      >
+                        초기화
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 일괄 액션 */}
+                  {selectedSiteIds.size > 0 && (
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-700">
+                      <span className="text-xs text-gray-400">
+                        <span className="text-white font-medium">{selectedSiteIds.size}</span>개 선택
+                      </span>
+                      <button
+                        onClick={() => handleBulkSiteAction('pause')}
+                        className="btn-sm text-yellow-400 hover:bg-yellow-500/10 text-[10px] border border-yellow-800 px-2 py-1"
+                      >
+                        일괄 정지
+                      </button>
+                      <button
+                        onClick={() => handleBulkSiteAction('resume')}
+                        className="btn-sm text-green-400 hover:bg-green-500/10 text-[10px] border border-green-800 px-2 py-1"
+                      >
+                        일괄 재개
+                      </button>
+                      <button
+                        onClick={() => setSelectedSiteIds(new Set())}
+                        className="btn-sm text-gray-400 hover:bg-gray-500/10 text-[10px] px-2 py-1"
+                      >
+                        선택 해제
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="card p-0 overflow-hidden">
+                  {sitesLoading ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">로딩 중...</div>
+                  ) : filteredSites.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 text-sm">
+                      {sites.length === 0 ? '등록된 사이트가 없습니다.' : '검색 결과가 없습니다.'}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th className="pl-4 w-8">
+                              <input
+                                type="checkbox"
+                                checked={selectedSiteIds.size === filteredSites.length && filteredSites.length > 0}
+                                onChange={() => toggleAllSites(filteredSites)}
+                                className="rounded border-gray-600 bg-gray-800 text-green-500 focus:ring-green-500 focus:ring-offset-0 cursor-pointer"
+                              />
+                            </th>
+                            <th>상태</th>
+                            <th>사용자</th>
+                            <th>그룹</th>
+                            <th>사이트명</th>
+                            <th>URL</th>
+                            <th>아이디</th>
+                            <th className="text-center">간격</th>
+                            <th className="text-center">크로스</th>
+                            <th className="text-center">핸디</th>
+                            <th className="text-center">활성</th>
+                            <th>등록일</th>
+                            <th className="text-center pr-4">작업</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSites.map((site) => {
+                            const st = STATUS_MAP[site.status] || STATUS_MAP.pending;
+                            return (
+                              <tr key={site.id} className={`${!site.is_active ? 'opacity-50' : ''} ${selectedSiteIds.has(site.id) ? 'bg-green-500/5' : ''}`}>
+                                <td className="pl-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedSiteIds.has(site.id)}
+                                    onChange={() => toggleSiteSelection(site.id)}
+                                    className="rounded border-gray-600 bg-gray-800 text-green-500 focus:ring-green-500 focus:ring-offset-0 cursor-pointer"
+                                  />
+                                </td>
+                                <td>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded border ${st.color}`}>{st.label}</span>
+                                </td>
+                                <td>
+                                  <div className="text-xs">
+                                    <div className="text-white">{site.profiles?.display_name || '-'}</div>
+                                    <div className="text-gray-500">{site.profiles?.username || site.profiles?.email || '-'}</div>
+                                  </div>
+                                </td>
+                                <td className="text-gray-400 text-xs">{site.group_name}</td>
+                                <td className="text-white font-medium text-xs">{site.site_name}</td>
+                                <td className="text-gray-500 text-xs max-w-[120px] truncate" title={site.site_url}>{site.site_url}</td>
+                                <td className="text-gray-300 text-xs">{site.login_id || '-'}</td>
+                                <td className="text-center text-gray-300 text-xs">{site.check_interval}s</td>
+                                <td className="text-center">{site.enable_cross ? <span className="text-green-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
+                                <td className="text-center">{site.enable_handicap ? <span className="text-purple-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
+                                <td className="text-center">
+                                  <button
+                                    onClick={() => handleSiteToggleActive(site)}
+                                    className={`w-2.5 h-2.5 rounded-full ${site.is_active ? 'bg-green-500' : 'bg-red-500'}`}
+                                    title={site.is_active ? '활성 → 비활성' : '비활성 → 활성'}
+                                  />
+                                </td>
+                                <td className="text-gray-500 text-xs">{formatDate(site.created_at)}</td>
+                                <td className="pr-4">
+                                  <div className="flex items-center justify-center gap-1 flex-wrap">
+                                    {site.status === 'active' && (
+                                      <button onClick={() => handleSiteStatusChange(site.id, 'paused')}
+                                        className="btn-sm text-yellow-400 hover:bg-yellow-500/10 text-[10px]">일시정지</button>
+                                    )}
+                                    {site.status === 'paused' && (
+                                      <button onClick={() => handleSiteStatusChange(site.id, 'active')}
+                                        className="btn-sm text-green-400 hover:bg-green-500/10 text-[10px]">재개</button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </>
       )}
 
