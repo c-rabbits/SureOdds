@@ -150,7 +150,7 @@ export interface SiteRegistration {
   enable_ext_handicap: boolean;
   enable_ext_ou: boolean;
   is_active: boolean;
-  status: 'pending' | 'approved' | 'active' | 'paused' | 'rejected';
+  status: 'active' | 'paused' | 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
 }

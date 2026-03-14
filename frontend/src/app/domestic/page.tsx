@@ -153,7 +153,7 @@ export default function DomesticPage() {
           enableExtHandicap: siteExtHandicap,
           enableExtOU: siteExtOU,
         });
-        setSiteMsg('사이트 추가 완료! 관리자 승인 후 크롤링이 시작됩니다.');
+        setSiteMsg('사이트 추가 완료! 크롤링이 시작됩니다.');
       }
       resetSiteForm();
       const updated = await getSiteRegistrations().catch(() => []);
@@ -319,7 +319,7 @@ export default function DomesticPage() {
             <span>&#x1F310;</span> 사이트 추가
           </h2>
           <p className="text-sm text-gray-400 mb-4">
-            배당을 수집할 사설 사이트를 등록합니다. 관리자 승인 후 크롤링이 시작됩니다.
+            배당을 수집할 사설 사이트를 등록합니다. 등록 즉시 크롤링이 시작됩니다.
           </p>
 
           {/* 등록 폼 */}
@@ -500,7 +500,7 @@ export default function DomesticPage() {
                 </tbody>
               </table>
               <p className="text-xs text-gray-500 mt-3">
-                * 비밀번호는 AES-256 암호화되어 저장됩니다. 관리자 승인 후 크롤링이 시작됩니다.
+                * 비밀번호는 AES-256 암호화되어 저장됩니다.
               </p>
             </div>
           )}

@@ -537,14 +537,10 @@ export default function AdminPage() {
           </div>
 
           {/* ── 사용자 등록 사이트 통계 ── */}
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="card p-3 text-center">
               <div className="text-xl font-bold text-white">{sites.length}</div>
               <div className="text-[10px] text-gray-400">전체</div>
-            </div>
-            <div className="card p-3 text-center">
-              <div className="text-xl font-bold text-yellow-400">{sites.filter((s) => s.status === 'pending').length}</div>
-              <div className="text-[10px] text-gray-400">승인 대기</div>
             </div>
             <div className="card p-3 text-center">
               <div className="text-xl font-bold text-green-400">{sites.filter((s) => s.status === 'active').length}</div>
@@ -611,18 +607,6 @@ export default function AdminPage() {
                           <td className="text-gray-500 text-xs">{formatDate(site.created_at)}</td>
                           <td className="pr-4">
                             <div className="flex items-center justify-center gap-1 flex-wrap">
-                              {site.status === 'pending' && (
-                                <>
-                                  <button onClick={() => handleSiteStatusChange(site.id, 'approved')}
-                                    className="btn-sm text-blue-400 hover:bg-blue-500/10 text-[10px]">승인</button>
-                                  <button onClick={() => handleSiteStatusChange(site.id, 'rejected')}
-                                    className="btn-sm text-red-400 hover:bg-red-500/10 text-[10px]">반려</button>
-                                </>
-                              )}
-                              {site.status === 'approved' && (
-                                <button onClick={() => handleSiteStatusChange(site.id, 'active')}
-                                  className="btn-sm text-green-400 hover:bg-green-500/10 text-[10px]">운영시작</button>
-                              )}
                               {site.status === 'active' && (
                                 <button onClick={() => handleSiteStatusChange(site.id, 'paused')}
                                   className="btn-sm text-yellow-400 hover:bg-yellow-500/10 text-[10px]">일시정지</button>
@@ -630,10 +614,6 @@ export default function AdminPage() {
                               {site.status === 'paused' && (
                                 <button onClick={() => handleSiteStatusChange(site.id, 'active')}
                                   className="btn-sm text-green-400 hover:bg-green-500/10 text-[10px]">재개</button>
-                              )}
-                              {site.status === 'rejected' && (
-                                <button onClick={() => handleSiteStatusChange(site.id, 'pending')}
-                                  className="btn-sm text-gray-400 hover:bg-gray-500/10 text-[10px]">재검토</button>
                               )}
                             </div>
                           </td>

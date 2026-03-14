@@ -418,7 +418,7 @@ router.post('/site-registrations', async (req, res) => {
       enable_ext_handicap: enableExtHandicap === true,
       enable_ext_ou: enableExtOU === true,
       is_active: true,
-      status: 'pending',
+      status: 'active',
     };
 
     const { data, error } = await supabase.from('site_registrations').insert(row).select().single();
