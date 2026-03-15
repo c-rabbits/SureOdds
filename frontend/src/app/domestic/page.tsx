@@ -249,15 +249,17 @@ export default function DomesticPage() {
     }
   };
 
-  const domesticOddsCount = matches.reduce(
-    (acc, m) => acc + (m.odds?.filter((o) => (o as { source_type?: string }).source_type === 'domestic').length || 0),
-    0
-  );
-
   const stakeOddsCount = matches.reduce(
     (acc, m) => acc + (m.odds?.filter((o) => (o as { bookmaker?: string }).bookmaker === 'stake').length || 0),
     0
   );
+
+  const betmanOddsCount = matches.reduce(
+    (acc, m) => acc + (m.odds?.filter((o) => (o as { bookmaker?: string }).bookmaker === 'betman_proto').length || 0),
+    0
+  );
+
+  const domesticOddsCount = stakeOddsCount + betmanOddsCount;
 
   if (loading) {
     return <DomesticSkeleton />;
@@ -277,7 +279,7 @@ export default function DomesticPage() {
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-white">{matches.length}</div>
             <div className="text-xs text-gray-400">전체 경기</div>
@@ -285,10 +287,6 @@ export default function DomesticPage() {
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-blue-400">{domesticOddsCount}</div>
             <div className="text-xs text-gray-400">국내 배당</div>
-          </div>
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-cyan-400">{stakeOddsCount}</div>
-            <div className="text-xs text-gray-400">Stake 배당</div>
           </div>
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-green-400">{rounds.length}</div>

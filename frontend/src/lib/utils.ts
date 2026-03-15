@@ -85,17 +85,12 @@ export interface BookmakerInfo {
 }
 
 export const BOOKMAKER_CONFIG: BookmakerInfo[] = [
+  // 북메이커 (해외 3개 고정)
   { key: 'pinnacle', name: 'Pinnacle', short: 'PINN', domestic: false },
-  { key: 'bet365', name: 'Bet365', short: 'B365', domestic: false },
   { key: 'sbobet', name: 'SBOBet', short: 'SBO', domestic: false },
   { key: 'dafabet', name: 'MaxBet', short: 'MAX', domestic: false },
-  { key: 'stake', name: 'Stake', short: 'STK', domestic: false },
-  { key: 'betfair', name: 'Betfair', short: 'BFAR', domestic: false },
-  { key: '1xbet', name: '1xBet', short: '1XB', domestic: false },
-  { key: 'williamhill', name: 'William Hill', short: 'WH', domestic: false },
-  { key: 'bwin', name: 'bwin', short: 'BWIN', domestic: false },
-  { key: 'draftkings', name: 'DraftKings', short: 'DK', domestic: false },
-  { key: 'fanduel', name: 'FanDuel', short: 'FD', domestic: false },
+  // 국내 사이트
+  { key: 'stake', name: 'Stake.com', short: 'STK', domestic: true },
   { key: 'betman_proto', name: '베트맨 프로토', short: 'BM', domestic: true },
   { key: 'manual_domestic', name: '수동 입력', short: '수동', domestic: true },
 ];
@@ -108,7 +103,7 @@ export const BOOKMAKER_URLS: Record<string, string> = {
   pinnacle: 'https://www.pinnacle.com',
   sbobet: 'https://www.sbobet.com',
   dafabet: 'https://www.maxbet.com',
-  bet365: 'https://www.bet365.com',
+  stake: 'https://stake.com/sports',
   betman_proto: 'https://www.betman.co.kr/main/mainPage/gamebuy/gameSlip.do',
 };
 
@@ -173,7 +168,9 @@ export function getBookmakerShort(key: string): string {
  * Check if a bookmaker is domestic (Korean).
  */
 export function isDomesticBookmaker(key: string): boolean {
-  return key === 'betman_proto' || key === 'manual_domestic' || key.startsWith('domestic_');
+  // 북메이커 3개(pinnacle, sbobet, dafabet)만 해외, 나머지는 전부 국내
+  const INTERNATIONAL_BOOKMAKERS = ['pinnacle', 'sbobet', 'dafabet'];
+  return !INTERNATIONAL_BOOKMAKERS.includes(key);
 }
 
 /**

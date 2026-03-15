@@ -333,7 +333,7 @@ function buildOddsRow(externalId, template, market, outcomes, homeName, awayName
     outcome_1_odds: outcome1,
     outcome_2_odds: outcome2,
     outcome_draw_odds: outcomeDraw,
-    source_type: 'international',
+    source_type: 'domestic',
   };
 }
 
