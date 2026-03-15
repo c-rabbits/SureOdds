@@ -63,45 +63,47 @@ export default function Toolbar({
   // 국내 북메이커(betman_proto, manual_domestic)는 소스 필터(🇰🇷국내)로 제어 → 북메이커 칩에서 제외
   const visibleBookmakers = BOOKMAKER_CONFIG.filter((b) => !b.domestic && availableBookmakers.includes(b.key));
   return (
-    <div className="bg-gray-900 border-b border-gray-800 px-3 py-2 flex items-center gap-x-3 text-xs overflow-x-auto whitespace-nowrap shrink-0">
-      {/* 통계 */}
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="text-gray-400">
-          <span className="text-white font-bold">{matchCount}</span> 경기
-        </span>
-        <span className="text-gray-400">
-          <span className="text-green-400 font-bold">{arbCount}</span> 양방
-        </span>
-        {topProfit > 0 && (
-          <span className="text-green-400 font-bold">
-            최고: +{topProfit.toFixed(2)}%
+    <div className="bg-gray-900 border-b border-gray-800 shrink-0 text-xs">
+      {/* Row 1: 통계 + 종목 + 마켓 */}
+      <div className="px-3 py-1.5 flex items-center gap-x-3 overflow-x-auto whitespace-nowrap">
+        {/* 통계 */}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-gray-400">
+            <span className="text-white font-bold">{matchCount}</span> 경기
           </span>
-        )}
-      </div>
+          <span className="text-gray-400">
+            <span className="text-green-400 font-bold">{arbCount}</span> 양방
+          </span>
+          {topProfit > 0 && (
+            <span className="text-green-400 font-bold">
+              최고: +{topProfit.toFixed(2)}%
+            </span>
+          )}
+        </div>
 
-      <div className="h-4 w-px bg-gray-700 shrink-0" />
+        <div className="h-4 w-px bg-gray-700 shrink-0" />
 
-      {/* 종목 필터 */}
-      <div className="flex items-center gap-1 shrink-0">
-        {SPORT_CATEGORIES.map((cat) => {
-          const isActive = cat.key === 'all'
-            ? filters.sports.length === 0
-            : filters.sports.includes(cat.key);
-          return (
-            <button
-              key={cat.key}
-              onClick={() => onToggleSport(cat.key)}
-              className={`filter-pill ${isActive ? 'filter-pill-active' : 'filter-pill-inactive'}`}
-            >
-              {cat.emoji} {SPORT_KR[cat.key] || cat.label}
-            </button>
-          );
-        })}
-      </div>
+        {/* 종목 필터 */}
+        <div className="flex items-center gap-1 shrink-0">
+          {SPORT_CATEGORIES.map((cat) => {
+            const isActive = cat.key === 'all'
+              ? filters.sports.length === 0
+              : filters.sports.includes(cat.key);
+            return (
+              <button
+                key={cat.key}
+                onClick={() => onToggleSport(cat.key)}
+                className={`filter-pill ${isActive ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+              >
+                {cat.emoji} {SPORT_KR[cat.key] || cat.label}
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="h-4 w-px bg-gray-700 shrink-0" />
+        <div className="h-4 w-px bg-gray-700 shrink-0" />
 
-      {/* 마켓 필터 */}
+        {/* 마켓 필터 */}
       <div className="flex items-center gap-1 shrink-0">
         {(['h2h', 'spreads', 'totals'] as MarketType[]).map((mt) => {
           const isActive = filters.marketTypes.includes(mt);
@@ -117,24 +119,25 @@ export default function Toolbar({
         })}
       </div>
 
-      <div className="h-4 w-px bg-gray-700 shrink-0" />
+        <div className="h-4 w-px bg-gray-700 shrink-0" />
 
-      {/* 소스 필터 */}
-      <div className="flex items-center gap-1 shrink-0">
-        {SOURCE_FILTERS.map((sf) => (
-          <button
-            key={sf.key}
-            onClick={() => onSetSourceFilter(sf.key)}
-            className={`filter-pill ${filters.sourceFilter === sf.key ? 'filter-pill-active' : 'filter-pill-inactive'}`}
-          >
-            {sf.label}
-          </button>
-        ))}
+        {/* 소스 필터 */}
+        <div className="flex items-center gap-1 shrink-0">
+          {SOURCE_FILTERS.map((sf) => (
+            <button
+              key={sf.key}
+              onClick={() => onSetSourceFilter(sf.key)}
+              className={`filter-pill ${filters.sourceFilter === sf.key ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+            >
+              {sf.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="h-4 w-px bg-gray-700 shrink-0" />
-
-      {/* 북메이커 필터 */}
+      {/* Row 2: 북메이커 + 최소수익률 + 정렬 + 액션 */}
+      <div className="px-3 py-1.5 flex items-center gap-x-3 overflow-x-auto whitespace-nowrap border-t border-gray-800/50">
+        {/* 북메이커 필터 */}
       {visibleBookmakers.length > 0 && (
         <>
           <div className="flex items-center gap-1 shrink-0">
@@ -238,6 +241,7 @@ export default function Toolbar({
           )}
           <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
         </div>
+      </div>
       </div>
     </div>
   );

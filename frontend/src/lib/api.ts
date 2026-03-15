@@ -27,9 +27,9 @@ function setCache(key: string, data: unknown, ttlMs: number) {
 /** 캐시 무효화 (수동 새로고침 시 호출) */
 export function invalidateCache(prefix?: string) {
   if (!prefix) { cache.clear(); return; }
-  for (const key of cache.keys()) {
+  Array.from(cache.keys()).forEach((key) => {
     if (key.startsWith(prefix)) cache.delete(key);
-  }
+  });
 }
 
 // ============================================================
