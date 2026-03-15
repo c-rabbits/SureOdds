@@ -254,6 +254,11 @@ export default function DomesticPage() {
     0
   );
 
+  const stakeOddsCount = matches.reduce(
+    (acc, m) => acc + (m.odds?.filter((o) => (o as { bookmaker?: string }).bookmaker === 'stake').length || 0),
+    0
+  );
+
   if (loading) {
     return <DomesticSkeleton />;
   }
@@ -272,7 +277,7 @@ export default function DomesticPage() {
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-3">
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-white">{matches.length}</div>
             <div className="text-xs text-gray-400">전체 경기</div>
@@ -280,6 +285,10 @@ export default function DomesticPage() {
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-blue-400">{domesticOddsCount}</div>
             <div className="text-xs text-gray-400">국내 배당</div>
+          </div>
+          <div className="card p-4 text-center">
+            <div className="text-2xl font-bold text-cyan-400">{stakeOddsCount}</div>
+            <div className="text-xs text-gray-400">Stake 배당</div>
           </div>
           <div className="card p-4 text-center">
             <div className="text-2xl font-bold text-green-400">{rounds.length}</div>
@@ -291,58 +300,106 @@ export default function DomesticPage() {
           </div>
         </div>
 
-        {/* ─── Section 1: Auto Scrape (관리자 전용) ─── */}
-        {isAdmin && (
-          <div className="card p-5">
-            <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <span>&#x1F577;&#xFE0F;</span> 베트맨 자동 크롤링
-              <span className="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded">관리자</span>
-            </h2>
-            <p className="text-sm text-gray-400 mb-4">
-              베트맨 프로토 승부식 배당률을 자동으로 수집합니다. 로그인 불필요.
-            </p>
+        {/* ─── Section 1: 기본 배당 소스 (자동 수집) ─── */}
+        <div className="card p-5">
+          <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            <span>&#x1F4E1;</span> 기본 배당 소스
+            <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded">자동 수집</span>
+          </h2>
+          <p className="text-sm text-gray-400 mb-4">
+            로그인 없이 자동으로 배당을 수집하는 기본 소스입니다. 서버가 주기적으로 수집합니다.
+          </p>
 
-            {rounds.length > 0 && (
-              <div className="mb-4">
-                <div className="text-xs text-gray-500 mb-1">사용 가능한 프로토 회차:</div>
-                <div className="flex flex-wrap gap-2">
-                  {rounds.map((r) => (
-                    <span
-                      key={`${r.gmId}_${r.gmTs}`}
-                      className={`text-xs px-2 py-1 rounded ${
-                        r.status === 'on_sale'
-                          ? 'bg-green-900/30 text-green-400 border border-green-800'
-                          : 'bg-gray-800 text-gray-400 border border-gray-700'
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 베트맨 카드 */}
+            <div className="bg-gray-900/60 border border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">&#x1F1F0;&#x1F1F7;</span>
+                  <span className="text-white font-medium">베트맨 프로토</span>
+                </div>
+                <span className="text-[10px] bg-green-900/30 text-green-400 border border-green-800 px-1.5 py-0.5 rounded">
+                  {rounds.filter(r => r.status === 'on_sale').length > 0 ? '수집중' : '대기'}
+                </span>
+              </div>
+              <div className="text-xs text-gray-400 mb-2">betman.co.kr · 프로토 승부식 배당</div>
+              <div className="text-xs text-gray-500">
+                {rounds.length > 0
+                  ? `${rounds.length}개 회차 · ${rounds.filter(r => r.status === 'on_sale').length}개 발매중`
+                  : '회차 정보 로딩 중...'}
+              </div>
+              {isAdmin && (
+                <div className="mt-3 pt-3 border-t border-gray-700">
+                  {rounds.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-1">
+                      {rounds.map((r) => (
+                        <span
+                          key={`${r.gmId}_${r.gmTs}`}
+                          className={`text-[10px] px-1.5 py-0.5 rounded ${
+                            r.status === 'on_sale'
+                              ? 'bg-green-900/30 text-green-400 border border-green-800'
+                              : 'bg-gray-800 text-gray-500 border border-gray-700'
+                          }`}
+                        >
+                          {r.name.replace('프로토 승부식 ', '')} {r.status === 'on_sale' ? '(발매)' : '(마감)'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleScrape}
+                    disabled={scraping}
+                    className="btn-primary px-4 py-1.5 text-xs disabled:opacity-50 w-full"
+                  >
+                    {scraping ? '크롤링 중...' : '수동 크롤링'}
+                  </button>
+                  {scrapeResult && (
+                    <div
+                      className={`mt-2 text-xs p-2 rounded ${
+                        scrapeResult.includes('오류')
+                          ? 'bg-red-900/20 text-red-400'
+                          : 'bg-green-900/20 text-green-400'
                       }`}
                     >
-                      {r.name} {r.status === 'on_sale' ? '(발매중)' : '(마감)'}
+                      {scrapeResult}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Stake.com 카드 */}
+            <div className="bg-gray-900/60 border border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">&#x1F3B0;</span>
+                  <span className="text-white font-medium">Stake.com</span>
+                </div>
+                <span className="text-[10px] bg-green-900/30 text-green-400 border border-green-800 px-1.5 py-0.5 rounded">
+                  {stakeOddsCount > 0 ? '수집중' : '대기'}
+                </span>
+              </div>
+              <div className="text-xs text-gray-400 mb-2">stake.com · 글로벌 스포츠북 배당</div>
+              <div className="text-xs text-gray-500">
+                {stakeOddsCount > 0
+                  ? `${stakeOddsCount}개 배당 수집됨 · 축구 1x2 + 토탈`
+                  : '다음 수집 사이클에서 시작됩니다'}
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-700">
+                <div className="flex flex-wrap gap-1">
+                  {['EPL', 'La Liga', 'Serie A', 'Ligue 1', 'Bundesliga'].map((league) => (
+                    <span key={league} className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-900/20 text-cyan-400 border border-cyan-800/30">
+                      {league}
                     </span>
                   ))}
                 </div>
+                <div className="text-[10px] text-gray-500 mt-2">
+                  Vercel Edge 프록시 (ICN1) · Cloudflare 우회 · 5분 간격
+                </div>
               </div>
-            )}
-
-            <button
-              onClick={handleScrape}
-              disabled={scraping}
-              className="btn-primary px-6 py-2 text-sm disabled:opacity-50"
-            >
-              {scraping ? '크롤링 중...' : '베트맨 크롤링 시작'}
-            </button>
-
-            {scrapeResult && (
-              <div
-                className={`mt-3 text-sm p-3 rounded ${
-                  scrapeResult.includes('오류')
-                    ? 'bg-red-900/20 text-red-400'
-                    : 'bg-green-900/20 text-green-400'
-                }`}
-              >
-                {scrapeResult}
-              </div>
-            )}
+            </div>
           </div>
-        )}
+        </div>
 
         {/* ─── Section 2: 사이트 추가 ─── */}
         <div className="card p-5">
