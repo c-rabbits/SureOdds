@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const supabase = require('../config/supabase');
 const { fetchAllOdds, getQuotaInfo } = require('./oddsApi');
 const { scrapeBetman } = require('./betmanScraper');
+const { scrapeStake } = require('./stakeScraper');
 const { collectPinnacle, isConfigured: isPinnacleConfigured } = require('./pinnacleApi');
 const { collectOddsApiIo, isConfigured: isOddsApiIoConfigured } = require('./oddsApiIo');
 const { detectAllArbitrageForMatch } = require('../services/arbitrageEngine');
@@ -473,10 +474,70 @@ async function collect(sports, markets) {
       log.warn('[Betman] Collection error (non-fatal)', { error: betmanErr.message });
     }
 
+    // ─── Stake.com odds scraping ───
+    let stakeMatchCount = 0;
+    let stakeOddsCount = 0;
+    try {
+      const stakeData = await scrapeStake();
+      if (stakeData.matches.length > 0) {
+        // Upsert Stake matches
+        const { error: smError } = await supabase
+          .from('matches')
+          .upsert(stakeData.matches, { onConflict: 'external_id' });
+        if (smError) log.error('Error upserting Stake matches', { error: smError.message });
+
+        // Get match IDs
+        const stakeExtIds = stakeData.matches.map((m) => m.external_id);
+        const stakeIdMap = {};
+        const STAKE_BATCH = 50;
+        for (let i = 0; i < stakeExtIds.length; i += STAKE_BATCH) {
+          const batch = stakeExtIds.slice(i, i + STAKE_BATCH);
+          const { data: sSaved } = await supabase
+            .from('matches')
+            .select('id, external_id')
+            .in('external_id', batch);
+          if (sSaved) for (const m of sSaved) stakeIdMap[m.external_id] = m.id;
+        }
+
+        // Map odds rows to match IDs
+        const stakeOddsWithIds = stakeData.oddsRows
+          .map(({ match_external_id, ...rest }) => ({
+            ...rest,
+            match_id: stakeIdMap[match_external_id],
+            handicap_point: rest.handicap_point ?? 0,
+          }))
+          .filter((o) => o.match_id);
+
+        // Upsert Stake odds in batches
+        for (let i = 0; i < stakeOddsWithIds.length; i += BATCH_SIZE) {
+          const batch = stakeOddsWithIds.slice(i, i + BATCH_SIZE);
+          const { error: soError } = await supabase.from('odds').upsert(batch, {
+            onConflict: 'match_id,bookmaker,market_type,handicap_point,source_type',
+          });
+          if (soError) log.error('Error upserting Stake odds', { error: soError.message });
+        }
+
+        stakeMatchCount = stakeData.matches.length;
+        stakeOddsCount = stakeOddsWithIds.length;
+
+        // Add Stake matches to savedMatches for arb detection
+        const existingIds2 = new Set(savedMatches.map((m) => m.id));
+        for (const [eid, id] of Object.entries(stakeIdMap)) {
+          if (!existingIds2.has(id)) {
+            savedMatches.push({ id, external_id: eid });
+            existingIds2.add(id);
+          }
+        }
+      }
+      log.info(`[Stake] Saved ${stakeMatchCount} matches, ${stakeOddsCount} odds rows`);
+    } catch (stakeErr) {
+      log.warn('[Stake] Collection error (non-fatal)', { error: stakeErr.message });
+    }
+
     const newOpps = await runArbitrageDetection(savedMatches);
     log.info(`Found ${newOpps.length} new arbitrage opportunities`);
 
-    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${betmanMatchCount} domestic matches`);
+    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${betmanMatchCount} domestic + ${stakeMatchCount} stake matches`);
 
     lastCollectionResult = {
       success: true,
@@ -489,6 +550,7 @@ async function collect(sports, markets) {
       quota: getQuotaInfo(),
       pinnacle: { matches: pinnacleMatchCount, oddsRows: pinnacleOddsCount },
       domestic: { matches: betmanMatchCount, oddsRows: betmanOddsCount },
+      stake: { matches: stakeMatchCount, oddsRows: stakeOddsCount },
     };
 
     log.info('Collection cycle complete', { duration: Date.now() - startTime });

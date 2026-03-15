@@ -4,13 +4,14 @@ const { refreshMockData } = require('../mockData');
 
 const USE_MOCK = !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY;
 
-let collect, getLastResult, collectOddsApiIoAndSave, getLastOddsApiIoResult, getQuotaInfo, SPORTS, MARKETS, DEFAULT_SPORTS, getPinnacleStatus, getOddsApiIoStatus;
+let collect, getLastResult, collectOddsApiIoAndSave, getLastOddsApiIoResult, getQuotaInfo, SPORTS, MARKETS, DEFAULT_SPORTS, getPinnacleStatus, getOddsApiIoStatus, getStakeStatus;
 
 try {
   const collector = require('../collector/index');
   const oddsApi = require('../collector/oddsApi');
   const pinnacleApi = require('../collector/pinnacleApi');
   const oddsApiIo = require('../collector/oddsApiIo');
+  const stakeScraper = require('../collector/stakeScraper');
   collect = collector.collect;
   getLastResult = collector.getLastResult;
   collectOddsApiIoAndSave = collector.collectOddsApiIoAndSave;
@@ -21,6 +22,7 @@ try {
   DEFAULT_SPORTS = oddsApi.DEFAULT_SPORTS;
   getPinnacleStatus = pinnacleApi.getPinnacleStatus;
   getOddsApiIoStatus = oddsApiIo.getOddsApiIoStatus;
+  getStakeStatus = stakeScraper.getLastScrapeResult;
 } catch (e) {
   // Collector modules may not exist yet
   collect = async () => ({ success: true, mock: true });
@@ -33,6 +35,7 @@ try {
   DEFAULT_SPORTS = [];
   getPinnacleStatus = () => ({ configured: false });
   getOddsApiIoStatus = () => ({ configured: false });
+  getStakeStatus = () => null;
 }
 
 // POST /api/collector/trigger
@@ -114,6 +117,7 @@ router.get('/status', (req, res) => {
         defaultSports: DEFAULT_SPORTS,
       },
       pinnacle: getPinnacleStatus(),
+      stake: getStakeStatus(),
       oddsApiIo: {
         ...getOddsApiIoStatus(),
         schedulerInterval: `${process.env.ODDS_API_IO_INTERVAL || '20'}min`,
