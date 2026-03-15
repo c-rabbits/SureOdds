@@ -230,11 +230,11 @@ export default function DomesticPage() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <span className="text-2xl">&#x1F1F0;&#x1F1F7;</span> 국내 배당 관리
+          <h1 className="text-lg md:text-2xl font-bold text-white flex items-center gap-2">
+            <span>&#x1F1F0;&#x1F1F7;</span> 국내 배당 관리
           </h1>
-          <p className="text-gray-400 mt-1">
-            베트맨 프로토 배당 크롤링, 사설 사이트 등록, 사이트 작업 요청을 관리합니다.
+          <p className="text-gray-400 mt-1 text-xs md:text-sm">
+            사설 사이트 등록, 배당 크롤링, 작업 요청을 관리합니다.
           </p>
         </div>
 
@@ -409,10 +409,10 @@ export default function DomesticPage() {
 
           {/* 등록된 사이트 목록 */}
           {sites.length > 0 && (
-            <div className="mt-5 overflow-auto">
-              <table className="w-full text-sm">
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead>
-                  <tr className="border-b border-gray-700 text-gray-400 text-xs">
+                  <tr className="border-b border-gray-700 text-gray-400 text-xs whitespace-nowrap">
                     <th className="text-left py-2 px-2">상태</th>
                     <th className="text-left py-2 px-2">사이트명</th>
                     <th className="text-left py-2 px-2">주소</th>
