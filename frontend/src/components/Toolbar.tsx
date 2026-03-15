@@ -16,6 +16,7 @@ interface Props {
   arbCount: number;
   topProfit: number;
   lastUpdated: Date | null;
+  lastCollected: Date | null;
   loading: boolean;
   onRefresh: () => void;
   quota: QuotaInfo | null;
@@ -50,6 +51,7 @@ export default function Toolbar({
   arbCount,
   topProfit,
   lastUpdated,
+  lastCollected,
   loading,
   onRefresh,
   quota,
@@ -219,9 +221,15 @@ export default function Toolbar({
         </button>
 
         <div className="flex items-center gap-1.5">
-          {lastUpdated && (
-            <span className="text-gray-500">
-              {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {lastCollected && (
+            <span className="text-gray-500" title={`마지막 수집: ${lastCollected.toLocaleString()}`}>
+              {(() => {
+                const diff = Math.round((Date.now() - lastCollected.getTime()) / 60000);
+                if (diff < 1) return '방금 수집';
+                if (diff < 60) return `${diff}분 전 수집`;
+                if (diff < 1440) return `${Math.floor(diff / 60)}시간 전 수집`;
+                return `${Math.floor(diff / 1440)}일 전 수집`;
+              })()}
             </span>
           )}
           <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />

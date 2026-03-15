@@ -34,6 +34,17 @@ export default function HomePage() {
   }, [rows]);
   const uniqueMatches = useMemo(() => new Set(rows.map((r) => r.matchId)).size, [rows]);
 
+  // Latest server-side collection time (from odds updated_at)
+  const lastCollected = useMemo(() => {
+    let latest = '';
+    for (const m of matches) {
+      for (const o of m.odds || []) {
+        if (o.updated_at > latest) latest = o.updated_at;
+      }
+    }
+    return latest ? new Date(latest) : null;
+  }, [matches]);
+
   // Collect unique bookmakers from current data for filter UI
   const availableBookmakers = useMemo(() => {
     const set = new Set<string>();
@@ -137,6 +148,7 @@ export default function HomePage() {
         arbCount={arbCount}
         topProfit={topProfit}
         lastUpdated={lastUpdated}
+        lastCollected={lastCollected}
         loading={refreshing}
         onRefresh={handleRefresh}
         quota={quota}
