@@ -13,6 +13,7 @@ import {
   getSiteRegistrations,
   updateSiteRegistration,
   deleteSiteRegistration,
+  reloginSiteRegistration,
   createSiteRequest,
   getSiteRequests,
 } from '@/lib/api';
@@ -32,6 +33,13 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   paused: { label: '일시정지', color: 'bg-gray-700/50 text-gray-400 border-gray-600' },
   rejected: { label: '반려', color: 'bg-red-900/30 text-red-400 border-red-800' },
   completed: { label: '완료', color: 'bg-green-900/30 text-green-400 border-green-800' },
+};
+
+const SESSION_STATUS_MAP: Record<string, { label: string; color: string }> = {
+  none: { label: '미설정', color: 'bg-gray-700/50 text-gray-400 border-gray-600' },
+  active: { label: '세션활성', color: 'bg-green-900/30 text-green-400 border-green-800' },
+  expired: { label: '세션만료', color: 'bg-red-900/30 text-red-400 border-red-800' },
+  error: { label: '오류', color: 'bg-orange-900/30 text-orange-400 border-orange-800' },
 };
 
 export default function DomesticPage() {
@@ -55,6 +63,11 @@ export default function DomesticPage() {
   const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
   const [siteSubmitting, setSiteSubmitting] = useState(false);
   const [siteMsg, setSiteMsg] = useState<string | null>(null);
+
+  // ─── 재로그인 모달 state ───
+  const [reloginSiteTarget, setReloginSiteTarget] = useState<SiteRegistration | null>(null);
+  const [reloginPw, setReloginPw] = useState('');
+  const [reloginSubmitting, setReloginSubmitting] = useState(false);
 
   // ─── 사이트 작업요청 state ───
   const [requests, setRequests] = useState<SiteRequest[]>([]);
@@ -129,7 +142,6 @@ export default function DomesticPage() {
       if (editingSiteId) {
         await updateSiteRegistration(editingSiteId, {
           loginId: siteLoginId,
-          loginPw: siteLoginPw || undefined,
           checkInterval: siteCheckInterval,
           enableCross: siteCross,
           enableHandicap: siteHandicap,
@@ -146,7 +158,7 @@ export default function DomesticPage() {
           enableHandicap: siteHandicap,
           enableOU: siteOU,
         });
-        setSiteMsg('사이트 추가 완료! 크롤링이 시작됩니다.');
+        setSiteMsg('로그인 & 사이트 등록 완료!');
       }
       resetSiteForm();
       const updated = await getSiteRegistrations().catch(() => []);
@@ -186,6 +198,27 @@ export default function DomesticPage() {
       setSites((prev) => prev.map((s) => (s.id === site.id ? { ...s, is_active: !s.is_active } : s)));
     } catch {
       // handled by error interceptor
+    }
+  };
+
+  // ─── 재로그인 ───
+  const handleRelogin = async () => {
+    if (!reloginSiteTarget || !reloginPw) return;
+    setReloginSubmitting(true);
+    try {
+      await reloginSiteRegistration(reloginSiteTarget.id, {
+        loginId: reloginSiteTarget.login_id,
+        loginPw: reloginPw,
+      });
+      setSiteMsg('재로그인 성공! 세션이 갱신되었습니다.');
+      setReloginSiteTarget(null);
+      setReloginPw('');
+      const updated = await getSiteRegistrations().catch(() => []);
+      setSites(updated);
+    } catch (err: unknown) {
+      setSiteMsg(`재로그인 실패: ${err instanceof Error ? err.message : '오류 발생'}`);
+    } finally {
+      setReloginSubmitting(false);
     }
   };
 
@@ -395,7 +428,7 @@ export default function DomesticPage() {
                   disabled={siteSubmitting || (!editingSiteId && !selectedSiteId)}
                   className="btn-primary px-5 py-2 text-sm disabled:opacity-40"
                 >
-                  {siteSubmitting ? '저장 중...' : editingSiteId ? '사이트 수정' : '+ 사이트추가'}
+                  {siteSubmitting ? '처리 중...' : editingSiteId ? '사이트 수정' : '로그인 & 등록'}
                 </button>
               </div>
             </div>
@@ -420,7 +453,7 @@ export default function DomesticPage() {
                     <th className="text-center py-2 px-2">1X2</th>
                     <th className="text-center py-2 px-2">핸디</th>
                     <th className="text-center py-2 px-2">O/U</th>
-                    <th className="text-center py-2 px-2">승인</th>
+                    <th className="text-center py-2 px-2">세션</th>
                     <th className="text-center py-2 px-2">기능</th>
                   </tr>
                 </thead>
@@ -446,10 +479,27 @@ export default function DomesticPage() {
                         <td className="py-2 px-2 text-center">{site.enable_handicap ? <span className="text-purple-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">{site.enable_ou ? <span className="text-orange-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap ${st.color}`}>{st.label}</span>
+                          {(() => {
+                            const ss = SESSION_STATUS_MAP[site.session_status] || SESSION_STATUS_MAP.none;
+                            return (
+                              <span
+                                className={`text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap ${ss.color}`}
+                                title={site.session_error || (site.session_expires_at ? `만료: ${new Date(site.session_expires_at).toLocaleString('ko-KR')}` : '')}
+                              >
+                                {ss.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="py-2 px-2 text-center">
                           <div className="flex items-center justify-center gap-1">
+                            {(site.session_status === 'expired' || site.session_status === 'error') && (
+                              <button
+                                onClick={() => { setReloginSiteTarget(site); setReloginPw(''); }}
+                                className="text-xs px-2 py-1 rounded bg-yellow-900/40 text-yellow-400 hover:bg-yellow-900/60"
+                                title="재로그인"
+                              >&#x1F504;</button>
+                            )}
                             <button onClick={() => handleEditSite(site)} className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title="수정">&#x270F;</button>
                             <button onClick={() => handleDeleteSite(site.id)} className="text-xs px-2 py-1 rounded bg-gray-700 text-red-400 hover:bg-red-900/40" title="삭제">&#x2716;</button>
                           </div>
@@ -460,11 +510,64 @@ export default function DomesticPage() {
                 </tbody>
               </table>
               <p className="text-xs text-gray-500 mt-3">
-                * 비밀번호는 AES-256 암호화되어 저장됩니다.
+                * 비밀번호는 로그인에만 사용되며 서버에 저장되지 않습니다.
               </p>
             </div>
           )}
         </div>
+
+        {/* ─── 재로그인 모달 ─── */}
+        {reloginSiteTarget && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="card p-6 w-full max-w-sm space-y-4">
+              <h3 className="text-lg font-semibold text-white">
+                &#x1F504; 재로그인 — {reloginSiteTarget.site_name}
+              </h3>
+              <p className="text-sm text-gray-400">
+                세션이 만료되었습니다. 비밀번호를 입력하여 재로그인해주세요.
+              </p>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">아이디</label>
+                <input
+                  type="text"
+                  value={reloginSiteTarget.login_id || ''}
+                  disabled
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">비밀번호</label>
+                <input
+                  type="password"
+                  placeholder="비밀번호 입력"
+                  value={reloginPw}
+                  onChange={(e) => setReloginPw(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRelogin()}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setReloginSiteTarget(null); setReloginPw(''); }}
+                  className="px-4 py-2 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleRelogin}
+                  disabled={!reloginPw || reloginSubmitting}
+                  className="btn-primary px-5 py-2 text-sm disabled:opacity-40"
+                >
+                  {reloginSubmitting ? '로그인 중...' : '재로그인'}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-500">
+                * 비밀번호는 로그인에만 사용되며 서버에 저장되지 않습니다.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ─── Section 3: 사이트 작업요청 ─── */}
         <div className="card p-5">

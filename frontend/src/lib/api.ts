@@ -392,7 +392,6 @@ export async function updateSiteRegistration(
     siteName: string;
     groupName: string;
     loginId: string;
-    loginPw: string;
     checkInterval: number;
     enableCross: boolean;
     enableHandicap: boolean;
@@ -401,6 +400,14 @@ export async function updateSiteRegistration(
   }>
 ): Promise<SiteRegistration> {
   const { data } = await api.patch(`/api/domestic/site-registrations/${id}`, payload);
+  return data.data;
+}
+
+export async function reloginSiteRegistration(
+  id: string,
+  payload: { loginId?: string; loginPw: string }
+): Promise<SiteRegistration> {
+  const { data } = await api.post(`/api/domestic/site-registrations/${id}/relogin`, payload);
   return data.data;
 }
 

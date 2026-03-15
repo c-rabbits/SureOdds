@@ -152,6 +152,11 @@ export interface SiteRegistration {
   enable_ou: boolean;
   is_active: boolean;
   status: 'active' | 'paused' | 'pending' | 'approved' | 'rejected';
+  // 세션 릴레이 필드
+  session_status: 'none' | 'active' | 'expired' | 'error';
+  session_expires_at: string | null;
+  session_last_checked_at: string | null;
+  session_error: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -14,6 +14,7 @@ const { requireAuth } = require('./middleware/auth');
 const { logger, createServiceLogger, requestLogger } = require('./config/logger');
 const { startOddsApiIoScheduler } = require('./collector/index');
 const { getBot } = require('./services/telegramBot');
+const { startSessionMonitor } = require('./services/sessionMonitor');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -81,6 +82,9 @@ app.listen(PORT, async () => {
 
   // Start Odds-API.io independent scheduler (every 20 min)
   startOddsApiIoScheduler();
+
+  // Start session monitor (every 5 min)
+  startSessionMonitor();
 
   // Register Telegram webhook
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;

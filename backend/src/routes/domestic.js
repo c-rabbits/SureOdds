@@ -347,46 +347,20 @@ router.get('/available-sites', async (req, res) => {
 });
 
 // ============================================================
-// Site Registrations (사이트 추가)
+// Site Registrations (사이트 추가) — 프록시 로그인 + 세션 릴레이
 // ============================================================
-const crypto = require('crypto');
-
-// AES-256-GCM encryption for site passwords
-const ENCRYPT_KEY = process.env.SITE_ENCRYPT_KEY || 'sureodds-default-key-change-me!!'; // 32 bytes
-function encrypt(text) {
-  if (!text) return null;
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(ENCRYPT_KEY.padEnd(32).slice(0, 32)), iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const tag = cipher.getAuthTag().toString('hex');
-  return `${iv.toString('hex')}:${tag}:${encrypted}`;
-}
-
-function decrypt(encryptedText) {
-  if (!encryptedText) return null;
-  try {
-    const [ivHex, tagHex, encrypted] = encryptedText.split(':');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(ENCRYPT_KEY.padEnd(32).slice(0, 32)), Buffer.from(ivHex, 'hex'));
-    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
-  } catch {
-    return null;
-  }
-}
+const { getAdapter } = require('../adapters');
 
 /**
  * POST /api/domestic/site-registrations
- * User registers a site for crawling.
+ * User registers a site — 프록시 로그인 후 세션 토큰만 저장, 비밀번호 미저장.
  */
 router.post('/site-registrations', async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
 
-    const { availableSiteId, siteUrl, siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableOU } = req.body;
+    const { availableSiteId, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableOU } = req.body;
 
     if (!availableSiteId) {
       return res.status(400).json({ error: '사이트를 선택해주세요.' });
@@ -404,6 +378,29 @@ router.post('/site-registrations', async (req, res) => {
       return res.status(400).json({ error: '유효하지 않은 사이트입니다.' });
     }
 
+    // 세션 릴레이: 어댑터가 있으면 프록시 로그인, 없으면 세션 없이 등록
+    let sessionToken = null;
+    let sessionExpiresAt = null;
+    let sessionStatus = 'none';
+
+    if (avSite.adapter_key && loginId && loginPw) {
+      try {
+        const adapter = getAdapter(avSite.adapter_key, avSite);
+        const result = await adapter.login(loginId, loginPw);
+        // loginPw는 이 블록 이후 참조 불가 → GC 대상
+        sessionToken = result.sessionToken;
+        sessionExpiresAt = result.expiresAt;
+        sessionStatus = 'active';
+        log.info('Proxy login successful', { site: avSite.site_name, loginId });
+      } catch (loginErr) {
+        log.error('Proxy login failed', { site: avSite.site_name, loginId, error: loginErr.message });
+        return res.status(400).json({
+          error: `로그인 실패: ${loginErr.message}`,
+          code: 'LOGIN_FAILED',
+        });
+      }
+    }
+
     const row = {
       user_id: userId,
       available_site_id: availableSiteId,
@@ -411,24 +408,106 @@ router.post('/site-registrations', async (req, res) => {
       site_name: avSite.site_name,
       group_name: groupName || '기본',
       login_id: loginId || null,
-      login_pw_encrypted: encrypt(loginPw),
+      // login_pw_encrypted: 비밀번호 저장하지 않음
       check_interval: checkInterval || 60,
       enable_cross: enableCross !== false,
       enable_handicap: enableHandicap !== false,
       enable_ou: enableOU !== false,
       is_active: true,
       status: 'active',
+      session_token: sessionToken,
+      session_expires_at: sessionExpiresAt,
+      session_status: sessionStatus,
     };
 
     const { data, error } = await supabase.from('site_registrations').insert(row).select().single();
     if (error) return res.status(500).json({ error: error.message });
 
-    // Don't expose encrypted password in response
-    if (data) delete data.login_pw_encrypted;
+    // 응답에서 민감정보 제거
+    if (data) {
+      delete data.session_token;
+      delete data.login_pw_encrypted;
+    }
 
     res.json({ success: true, data });
   } catch (err) {
     log.error('Error creating site registration', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/domestic/site-registrations/:id/relogin
+ * 세션 만료 시 재로그인 — 비밀번호를 받아 로그인 후 세션 갱신, 비밀번호 미저장.
+ */
+router.post('/site-registrations/:id/relogin', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
+
+    const { id } = req.params;
+    const { loginId, loginPw } = req.body;
+
+    if (!loginPw) {
+      return res.status(400).json({ error: '비밀번호를 입력해주세요.' });
+    }
+
+    // 사용자 소유 확인 + available_site 정보 조회
+    const { data: reg, error: regErr } = await supabase
+      .from('site_registrations')
+      .select('*, available_sites(*)')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (regErr || !reg) {
+      return res.status(404).json({ error: '등록 정보를 찾을 수 없습니다.' });
+    }
+
+    const avSite = reg.available_sites;
+    if (!avSite?.adapter_key) {
+      return res.status(400).json({ error: '이 사이트는 자동 로그인을 지원하지 않습니다.' });
+    }
+
+    // 프록시 로그인
+    const actualLoginId = loginId || reg.login_id;
+    try {
+      const adapter = getAdapter(avSite.adapter_key, avSite);
+      const result = await adapter.login(actualLoginId, loginPw);
+      // loginPw는 이 블록 이후 GC 대상
+
+      const { data, error } = await supabase
+        .from('site_registrations')
+        .update({
+          login_id: actualLoginId,
+          session_token: result.sessionToken,
+          session_expires_at: result.expiresAt,
+          session_status: 'active',
+          session_error: null,
+          session_last_checked_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      if (data) {
+        delete data.session_token;
+        delete data.login_pw_encrypted;
+      }
+
+      log.info('Re-login successful', { site: avSite.site_name, loginId: actualLoginId });
+      res.json({ success: true, data });
+    } catch (loginErr) {
+      log.error('Re-login failed', { site: avSite.site_name, error: loginErr.message });
+      return res.status(400).json({
+        error: `재로그인 실패: ${loginErr.message}`,
+        code: 'LOGIN_FAILED',
+      });
+    }
+  } catch (err) {
+    log.error('Error in relogin', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -450,8 +529,8 @@ router.get('/site-registrations', async (req, res) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    // Strip encrypted passwords from response
-    const safe = (data || []).map(({ login_pw_encrypted, ...rest }) => rest);
+    // 민감정보 제거, 세션 상태는 포함
+    const safe = (data || []).map(({ login_pw_encrypted, session_token, ...rest }) => rest);
     res.json({ data: safe });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -460,7 +539,7 @@ router.get('/site-registrations', async (req, res) => {
 
 /**
  * PATCH /api/domestic/site-registrations/:id
- * User updates their own site registration.
+ * User updates their own site registration (비밀번호 변경은 /relogin 사용).
  */
 router.patch('/site-registrations/:id', async (req, res) => {
   try {
@@ -468,13 +547,12 @@ router.patch('/site-registrations/:id', async (req, res) => {
     if (!userId) return res.status(401).json({ error: '인증이 필요합니다.' });
 
     const { id } = req.params;
-    const { siteName, groupName, loginId, loginPw, checkInterval, enableCross, enableHandicap, enableOU, isActive } = req.body;
+    const { siteName, groupName, loginId, checkInterval, enableCross, enableHandicap, enableOU, isActive } = req.body;
 
     const updates = {};
     if (siteName !== undefined) updates.site_name = siteName;
     if (groupName !== undefined) updates.group_name = groupName;
     if (loginId !== undefined) updates.login_id = loginId;
-    if (loginPw !== undefined) updates.login_pw_encrypted = encrypt(loginPw);
     if (checkInterval !== undefined) updates.check_interval = checkInterval;
     if (enableCross !== undefined) updates.enable_cross = enableCross;
     if (enableHandicap !== undefined) updates.enable_handicap = enableHandicap;
@@ -485,12 +563,15 @@ router.patch('/site-registrations/:id', async (req, res) => {
       .from('site_registrations')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', userId) // ensure user owns it
+      .eq('user_id', userId)
       .select()
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
-    if (data) delete data.login_pw_encrypted;
+    if (data) {
+      delete data.session_token;
+      delete data.login_pw_encrypted;
+    }
 
     res.json({ success: true, data });
   } catch (err) {

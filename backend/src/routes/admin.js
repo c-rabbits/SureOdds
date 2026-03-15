@@ -221,8 +221,8 @@ router.get('/site-registrations', async (req, res) => {
 
     if (error) throw error;
 
-    // Strip encrypted passwords
-    const safe = (data || []).map(({ login_pw_encrypted, ...rest }) => rest);
+    // 민감정보 제거 (비밀번호, 세션 토큰)
+    const safe = (data || []).map(({ login_pw_encrypted, session_token, ...rest }) => rest);
     res.json({ success: true, data: safe });
   } catch (err) {
     log.error('List site registrations error', { error: err.message });
@@ -248,7 +248,10 @@ router.patch('/site-registrations/:id', async (req, res) => {
       .single();
 
     if (error) throw error;
-    if (data) delete data.login_pw_encrypted;
+    if (data) {
+      delete data.login_pw_encrypted;
+      delete data.session_token;
+    }
 
     res.json({ success: true, data });
   } catch (err) {

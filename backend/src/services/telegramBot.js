@@ -145,4 +145,38 @@ async function sendArbitrageAlert(opportunity, match) {
   log.info(`Alert sent: ${match.home_team} vs ${match.away_team} → ${sent} ok, ${failed} failed`);
 }
 
-module.exports = { getBot, sendArbitrageAlert };
+/**
+ * 세션 만료 알림을 특정 유저에게 발송
+ * @param {string} userId - 유저 UUID
+ * @param {string} siteName - 만료된 사이트 이름
+ */
+async function sendSessionExpiryAlert(userId, siteName) {
+  const b = getBot();
+  if (!b) return;
+
+  try {
+    const supabase = require('../config/supabase');
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('telegram_chat_id')
+      .eq('id', userId)
+      .single();
+
+    if (!profile?.telegram_chat_id) {
+      log.info(`Session expiry alert skipped: user ${userId} has no telegram`);
+      return;
+    }
+
+    const message = `⚠️ *세션 만료 알림*\n\n`
+      + `📌 *${siteName}* 사이트의 세션이 만료되었습니다.\n`
+      + `크롤링이 중단된 상태입니다.\n\n`
+      + `SureOdds에서 재로그인해주세요.`;
+
+    await b.sendMessage(profile.telegram_chat_id, message, { parse_mode: 'Markdown' });
+    log.info(`Session expiry alert sent to user ${userId} for ${siteName}`);
+  } catch (err) {
+    log.error('Failed to send session expiry alert', { userId, siteName, error: err.message });
+  }
+}
+
+module.exports = { getBot, sendArbitrageAlert, sendSessionExpiryAlert };
