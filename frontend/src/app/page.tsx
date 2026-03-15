@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { MatchWithOdds, TableRow, QuotaInfo } from '@/types';
-import { getMatchesWithOdds, getArbitrage, triggerCollection, getApiQuota } from '@/lib/api';
+import { getMatchesWithOdds, getArbitrage, triggerCollection, getApiQuota, invalidateCache } from '@/lib/api';
 import { flattenMatchesToRows } from '@/lib/utils';
 import { getAlertService } from '@/lib/alertService';
 import { useFilters } from '@/hooks/useFilters';
@@ -11,7 +11,7 @@ import Toolbar from '@/components/Toolbar';
 import MatchTable from '@/components/MatchTable';
 import DetailPanel from '@/components/DetailPanel';
 import AlertSettings from '@/components/AlertSettings';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { DashboardSkeleton } from '@/components/Skeleton';
 
 export default function HomePage() {
   const { isAdmin } = useAuth();
@@ -101,6 +101,7 @@ export default function HomePage() {
   // Manual refresh (triggers collector then reloads)
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
+    invalidateCache();
     try {
       await triggerCollection();
       await loadData();
@@ -127,11 +128,7 @@ export default function HomePage() {
     : null;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <LoadingSpinner message="SureOdds 로딩 중..." />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

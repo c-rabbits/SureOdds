@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { DomesticSkeleton } from '@/components/Skeleton';
 import { MatchWithOdds, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
 import {
   getMatchesWithOdds,
@@ -37,7 +38,7 @@ export default function DomesticPage() {
   const { isAdmin } = useAuth();
   const [matches, setMatches] = useState<MatchWithOdds[]>([]);
   const [rounds, setRounds] = useState<BetmanRound[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [scraping, setScraping] = useState(false);
   const [scrapeResult, setScrapeResult] = useState<string | null>(null);
 
@@ -219,6 +220,10 @@ export default function DomesticPage() {
     (acc, m) => acc + (m.odds?.filter((o) => (o as { source_type?: string }).source_type === 'domestic').length || 0),
     0
   );
+
+  if (loading) {
+    return <DomesticSkeleton />;
+  }
 
   return (
     <div className="h-full overflow-auto p-4 md:p-6">

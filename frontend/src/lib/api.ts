@@ -9,6 +9,30 @@ const api = axios.create({
 });
 
 // ============================================================
+// 메모리 캐시 — 같은 요청 반복 방지 (TTL 기반)
+// ============================================================
+const cache = new Map<string, { data: unknown; expires: number }>();
+
+function getCached<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (entry && entry.expires > Date.now()) return entry.data as T;
+  cache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: unknown, ttlMs: number) {
+  cache.set(key, { data, expires: Date.now() + ttlMs });
+}
+
+/** 캐시 무효화 (수동 새로고침 시 호출) */
+export function invalidateCache(prefix?: string) {
+  if (!prefix) { cache.clear(); return; }
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) cache.delete(key);
+  }
+}
+
+// ============================================================
 // 네트워크 장애 시 자동 재시도 (최대 2회, 지수 백오프)
 // ============================================================
 axiosRetry(api, {
@@ -131,7 +155,11 @@ export async function getMatchesWithOdds(params?: {
   sport?: string;
   limit?: number;
 }): Promise<MatchWithOdds[]> {
+  const cacheKey = `matches-with-odds:${JSON.stringify(params || {})}`;
+  const cached = getCached<MatchWithOdds[]>(cacheKey);
+  if (cached) return cached;
   const { data } = await api.get('/api/matches/with-odds', { params });
+  setCache(cacheKey, data.data, 30000); // 30초 캐시
   return data.data;
 }
 
@@ -158,7 +186,11 @@ export async function getArbitrage(params?: {
   min_profit?: number;
   market_type?: MarketType;
 }): Promise<ArbitrageOpportunity[]> {
+  const cacheKey = `arbitrage:${JSON.stringify(params || {})}`;
+  const cached = getCached<ArbitrageOpportunity[]>(cacheKey);
+  if (cached) return cached;
   const { data } = await api.get('/api/arbitrage', { params });
+  setCache(cacheKey, data.data, 30000); // 30초 캐시
   return data.data;
 }
 
@@ -297,7 +329,11 @@ export async function deleteUser(id: string): Promise<void> {
 // Available Sites (마스터 사이트 목록 - 드롭다운용)
 // ============================================================
 export async function getAvailableSites(): Promise<AvailableSite[]> {
+  const cacheKey = 'available-sites';
+  const cached = getCached<AvailableSite[]>(cacheKey);
+  if (cached) return cached;
   const { data } = await api.get('/api/domestic/available-sites');
+  setCache(cacheKey, data.data, 60000); // 60초 캐시
   return data.data;
 }
 
