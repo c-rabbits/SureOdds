@@ -394,7 +394,7 @@ export default function DomesticPage() {
                   ))}
                 </div>
                 <div className="text-[10px] text-gray-500 mt-2">
-                  Vercel Edge 프록시 (ICN1) · Cloudflare 우회 · 5분 간격
+                  자동 수집 · 5분 간격
                 </div>
               </div>
             </div>
