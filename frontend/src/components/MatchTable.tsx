@@ -25,31 +25,51 @@ function getRowKey(row: TableRow): string {
   return `${row.matchId}|${row.marketType}|${row.handicapPoint ?? 'null'}`;
 }
 
+function BookmakerBadge({ bookmaker }: { bookmaker: string }) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {isDomesticBookmaker(bookmaker) && <span className="text-[9px]" title="국내">&#x1F1F0;&#x1F1F7;</span>}
+      {getBookmakerShort(bookmaker)}
+    </span>
+  );
+}
+
+function MarketBadge({ marketType, handicapPoint }: { marketType: MarketType; handicapPoint: number | null }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+        marketType === 'h2h' ? 'bg-blue-500/20 text-blue-400' :
+        marketType === 'spreads' ? 'bg-purple-500/20 text-purple-400' :
+        'bg-orange-500/20 text-orange-400'
+      }`}>
+        {getMarketLabel(marketType)}
+      </span>
+      {handicapPoint !== null && (
+        <span className="text-gray-500">{formatHandicap(handicapPoint, marketType)}</span>
+      )}
+    </span>
+  );
+}
+
 export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow }: Props) {
-  // Apply filters and sort
   const filteredRows = useMemo(() => {
     let result = rows;
 
-    // Filter by sport category
     if (filters.sports.length > 0) {
       result = result.filter((r) => filters.sports.includes(getSportCategory(r.sport)));
     }
 
-    // Filter by market type
     result = result.filter((r) => filters.marketTypes.includes(r.marketType));
 
-    // Filter by source
     if (filters.sourceFilter && filters.sourceFilter !== 'all') {
       if (filters.sourceFilter === 'cross') {
         result = result.filter((r) => r.isCrossSource);
       } else if (filters.sourceFilter === 'domestic') {
-        // Show rows where at least one best bookmaker is domestic
         result = result.filter((r) => {
           const bookmakers = [r.bestOutcome1?.bookmaker, r.bestOutcome2?.bookmaker, r.bestDraw?.bookmaker].filter(Boolean);
           return bookmakers.some((b) => isDomesticBookmaker(b!));
         });
       } else if (filters.sourceFilter === 'international') {
-        // Show rows where all best bookmakers are international
         result = result.filter((r) => {
           const bookmakers = [r.bestOutcome1?.bookmaker, r.bestOutcome2?.bookmaker, r.bestDraw?.bookmaker].filter(Boolean);
           return bookmakers.every((b) => !isDomesticBookmaker(b!));
@@ -57,7 +77,6 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
       }
     }
 
-    // Filter by bookmaker
     if (filters.bookmakers.length > 0) {
       result = result.filter((r) => {
         const bookmakers = [
@@ -69,19 +88,15 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
       });
     }
 
-    // Filter by min profit (only show rows with arb or all if minProfit is 0)
     if (filters.minProfit > 0) {
       result = result.filter((r) => r.isArbitrage && (r.profitPercent ?? 0) >= filters.minProfit);
     }
 
-    // Sort
     result = [...result].sort((a, b) => {
       if (filters.sortBy === 'profit') {
-        // Arb rows always come first
         if (a.isArbitrage !== b.isArbitrage) return a.isArbitrage ? -1 : 1;
         const pa = a.profitPercent ?? -999;
         const pb = b.profitPercent ?? -999;
-        // Descending by default (higher profit first)
         const cmp = pb - pa;
         if (cmp !== 0) return filters.sortDir === 'asc' ? -cmp : cmp;
         return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
@@ -96,9 +111,100 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
     return result;
   }, [rows, filters]);
 
+  if (filteredRows.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-500">
+        경기를 찾을 수 없습니다. 필터를 조정하거나 새로고침하세요.
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-auto h-full">
-      <table className="data-table">
+      {/* 모바일: 카드 레이아웃 */}
+      <div className="md:hidden flex flex-col gap-2 p-2">
+        {filteredRows.map((row) => {
+          const key = getRowKey(row);
+          const isSelected = key === selectedRowKey;
+
+          return (
+            <div
+              key={key}
+              className={`rounded-lg border p-3 cursor-pointer transition-colors ${
+                row.isArbitrage
+                  ? 'border-green-500/30 bg-green-500/5'
+                  : 'border-gray-800 bg-gray-900/50'
+              } ${isSelected ? 'ring-1 ring-green-400' : ''}`}
+              onClick={() => onSelectRow(row)}
+            >
+              {/* 상단: 리그 + 시간 + 마켓 */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <span>{getSportEmoji(row.sport)}</span>
+                  <span className="truncate max-w-[140px]">{row.league}</span>
+                </div>
+                <span className="text-[10px] text-gray-500">{formatShortTime(row.startTime)}</span>
+              </div>
+
+              {/* 중간: 팀 이름 */}
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[13px] text-white font-medium truncate max-w-[45%]">{row.homeTeam}</span>
+                <span className="text-[10px] text-gray-600 mx-1">vs</span>
+                <span className="text-[13px] text-white font-medium truncate max-w-[45%] text-right">{row.awayTeam}</span>
+              </div>
+
+              {/* 하단: 배당 정보 */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MarketBadge marketType={row.marketType} handicapPoint={row.handicapPoint} />
+                </div>
+
+                {row.isArbitrage && row.profitPercent !== null ? (
+                  <span className={`text-sm font-bold ${getProfitColorClass(row.profitPercent)} inline-flex items-center gap-0.5`}>
+                    {row.isCrossSource && <span className="text-[9px]">&#x1F500;</span>}
+                    +{row.profitPercent.toFixed(2)}%
+                  </span>
+                ) : row.profitPercent !== null ? (
+                  <span className="text-[11px] text-gray-600">{row.profitPercent.toFixed(2)}%</span>
+                ) : null}
+              </div>
+
+              {/* 배당 상세 */}
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800">
+                <div className="flex flex-col items-center">
+                  <span className={`text-sm font-mono ${row.isArbitrage ? 'text-green-400' : 'text-gray-300'}`}>
+                    {row.bestOutcome1 ? formatOdds(row.bestOutcome1.odds) : '-'}
+                  </span>
+                  <span className="text-[9px] text-gray-500">
+                    {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} /> : ''}
+                  </span>
+                </div>
+
+                {(row.marketType === 'h2h' && row.bestDraw) && (
+                  <div className="flex flex-col items-center">
+                    <span className="text-sm font-mono text-gray-400">
+                      {formatOdds(row.bestDraw.odds)}
+                    </span>
+                    <span className="text-[9px] text-gray-500">무</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col items-center">
+                  <span className={`text-sm font-mono ${row.isArbitrage ? 'text-green-400' : 'text-gray-300'}`}>
+                    {row.bestOutcome2 ? formatOdds(row.bestOutcome2.odds) : '-'}
+                  </span>
+                  <span className="text-[9px] text-gray-500">
+                    {row.bestOutcome2 ? <BookmakerBadge bookmaker={row.bestOutcome2.bookmaker} /> : ''}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* PC: 테이블 레이아웃 */}
+      <table className="data-table hidden md:table">
         <thead>
           <tr>
             <th className="w-6"></th>
@@ -117,99 +223,70 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
           </tr>
         </thead>
         <tbody>
-          {filteredRows.length === 0 ? (
-            <tr>
-              <td colSpan={13} className="text-center py-12 text-gray-500">
-                경기를 찾을 수 없습니다. 필터를 조정하거나 새로고침하세요.
-              </td>
-            </tr>
-          ) : (
-            filteredRows.map((row) => {
-              const key = getRowKey(row);
-              const isSelected = key === selectedRowKey;
-              const rowClasses = [
-                row.isArbitrage ? 'arb-row' : '',
-                isSelected ? 'selected' : '',
-                'cursor-pointer',
-              ].filter(Boolean).join(' ');
+          {filteredRows.map((row) => {
+            const key = getRowKey(row);
+            const isSelected = key === selectedRowKey;
+            const rowClasses = [
+              row.isArbitrage ? 'arb-row' : '',
+              isSelected ? 'selected' : '',
+              'cursor-pointer',
+            ].filter(Boolean).join(' ');
 
-              return (
-                <tr
-                  key={key}
-                  className={rowClasses}
-                  onClick={() => onSelectRow(row)}
-                >
-                  <td className="text-center">{getSportEmoji(row.sport)}</td>
-                  <td className="text-gray-400">{formatShortTime(row.startTime)}</td>
-                  <td className="text-gray-300 max-w-[120px] truncate" title={row.league}>{row.league}</td>
-                  <td className="text-white font-medium max-w-[140px] truncate" title={row.homeTeam}>{row.homeTeam}</td>
-                  <td className="text-white font-medium max-w-[140px] truncate" title={row.awayTeam}>{row.awayTeam}</td>
-                  <td>
-                    <span className="inline-flex items-center gap-1">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                        row.marketType === 'h2h' ? 'bg-blue-500/20 text-blue-400' :
-                        row.marketType === 'spreads' ? 'bg-purple-500/20 text-purple-400' :
-                        'bg-orange-500/20 text-orange-400'
-                      }`}>
-                        {getMarketLabel(row.marketType)}
-                      </span>
-                      {row.handicapPoint !== null && (
-                        <span className="text-gray-500">{formatHandicap(row.handicapPoint, row.marketType)}</span>
-                      )}
+            return (
+              <tr
+                key={key}
+                className={rowClasses}
+                onClick={() => onSelectRow(row)}
+              >
+                <td className="text-center">{getSportEmoji(row.sport)}</td>
+                <td className="text-gray-400">{formatShortTime(row.startTime)}</td>
+                <td className="text-gray-300 max-w-[120px] truncate" title={row.league}>{row.league}</td>
+                <td className="text-white font-medium max-w-[140px] truncate" title={row.homeTeam}>{row.homeTeam}</td>
+                <td className="text-white font-medium max-w-[140px] truncate" title={row.awayTeam}>{row.awayTeam}</td>
+                <td>
+                  <MarketBadge marketType={row.marketType} handicapPoint={row.handicapPoint} />
+                </td>
+                <td className="odds-cell">
+                  {row.bestOutcome1 ? (
+                    <span className={row.isArbitrage ? 'odds-best' : ''}>
+                      {formatOdds(row.bestOutcome1.odds)}
                     </span>
-                  </td>
-                  <td className="odds-cell">
-                    {row.bestOutcome1 ? (
-                      <span className={row.isArbitrage ? 'odds-best' : ''}>
-                        {formatOdds(row.bestOutcome1.odds)}
-                      </span>
-                    ) : '-'}
-                  </td>
-                  <td className="text-gray-500">
-                    {row.bestOutcome1 ? (
-                      <span className="inline-flex items-center gap-0.5">
-                        {isDomesticBookmaker(row.bestOutcome1.bookmaker) && <span className="text-[9px]" title="국내">&#x1F1F0;&#x1F1F7;</span>}
-                        {getBookmakerShort(row.bestOutcome1.bookmaker)}
-                      </span>
-                    ) : ''}
-                  </td>
-                  <td className="odds-cell text-gray-400">
-                    {row.bestDraw ? formatOdds(row.bestDraw.odds) : row.marketType === 'h2h' ? '-' : ''}
-                  </td>
-                  <td className="odds-cell">
-                    {row.bestOutcome2 ? (
-                      <span className={row.isArbitrage ? 'odds-best' : ''}>
-                        {formatOdds(row.bestOutcome2.odds)}
-                      </span>
-                    ) : '-'}
-                  </td>
-                  <td className="text-gray-500">
-                    {row.bestOutcome2 ? (
-                      <span className="inline-flex items-center gap-0.5">
-                        {isDomesticBookmaker(row.bestOutcome2.bookmaker) && <span className="text-[9px]" title="국내">&#x1F1F0;&#x1F1F7;</span>}
-                        {getBookmakerShort(row.bestOutcome2.bookmaker)}
-                      </span>
-                    ) : ''}
-                  </td>
-                  <td className="odds-cell text-gray-400 font-mono">
-                    {row.arbFactor !== null ? row.arbFactor.toFixed(4) : '-'}
-                  </td>
-                  <td className="profit-cell">
-                    {row.isArbitrage && row.profitPercent !== null ? (
-                      <span className={`${getProfitColorClass(row.profitPercent)} inline-flex items-center gap-0.5`}>
-                        {row.isCrossSource && <span className="text-[9px]" title="해외vs국내">&#x1F500;</span>}
-                        +{row.profitPercent.toFixed(2)}%
-                      </span>
-                    ) : row.profitPercent !== null ? (
-                      <span className="text-gray-600">
-                        {row.profitPercent.toFixed(2)}%
-                      </span>
-                    ) : '-'}
-                  </td>
-                </tr>
-              );
-            })
-          )}
+                  ) : '-'}
+                </td>
+                <td className="text-gray-500">
+                  {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} /> : ''}
+                </td>
+                <td className="odds-cell text-gray-400">
+                  {row.bestDraw ? formatOdds(row.bestDraw.odds) : row.marketType === 'h2h' ? '-' : ''}
+                </td>
+                <td className="odds-cell">
+                  {row.bestOutcome2 ? (
+                    <span className={row.isArbitrage ? 'odds-best' : ''}>
+                      {formatOdds(row.bestOutcome2.odds)}
+                    </span>
+                  ) : '-'}
+                </td>
+                <td className="text-gray-500">
+                  {row.bestOutcome2 ? <BookmakerBadge bookmaker={row.bestOutcome2.bookmaker} /> : ''}
+                </td>
+                <td className="odds-cell text-gray-400 font-mono">
+                  {row.arbFactor !== null ? row.arbFactor.toFixed(4) : '-'}
+                </td>
+                <td className="profit-cell">
+                  {row.isArbitrage && row.profitPercent !== null ? (
+                    <span className={`${getProfitColorClass(row.profitPercent)} inline-flex items-center gap-0.5`}>
+                      {row.isCrossSource && <span className="text-[9px]" title="해외vs국내">&#x1F500;</span>}
+                      +{row.profitPercent.toFixed(2)}%
+                    </span>
+                  ) : row.profitPercent !== null ? (
+                    <span className="text-gray-600">
+                      {row.profitPercent.toFixed(2)}%
+                    </span>
+                  ) : '-'}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
