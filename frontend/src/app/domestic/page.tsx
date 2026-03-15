@@ -231,7 +231,7 @@ export default function DomesticPage() {
         {/* Header */}
         <div>
           <h1 className="text-lg md:text-2xl font-bold text-white flex items-center gap-2">
-            <span>&#x1F1F0;&#x1F1F7;</span> 국내 배당 관리
+            <span>&#x1F1F0;&#x1F1F7;</span> 국내 사이트 관리
           </h1>
           <p className="text-gray-400 mt-1 text-xs md:text-sm">
             사설 사이트 등록, 배당 크롤링, 작업 요청을 관리합니다.

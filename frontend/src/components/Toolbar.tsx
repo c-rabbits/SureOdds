@@ -36,7 +36,7 @@ const SOURCE_FILTERS: { key: SourceFilter; label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'international', label: '🌐해외' },
   { key: 'domestic', label: '🇰🇷국내' },
-  { key: 'cross', label: '🔀크로스' },
+  { key: 'cross', label: '🔀혼합' },
 ];
 
 export default function Toolbar({
