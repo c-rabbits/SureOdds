@@ -7,7 +7,12 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPAB
 let supabase;
 
 if (supabaseUrl && supabaseServiceKey) {
-  supabase = createClient(supabaseUrl, supabaseServiceKey);
+  supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 } else {
   console.warn('⚠ Supabase credentials not set. Running in MOCK DATA mode.');
 

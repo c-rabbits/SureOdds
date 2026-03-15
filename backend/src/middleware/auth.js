@@ -46,9 +46,11 @@ async function requireAuth(req, res, next) {
     } = await supabase.auth.getUser(token);
 
     if (error || !user) {
+      log.error('Token verification failed', { error: error?.message, errorCode: error?.code, hasUser: !!user });
       return res.status(401).json({
         success: false,
         error: '유효하지 않은 토큰입니다.',
+        debug: error?.message,
       });
     }
 
