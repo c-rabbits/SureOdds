@@ -132,6 +132,7 @@ export interface AvailableSite {
   site_name: string;
   description: string | null;
   is_active: boolean;
+  no_login: boolean;
   created_at: string;
 }
 

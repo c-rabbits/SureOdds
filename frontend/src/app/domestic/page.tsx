@@ -136,6 +136,15 @@ export default function DomesticPage() {
       return;
     }
 
+    // 중복 등록 체크
+    if (!editingSiteId && sites.some((s) => s.available_site_id === selectedSiteId)) {
+      setSiteMsg('이미 등록된 사이트입니다.');
+      return;
+    }
+
+    const selectedSite = availableSites.find((s) => s.id === selectedSiteId);
+    const isNoLogin = selectedSite?.no_login;
+
     setSiteSubmitting(true);
     setSiteMsg(null);
     try {
@@ -143,22 +152,22 @@ export default function DomesticPage() {
         await updateSiteRegistration(editingSiteId, {
           loginId: siteLoginId,
           checkInterval: siteCheckInterval,
-          enableCross: siteCross,
-          enableHandicap: siteHandicap,
-          enableOU: siteOU,
+          enableCross: true,
+          enableHandicap: true,
+          enableOU: true,
         });
         setSiteMsg('사이트 수정 완료');
       } else {
         await createSiteRegistration({
           availableSiteId: selectedSiteId,
-          loginId: siteLoginId,
-          loginPw: siteLoginPw,
+          loginId: isNoLogin ? '' : siteLoginId,
+          loginPw: isNoLogin ? '' : siteLoginPw,
           checkInterval: siteCheckInterval,
-          enableCross: siteCross,
-          enableHandicap: siteHandicap,
-          enableOU: siteOU,
+          enableCross: true,
+          enableHandicap: true,
+          enableOU: true,
         });
-        setSiteMsg('로그인 & 사이트 등록 완료!');
+        setSiteMsg(isNoLogin ? '사이트 등록 완료!' : '로그인 & 사이트 등록 완료!');
       }
       resetSiteForm();
       const updated = await getSiteRegistrations().catch(() => []);
@@ -405,7 +414,7 @@ export default function DomesticPage() {
             <span>&#x1F310;</span> 사이트 추가
           </h2>
           <p className="text-sm text-gray-400 mb-4">
-            배당을 수집할 사설 사이트를 등록합니다. 등록 즉시 크롤링이 시작됩니다.
+            배당을 수집할 사이트를 등록합니다. 등록한 사이트만 목록에 표시됩니다.
           </p>
 
           {/* 등록 폼 */}
@@ -422,55 +431,63 @@ export default function DomesticPage() {
                 <option value="">-- 사이트를 선택하세요 --</option>
                 {availableSites.map((as) => (
                   <option key={as.id} value={as.id}>
-                    {as.site_name} ({as.site_url})
+                    {as.site_name} ({as.site_url}){as.no_login ? ' — 로그인 불필요' : ''}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Row 2: 아이디 + 비밀번호 */}
-            <div className="grid grid-cols-12 gap-3 items-end">
-              <div className="col-span-6">
-                <label className="block text-xs text-gray-400 mb-1">
-                  <span className="mr-1">&#x1F464;</span>아이디
-                </label>
-                <input
-                  type="text"
-                  placeholder="아이디 입력"
-                  value={siteLoginId}
-                  onChange={(e) => setSiteLoginId(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
-                />
-              </div>
-              <div className="col-span-6">
-                <label className="block text-xs text-gray-400 mb-1">
-                  <span className="mr-1">&#x1F512;</span>비밀번호
-                </label>
-                <input
-                  type="password"
-                  placeholder={editingSiteId ? '변경 시에만 입력' : '비밀번호 입력'}
-                  value={siteLoginPw}
-                  onChange={(e) => setSiteLoginPw(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
-                />
-              </div>
-            </div>
+            {/* no_login 사이트 안내 또는 ID/PW 입력 */}
+            {(() => {
+              const selectedSite = availableSites.find((s) => s.id === selectedSiteId);
+              const isNoLogin = selectedSite?.no_login;
 
-            {/* Row 3: 마켓 토글 + 버튼 */}
+              if (isNoLogin) {
+                return (
+                  <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3">
+                    <p className="text-sm text-blue-400">
+                      &#x2139;&#xFE0F; <strong>{selectedSite.site_name}</strong>은 로그인 없이 자동으로 배당을 수집합니다. 아이디/비밀번호 입력이 필요 없습니다.
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-12 gap-3 items-end">
+                  <div className="col-span-6">
+                    <label className="block text-xs text-gray-400 mb-1">
+                      <span className="mr-1">&#x1F464;</span>아이디
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="아이디 입력"
+                      value={siteLoginId}
+                      onChange={(e) => setSiteLoginId(e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
+                    />
+                  </div>
+                  <div className="col-span-6">
+                    <label className="block text-xs text-gray-400 mb-1">
+                      <span className="mr-1">&#x1F512;</span>비밀번호
+                    </label>
+                    <input
+                      type="password"
+                      placeholder={editingSiteId ? '변경 시에만 입력' : '비밀번호 입력'}
+                      value={siteLoginPw}
+                      onChange={(e) => setSiteLoginPw(e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 마켓 안내 + 등록 버튼 */}
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-4 flex-wrap">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" checked={siteCross} onChange={(e) => setSiteCross(e.target.checked)} className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-green-500 focus:ring-green-500" />
-                  <span className="text-sm text-white">크로스</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" checked={siteHandicap} onChange={(e) => setSiteHandicap(e.target.checked)} className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500" />
-                  <span className="text-sm text-white">핸디</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" checked={siteOU} onChange={(e) => setSiteOU(e.target.checked)} className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-orange-500 focus:ring-orange-500" />
-                  <span className="text-sm text-white">O/U</span>
-                </label>
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span className="text-green-400">&#x2714; 크로스</span>
+                <span className="text-purple-400">&#x2714; 핸디캡</span>
+                <span className="text-orange-400">&#x2714; O/U</span>
               </div>
               <div className="flex items-center gap-2">
                 {editingSiteId && (
@@ -483,7 +500,7 @@ export default function DomesticPage() {
                   disabled={siteSubmitting || (!editingSiteId && !selectedSiteId)}
                   className="btn-primary px-5 py-2 text-sm disabled:opacity-40"
                 >
-                  {siteSubmitting ? '처리 중...' : editingSiteId ? '사이트 수정' : '로그인 & 등록'}
+                  {siteSubmitting ? '처리 중...' : editingSiteId ? '사이트 수정' : '사이트 등록'}
                 </button>
               </div>
             </div>
@@ -504,17 +521,16 @@ export default function DomesticPage() {
                     <th className="text-left py-2 px-2">상태</th>
                     <th className="text-left py-2 px-2">사이트명</th>
                     <th className="text-left py-2 px-2">주소</th>
-                    <th className="text-left py-2 px-2">아이디</th>
+                    <th className="text-left py-2 px-2">유형</th>
                     <th className="text-center py-2 px-2">1X2</th>
                     <th className="text-center py-2 px-2">핸디</th>
                     <th className="text-center py-2 px-2">O/U</th>
-                    <th className="text-center py-2 px-2">세션</th>
                     <th className="text-center py-2 px-2">기능</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sites.map((site) => {
-                    const st = STATUS_MAP[site.status] || STATUS_MAP.pending;
+                    const isNoLoginSite = !site.login_id && site.session_status === 'none';
                     return (
                       <tr
                         key={site.id}
@@ -529,33 +545,25 @@ export default function DomesticPage() {
                         </td>
                         <td className="py-2 px-2 text-white font-medium">{site.site_name}</td>
                         <td className="py-2 px-2 text-gray-500 max-w-[150px] truncate" title={site.site_url}>{site.site_url || '-'}</td>
-                        <td className="py-2 px-2 text-gray-300">{site.login_id || '-'}</td>
+                        <td className="py-2 px-2">
+                          {isNoLoginSite ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-900/30 text-cyan-400 border border-cyan-800 whitespace-nowrap">자동 수집</span>
+                          ) : (
+                            <span className="text-gray-300">{site.login_id || '-'}</span>
+                          )}
+                        </td>
                         <td className="py-2 px-2 text-center">{site.enable_cross ? <span className="text-green-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">{site.enable_handicap ? <span className="text-purple-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">{site.enable_ou ? <span className="text-orange-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">
-                          {(() => {
-                            const ss = SESSION_STATUS_MAP[site.session_status] || SESSION_STATUS_MAP.none;
-                            return (
-                              <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap ${ss.color}`}
-                                title={site.session_error || (site.session_expires_at ? `만료: ${new Date(site.session_expires_at).toLocaleString('ko-KR')}` : '')}
-                              >
-                                {ss.label}
-                              </span>
-                            );
-                          })()}
-                        </td>
-                        <td className="py-2 px-2 text-center">
                           <div className="flex items-center justify-center gap-1">
-                            {(site.session_status === 'expired' || site.session_status === 'error') && (
+                            {!isNoLoginSite && (site.session_status === 'expired' || site.session_status === 'error') && (
                               <button
                                 onClick={() => { setReloginSiteTarget(site); setReloginPw(''); }}
                                 className="text-xs px-2 py-1 rounded bg-yellow-900/40 text-yellow-400 hover:bg-yellow-900/60"
                                 title="재로그인"
                               >&#x1F504;</button>
                             )}
-                            <button onClick={() => handleEditSite(site)} className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600" title="수정">&#x270F;</button>
                             <button onClick={() => handleDeleteSite(site.id)} className="text-xs px-2 py-1 rounded bg-gray-700 text-red-400 hover:bg-red-900/40" title="삭제">&#x2716;</button>
                           </div>
                         </td>

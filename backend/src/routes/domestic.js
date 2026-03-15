@@ -378,12 +378,15 @@ router.post('/site-registrations', async (req, res) => {
       return res.status(400).json({ error: '유효하지 않은 사이트입니다.' });
     }
 
-    // 세션 릴레이: 어댑터가 있으면 프록시 로그인, 없으면 세션 없이 등록
+    // no_login 사이트는 로그인 스킵, 마켓 전부 활성화
+    const isNoLogin = avSite.no_login === true;
+
     let sessionToken = null;
     let sessionExpiresAt = null;
     let sessionStatus = 'none';
 
-    if (avSite.adapter_key && loginId && loginPw) {
+    if (!isNoLogin && avSite.adapter_key && loginId && loginPw) {
+      // 세션 릴레이: 어댑터가 있으면 프록시 로그인
       try {
         const adapter = getAdapter(avSite.adapter_key, avSite);
         const result = await adapter.login(loginId, loginPw);
@@ -407,17 +410,17 @@ router.post('/site-registrations', async (req, res) => {
       site_url: avSite.site_url,
       site_name: avSite.site_name,
       group_name: groupName || '기본',
-      login_id: loginId || null,
+      login_id: isNoLogin ? null : (loginId || null),
       // login_pw_encrypted: 비밀번호 저장하지 않음
       check_interval: checkInterval || 60,
-      enable_cross: enableCross !== false,
-      enable_handicap: enableHandicap !== false,
-      enable_ou: enableOU !== false,
+      enable_cross: true,
+      enable_handicap: true,
+      enable_ou: true,
       is_active: true,
       status: 'active',
       session_token: sessionToken,
       session_expires_at: sessionExpiresAt,
-      session_status: sessionStatus,
+      session_status: isNoLogin ? 'none' : sessionStatus,
     };
 
     const { data, error } = await supabase.from('site_registrations').insert(row).select().single();
