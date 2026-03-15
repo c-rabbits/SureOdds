@@ -480,26 +480,74 @@ async function collect(sports, markets) {
     try {
       const stakeData = await scrapeStake();
       if (stakeData.matches.length > 0) {
-        // Upsert Stake matches
-        const { error: smError } = await supabase
-          .from('matches')
-          .upsert(stakeData.matches, { onConflict: 'external_id' });
-        if (smError) log.error('Error upserting Stake matches', { error: smError.message });
+        // ── Match Stake fixtures to existing international matches ──
+        // Stake uses SportRadar IDs like "sr:match:61061505"
+        // OddsAPI uses "oddsapiio_61061505" — same numeric ID!
+        // Try to link Stake odds to existing matches instead of creating duplicates.
+        const stakeIdToExistingMatch = {}; // stake external_id → existing match DB id
 
-        // Get match IDs
-        const stakeExtIds = stakeData.matches.map((m) => m.external_id);
-        const stakeIdMap = {};
-        const STAKE_BATCH = 50;
-        for (let i = 0; i < stakeExtIds.length; i += STAKE_BATCH) {
-          const batch = stakeExtIds.slice(i, i + STAKE_BATCH);
-          const { data: sSaved } = await supabase
-            .from('matches')
-            .select('id, external_id')
-            .in('external_id', batch);
-          if (sSaved) for (const m of sSaved) stakeIdMap[m.external_id] = m.id;
+        // Extract numeric SportRadar IDs from Stake matches
+        const srNumericIds = [];
+        const srIdToStakeExt = {}; // numeric → stake external_id
+        for (const m of stakeData.matches) {
+          const numericMatch = m.external_id.match(/sr:match:(\d+)/);
+          if (numericMatch) {
+            const numId = numericMatch[1];
+            srNumericIds.push(numId);
+            srIdToStakeExt[numId] = m.external_id;
+          }
         }
 
-        // Map odds rows to match IDs
+        // Look for existing matches with oddsapiio_ prefix containing these IDs
+        if (srNumericIds.length > 0) {
+          const oddsApiExtIds = srNumericIds.map((id) => `oddsapiio_${id}`);
+          const STAKE_BATCH = 50;
+          for (let i = 0; i < oddsApiExtIds.length; i += STAKE_BATCH) {
+            const batch = oddsApiExtIds.slice(i, i + STAKE_BATCH);
+            const { data: existing } = await supabase
+              .from('matches')
+              .select('id, external_id')
+              .in('external_id', batch);
+            if (existing) {
+              for (const ex of existing) {
+                const numId = ex.external_id.replace('oddsapiio_', '');
+                const stakeExtId = srIdToStakeExt[numId];
+                if (stakeExtId) {
+                  stakeIdToExistingMatch[stakeExtId] = ex.id;
+                }
+              }
+            }
+          }
+        }
+
+        const linkedCount = Object.keys(stakeIdToExistingMatch).length;
+        log.info(`[Stake] Linked ${linkedCount}/${stakeData.matches.length} matches to existing international matches`);
+
+        // Only insert unmatched Stake matches
+        const newStakeMatches = stakeData.matches.filter((m) => !stakeIdToExistingMatch[m.external_id]);
+        if (newStakeMatches.length > 0) {
+          const { error: smError } = await supabase
+            .from('matches')
+            .upsert(newStakeMatches, { onConflict: 'external_id' });
+          if (smError) log.error('Error upserting Stake matches', { error: smError.message });
+        }
+
+        // Get IDs for newly inserted Stake matches
+        const stakeIdMap = { ...stakeIdToExistingMatch }; // start with linked ones
+        const newStakeExtIds = newStakeMatches.map((m) => m.external_id);
+        if (newStakeExtIds.length > 0) {
+          const STAKE_BATCH2 = 50;
+          for (let i = 0; i < newStakeExtIds.length; i += STAKE_BATCH2) {
+            const batch = newStakeExtIds.slice(i, i + STAKE_BATCH2);
+            const { data: sSaved } = await supabase
+              .from('matches')
+              .select('id, external_id')
+              .in('external_id', batch);
+            if (sSaved) for (const m of sSaved) stakeIdMap[m.external_id] = m.id;
+          }
+        }
+
+        // Map odds rows to match IDs (linked or new)
         const stakeOddsWithIds = stakeData.oddsRows
           .map(({ match_external_id, ...rest }) => ({
             ...rest,
