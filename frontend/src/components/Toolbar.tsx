@@ -20,6 +20,7 @@ interface Props {
   loading: boolean;
   onRefresh: () => void;
   quota: QuotaInfo | null;
+  isAdmin?: boolean;
   onOpenAlertSettings: () => void;
 }
 
@@ -55,6 +56,7 @@ export default function Toolbar({
   loading,
   onRefresh,
   quota,
+  isAdmin,
   onOpenAlertSettings,
 }: Props) {
   // Filter BOOKMAKER_CONFIG to only show bookmakers present in the data
@@ -206,19 +208,21 @@ export default function Toolbar({
           </svg>
         </button>
 
-        {quota && quota.monthlyRemaining !== undefined && (
+        {isAdmin && quota && quota.monthlyRemaining !== undefined && (
           <span className="text-gray-500" title="이번 달 잔여 API 크레딧">
             {quota.monthlyRemaining}/{quota.monthlyLimit}
           </span>
         )}
 
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="btn-sm bg-green-600 hover:bg-green-500 text-white disabled:opacity-50"
-        >
-          {loading ? '로딩중...' : '새로고침'}
-        </button>
+        {isAdmin && (
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="btn-sm bg-green-600 hover:bg-green-500 text-white disabled:opacity-50"
+          >
+            {loading ? '로딩중...' : '새로고침'}
+          </button>
+        )}
 
         <div className="flex items-center gap-1.5">
           {lastCollected && (

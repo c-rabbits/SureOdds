@@ -6,6 +6,7 @@ import { getMatchesWithOdds, getArbitrage, triggerCollection, getApiQuota } from
 import { flattenMatchesToRows } from '@/lib/utils';
 import { getAlertService } from '@/lib/alertService';
 import { useFilters } from '@/hooks/useFilters';
+import { useAuth } from '@/contexts/AuthContext';
 import Toolbar from '@/components/Toolbar';
 import MatchTable from '@/components/MatchTable';
 import DetailPanel from '@/components/DetailPanel';
@@ -13,6 +14,7 @@ import AlertSettings from '@/components/AlertSettings';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function HomePage() {
+  const { isAdmin } = useAuth();
   const [matches, setMatches] = useState<MatchWithOdds[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -152,6 +154,7 @@ export default function HomePage() {
         loading={refreshing}
         onRefresh={handleRefresh}
         quota={quota}
+        isAdmin={isAdmin}
         onOpenAlertSettings={() => setAlertSettingsOpen(true)}
       />
 
