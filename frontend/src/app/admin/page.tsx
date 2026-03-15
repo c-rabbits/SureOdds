@@ -727,7 +727,6 @@ export default function AdminPage() {
                             <th>사이트명</th>
                             <th>URL</th>
                             <th>아이디</th>
-                            <th className="text-center">간격</th>
                             <th className="text-center">1X2</th>
                             <th className="text-center">핸디</th>
                             <th className="text-center">O/U</th>
@@ -761,7 +760,6 @@ export default function AdminPage() {
                                 <td className="text-white font-medium text-xs">{site.site_name}</td>
                                 <td className="text-gray-500 text-xs max-w-[120px] truncate" title={site.site_url}>{site.site_url}</td>
                                 <td className="text-gray-300 text-xs">{site.login_id || '-'}</td>
-                                <td className="text-center text-gray-300 text-xs">{site.check_interval}s</td>
                                 <td className="text-center">{site.enable_cross ? <span className="text-green-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
                                 <td className="text-center">{site.enable_handicap ? <span className="text-purple-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>
                                 <td className="text-center">{site.enable_ou ? <span className="text-orange-400 text-xs">O</span> : <span className="text-gray-600 text-xs">-</span>}</td>

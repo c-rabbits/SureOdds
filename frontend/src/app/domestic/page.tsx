@@ -335,9 +335,9 @@ export default function DomesticPage() {
               </select>
             </div>
 
-            {/* Row 2: 아이디 + 비밀번호 + 체크간격 */}
+            {/* Row 2: 아이디 + 비밀번호 */}
             <div className="grid grid-cols-12 gap-3 items-end">
-              <div className="col-span-4">
+              <div className="col-span-6">
                 <label className="block text-xs text-gray-400 mb-1">
                   <span className="mr-1">&#x1F464;</span>아이디
                 </label>
@@ -349,7 +349,7 @@ export default function DomesticPage() {
                   className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
                 />
               </div>
-              <div className="col-span-4">
+              <div className="col-span-6">
                 <label className="block text-xs text-gray-400 mb-1">
                   <span className="mr-1">&#x1F512;</span>비밀번호
                 </label>
@@ -360,19 +360,6 @@ export default function DomesticPage() {
                   onChange={(e) => setSiteLoginPw(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600"
                 />
-              </div>
-              <div className="col-span-4">
-                <label className="block text-xs text-gray-400 mb-1">체크간격</label>
-                <select
-                  value={siteCheckInterval}
-                  onChange={(e) => setSiteCheckInterval(Number(e.target.value))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
-                >
-                  <option value={30}>30초</option>
-                  <option value={60}>60초</option>
-                  <option value={90}>90초</option>
-                  <option value={120}>120초</option>
-                </select>
               </div>
             </div>
 
@@ -425,7 +412,6 @@ export default function DomesticPage() {
                     <th className="text-left py-2 px-2">사이트명</th>
                     <th className="text-left py-2 px-2">주소</th>
                     <th className="text-left py-2 px-2">아이디</th>
-                    <th className="text-center py-2 px-2">체크간격</th>
                     <th className="text-center py-2 px-2">1X2</th>
                     <th className="text-center py-2 px-2">핸디</th>
                     <th className="text-center py-2 px-2">O/U</th>
@@ -451,7 +437,6 @@ export default function DomesticPage() {
                         <td className="py-2 px-2 text-white font-medium">{site.site_name}</td>
                         <td className="py-2 px-2 text-gray-500 max-w-[150px] truncate" title={site.site_url}>{site.site_url || '-'}</td>
                         <td className="py-2 px-2 text-gray-300">{site.login_id || '-'}</td>
-                        <td className="py-2 px-2 text-center text-gray-300">{site.check_interval}초</td>
                         <td className="py-2 px-2 text-center">{site.enable_cross ? <span className="text-green-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">{site.enable_handicap ? <span className="text-purple-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">{site.enable_ou ? <span className="text-orange-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>

@@ -19,7 +19,7 @@ export default function Navbar() {
   const navLinks = isAdmin ? [...baseLinks, adminLink] : baseLinks;
 
   return (
-    <nav className="border-b border-gray-800 bg-gray-950 shrink-0">
+    <nav className="border-b border-gray-800 bg-gray-950 shrink-0 sticky top-0 z-50">
       <div className="px-4 flex items-center justify-between h-10">
         {/* 좌측: 로고 + 네비게이션 */}
         <div className="flex items-center gap-4">
