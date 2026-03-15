@@ -35,10 +35,10 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`px-2 sm:px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-[13px] sm:text-xs font-semibold transition-colors ${
                   pathname === link.href
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800/60'
+                    ? 'bg-gray-700 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
                 }`}
               >
                 {/* 모바일: 아이콘 + 축약, PC: 풀 라벨 */}
