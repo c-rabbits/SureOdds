@@ -26,8 +26,22 @@ app.use(express.json({ limit: '5mb' }));
 app.use(requestLogger);
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+  const info = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    node: process.version,
+    hasFetch: typeof globalThis.fetch === 'function',
+  };
+  // Supabase 연결 테스트
+  try {
+    const supabase = require('./config/supabase');
+    const { data, error } = await supabase.from('profiles').select('id').limit(1);
+    info.supabase = error ? `error: ${error.message}` : 'connected';
+  } catch (e) {
+    info.supabase = `exception: ${e.message}`;
+  }
+  res.json(info);
 });
 
 // Auth routes (인증 불필요)

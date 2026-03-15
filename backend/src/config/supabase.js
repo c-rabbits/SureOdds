@@ -1,6 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
+// Node 18 미만에서 fetch 폴리필 (Railway 호환)
+if (typeof globalThis.fetch === 'undefined') {
+  console.warn('⚠ Native fetch not available, loading cross-fetch polyfill');
+  try {
+    globalThis.fetch = require('cross-fetch');
+  } catch (e) {
+    console.error('❌ cross-fetch not installed. Run: npm install cross-fetch');
+  }
+}
+
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
