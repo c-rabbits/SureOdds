@@ -446,7 +446,7 @@ export default function DomesticPage() {
                         <td className="py-2 px-2 text-center">{site.enable_handicap ? <span className="text-purple-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">{site.enable_ou ? <span className="text-orange-400">&#x2714;</span> : <span className="text-gray-600">-</span>}</td>
                         <td className="py-2 px-2 text-center">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${st.color}`}>{st.label}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap ${st.color}`}>{st.label}</span>
                         </td>
                         <td className="py-2 px-2 text-center">
                           <div className="flex items-center justify-center gap-1">
@@ -546,7 +546,7 @@ export default function DomesticPage() {
                     return (
                       <tr key={req.id} className="border-b border-gray-800 hover:bg-gray-800/50">
                         <td className="py-2 px-2">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${st.color}`}>{st.label}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border whitespace-nowrap ${st.color}`}>{st.label}</span>
                         </td>
                         <td className="py-2 px-2 text-white">{req.site_name || '-'}</td>
                         <td className="py-2 px-2 text-gray-400 max-w-[200px] truncate" title={req.site_url}>{req.site_url}</td>
