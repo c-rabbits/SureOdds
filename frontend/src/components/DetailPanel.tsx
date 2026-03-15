@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { MatchWithOdds, Odds, MarketType } from '@/types';
 import {
@@ -26,6 +26,12 @@ interface Props {
 export default function DetailPanel({ match, initialMarketType, initialHandicapPoint, onClose }: Props) {
   const [activeMarket, setActiveMarket] = useState<MarketType>(initialMarketType || 'h2h');
   const [activePoint, setActivePoint] = useState<number | null>(initialHandicapPoint ?? null);
+
+  // 선택한 경기/마켓 변경 시 탭 동기화
+  useEffect(() => {
+    if (initialMarketType) setActiveMarket(initialMarketType);
+    setActivePoint(initialHandicapPoint ?? null);
+  }, [match.id, initialMarketType, initialHandicapPoint]);
 
   // Group odds by market type
   const oddsGroups = useMemo(() => {
