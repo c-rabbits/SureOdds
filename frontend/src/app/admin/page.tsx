@@ -477,7 +477,12 @@ export default function AdminPage() {
                             <span className="ml-1.5 text-[10px] text-green-400 font-medium">(나)</span>
                           )}
                         </td>
-                        <td>{u.display_name || '-'}</td>
+                        <td>
+                          <span className="flex items-center gap-1">
+                            {u.display_name || '-'}
+                            {u.telegram_chat_id && <span title="텔레그램 연동됨">📱</span>}
+                          </span>
+                        </td>
                         <td>
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                             u.role === 'admin'

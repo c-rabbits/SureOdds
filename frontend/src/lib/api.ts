@@ -463,3 +463,21 @@ export async function updateAdminSiteRequest(
   const { data } = await api.patch(`/api/domestic/site-requests/${id}`, payload);
   return data.data;
 }
+
+// ============================================================
+// Telegram 연동
+// ============================================================
+
+export async function getTelegramStatus(): Promise<{ linked: boolean; linkedAt: string | null }> {
+  const { data } = await api.get('/api/telegram/status');
+  return data;
+}
+
+export async function generateTelegramLink(): Promise<{ link: string; expiresAt: string }> {
+  const { data } = await api.post('/api/telegram/link');
+  return data;
+}
+
+export async function unlinkTelegram(): Promise<void> {
+  await api.delete('/api/telegram/link');
+}

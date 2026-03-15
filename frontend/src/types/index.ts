@@ -119,6 +119,8 @@ export interface UserProfile {
   updated_at: string;
   last_sign_in_at?: string | null;
   email_confirmed_at?: string | null;
+  telegram_chat_id?: string | null;
+  telegram_linked_at?: string | null;
 }
 
 // ============================================================

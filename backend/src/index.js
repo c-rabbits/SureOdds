@@ -9,9 +9,11 @@ const collectorRouter = require('./routes/collector');
 const domesticRouter = require('./routes/domestic');
 const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
+const telegramRouter = require('./routes/telegram');
 const { requireAuth } = require('./middleware/auth');
 const { logger, createServiceLogger, requestLogger } = require('./config/logger');
 const { startOddsApiIoScheduler } = require('./collector/index');
+const { getBot } = require('./services/telegramBot');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -33,6 +35,9 @@ app.use('/api/auth', authRouter);
 
 // Admin routes (내부에서 requireAuth + requireAdmin 적용)
 app.use('/api/admin', adminRouter);
+
+// Telegram routes (웹훅은 인증 없음, link/status는 내부에서 requireAuth)
+app.use('/api/telegram', telegramRouter);
 
 // API routes (인증 필요)
 app.use('/api/matches', requireAuth, matchesRouter);
@@ -57,11 +62,30 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   log.info(`SureOdds API running on port ${PORT}`);
 
   // Start Odds-API.io independent scheduler (every 20 min)
   startOddsApiIoScheduler();
+
+  // Register Telegram webhook
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : process.env.BACKEND_URL;
+
+  if (webhookSecret && railwayUrl) {
+    try {
+      const bot = getBot();
+      if (bot) {
+        const webhookUrl = `${railwayUrl}/api/telegram/webhook/${webhookSecret}`;
+        await bot.setWebHook(webhookUrl);
+        log.info(`Telegram webhook registered: ${webhookUrl.replace(webhookSecret, '***')}`);
+      }
+    } catch (err) {
+      log.error('Failed to register Telegram webhook', { error: err.message });
+    }
+  }
 });
 
 module.exports = app;
