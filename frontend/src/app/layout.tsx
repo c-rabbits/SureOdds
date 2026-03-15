@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} h-screen bg-gray-950 flex flex-col overflow-hidden`}>
+      <body className={`${inter.className} h-dvh bg-gray-950 flex flex-col overflow-hidden`}>
         <ToastProvider>
           <ToastConnector />
           <AuthProvider>

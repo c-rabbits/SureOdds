@@ -120,9 +120,9 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
   }
 
   return (
-    <div className="overflow-auto h-full">
+    <div className="md:overflow-auto md:h-full">
       {/* 모바일: 카드 레이아웃 */}
-      <div className="md:hidden flex flex-col gap-2 p-2">
+      <div className="md:hidden flex flex-col gap-2 p-2 pb-6">
         {filteredRows.map((row) => {
           const key = getRowKey(row);
           const isSelected = key === selectedRowKey;

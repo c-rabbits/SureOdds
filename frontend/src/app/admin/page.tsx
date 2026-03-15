@@ -345,7 +345,7 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="h-full overflow-auto p-4">
+    <div className="p-4">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-4">
         <div>

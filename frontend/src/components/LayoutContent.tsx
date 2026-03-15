@@ -55,7 +55,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   return (
     <>
       <Navbar />
-      <main className="flex-1 overflow-hidden">{children}</main>
+      <main className="flex-1 overflow-auto pb-28 md:pb-0">{children}</main>
     </>
   );
 }

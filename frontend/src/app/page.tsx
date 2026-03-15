@@ -132,7 +132,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col md:h-full">
       {/* Toolbar */}
       <Toolbar
         filters={filters}
@@ -156,9 +156,9 @@ export default function HomePage() {
       />
 
       {/* Main content: table + detail split */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="md:flex-1 flex flex-col md:overflow-hidden">
         {/* Table panel */}
-        <div className={`${selectedRow ? 'h-[60%]' : 'flex-1'} overflow-hidden`}>
+        <div className={`${selectedRow ? 'md:h-[60%]' : 'md:flex-1'} md:overflow-hidden`}>
           <MatchTable
             rows={rows}
             filters={filters}
@@ -171,7 +171,7 @@ export default function HomePage() {
         {selectedRow && (
           <>
             <div className="panel-handle h-1.5 shrink-0" />
-            <div className="h-[40%] overflow-hidden">
+            <div className="md:h-[40%] md:overflow-hidden">
               <DetailPanel
                 match={selectedRow.matchData}
                 initialMarketType={selectedRow.marketType}
