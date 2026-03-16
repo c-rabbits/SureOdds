@@ -1,9 +1,14 @@
 /**
- * Poisson-based Football Match Prediction Model (Phase 1)
+ * Poisson-based Football Match Prediction Model (Phase 2 Hybrid)
  *
- * Phase 1 전략: 팀 통계 없이 시장 배당(implied probability)에서 기대골 역산.
- * Pinnacle(가장 sharp한 북메이커) 배당을 기준으로, 다른 북메이커와 비교하여 밸류 발굴.
+ * Phase 1: 시장 배당(implied probability)에서 기대골 역산.
+ * Phase 2: 팀 통계(ELO, 공격/수비 레이팅, 폼) 기반 모델과 시장 모델 블렌딩.
+ *
+ * 하이브리드 전략: 시장 70% + 팀 모델 30% 블렌딩.
+ * 두 모델이 일치하면 신뢰도 ↑, 크게 다르면 신뢰도 ↓.
  */
+
+const { deriveGoalExpectations, formToScore } = require('./teamStrengthModel');
 
 const { createServiceLogger } = require('../config/logger');
 const log = createServiceLogger('PoissonModel');
@@ -142,14 +147,41 @@ function getMostLikelyScores(lambdaHome, lambdaAway, topN = 5) {
 
 // ─── 메인 예측 함수 ───
 
+// ─── 하이브리드 블렌딩 ───
+
+const MARKET_WEIGHT = 0.70;
+const TEAM_WEIGHT = 0.30;
+
+/**
+ * 두 λ 값을 가중 블렌딩.
+ */
+function blendLambdas(marketLH, marketLA, teamLH, teamLA) {
+  return {
+    lambdaHome: Math.round((MARKET_WEIGHT * marketLH + TEAM_WEIGHT * teamLH) * 100) / 100,
+    lambdaAway: Math.round((MARKET_WEIGHT * marketLA + TEAM_WEIGHT * teamLA) * 100) / 100,
+  };
+}
+
+/**
+ * 시장 모델과 팀 모델의 일치도 계산 (0~1, 1 = 완전 일치).
+ */
+function modelAgreement(marketLH, marketLA, teamLH, teamLA) {
+  const diffH = Math.abs(marketLH - teamLH);
+  const diffA = Math.abs(marketLA - teamLA);
+  const avgDiff = (diffH + diffA) / 2;
+  // 차이 0 → 1.0, 차이 1.0+ → 0.0
+  return Math.max(0, 1 - avgDiff);
+}
+
 /**
  * 경기의 배당 데이터에서 AI 예측 생성.
  *
  * @param {Object} match - { id, sport, home_team, away_team, ... }
  * @param {Object[]} oddsRecords - [{ bookmaker, market_type, outcome_1_odds, outcome_2_odds, outcome_draw_odds }]
+ * @param {Object} [teamStats] - { home: team_stats row, away: team_stats row } (optional)
  * @returns {Object|null} 예측 결과 or null
  */
-function computePrediction(match, oddsRecords) {
+function computePrediction(match, oddsRecords, teamStats) {
   // h2h 배당만 사용
   const h2hOdds = oddsRecords.filter(
     (o) => o.market_type === 'h2h' && o.outcome_1_odds > 1 && o.outcome_2_odds > 1
@@ -177,6 +209,10 @@ function computePrediction(match, oddsRecords) {
   const drawOdds = referenceOdds.outcome_draw_odds;
 
   let homeWinProb, drawProb, awayWinProb, lambdaHome, lambdaAway, over25Prob, under25Prob;
+  let marketLH = null, marketLA = null; // 시장 모델 λ (블렌딩 전)
+  let teamModelLH = null, teamModelLA = null; // 팀 모델 λ
+  let isHybrid = false;
+  let agreement = null;
 
   if (isSoccer && drawOdds && drawOdds > 1) {
     // 3-way: 홈/무/원정
@@ -185,14 +221,37 @@ function computePrediction(match, oddsRecords) {
     drawProb = probs[1];
     awayWinProb = probs[2];
 
-    // Poisson λ 역산
+    // Poisson λ 역산 (시장 모델)
     const { lambdaHome: lh, lambdaAway: la } = estimateGoalsFromProbs(homeWinProb, drawProb, awayWinProb);
+    marketLH = lh;
+    marketLA = la;
     lambdaHome = lh;
     lambdaAway = la;
 
-    const poissonProbs = calculateFromLambdas(lambdaHome, lambdaAway);
-    over25Prob = poissonProbs.over25;
-    under25Prob = poissonProbs.under25;
+    // 하이브리드 블렌딩: 팀 통계가 있으면 적용
+    const hasTeamStats = teamStats && teamStats.home && teamStats.away;
+    if (hasTeamStats) {
+      const teamGoals = deriveGoalExpectations(teamStats.home, teamStats.away);
+      teamModelLH = teamGoals.lambdaHome;
+      teamModelLA = teamGoals.lambdaAway;
+
+      const blended = blendLambdas(marketLH, marketLA, teamModelLH, teamModelLA);
+      lambdaHome = blended.lambdaHome;
+      lambdaAway = blended.lambdaAway;
+      isHybrid = true;
+
+      agreement = modelAgreement(marketLH, marketLA, teamModelLH, teamModelLA);
+
+      // 블렌딩된 λ로 확률 재계산
+      const hybridProbs = calculateFromLambdas(lambdaHome, lambdaAway);
+      homeWinProb = hybridProbs.homeWin;
+      drawProb = hybridProbs.draw;
+      awayWinProb = hybridProbs.awayWin;
+    }
+
+    const finalProbs = calculateFromLambdas(lambdaHome, lambdaAway);
+    over25Prob = finalProbs.over25;
+    under25Prob = finalProbs.under25;
   } else {
     // 2-way: 홈/원정 (농구, 야구, 하키 등)
     const probs = oddsToProbs([homeOdds, awayOdds]);
@@ -205,8 +264,13 @@ function computePrediction(match, oddsRecords) {
     under25Prob = null;
   }
 
-  // 모델 신뢰도: 북메이커 수 기반 (많을수록 합의가 강함)
-  const confidence = Math.min(1, h2hOdds.length / 8);
+  // 모델 신뢰도: 북메이커 수 기반 + 모델 일치도 보정
+  let confidence = Math.min(1, h2hOdds.length / 8);
+  if (isHybrid && agreement !== null) {
+    // 두 모델 일치 시 +0.1, 불일치 시 -0.1
+    const agreementBonus = (agreement - 0.5) * 0.2; // -0.1 ~ +0.1
+    confidence = Math.max(0, Math.min(1, confidence + agreementBonus));
+  }
 
   // 밸류 분석
   const valueBets = findValueBets(
@@ -216,9 +280,9 @@ function computePrediction(match, oddsRecords) {
     isSoccer
   );
 
-  return {
+  const result = {
     match_id: match.id,
-    model_type: 'poisson_v1',
+    model_type: isHybrid ? 'poisson_v2_hybrid' : 'poisson_v1',
     home_win_prob: round4(homeWinProb),
     draw_prob: round4(drawProb),
     away_win_prob: round4(awayWinProb),
@@ -229,6 +293,17 @@ function computePrediction(match, oddsRecords) {
     confidence: round4(confidence),
     value_bets: valueBets.length > 0 ? valueBets : null,
   };
+
+  // 하이브리드 메타데이터 (JSON 칼럼에 저장 가능)
+  if (isHybrid) {
+    result.team_model_home_goals = teamModelLH;
+    result.team_model_away_goals = teamModelLA;
+    result.market_model_home_goals = marketLH;
+    result.market_model_away_goals = marketLA;
+    result.model_agreement = round4(agreement);
+  }
+
+  return result;
 }
 
 /**

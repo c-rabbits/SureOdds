@@ -5,6 +5,7 @@
 
 const supabase = require('../config/supabase');
 const { computePrediction } = require('./poissonModel');
+const { bulkGetTeamStats } = require('./teamStrengthModel');
 const { createServiceLogger } = require('../config/logger');
 
 const log = createServiceLogger('AiPrediction');
@@ -27,6 +28,11 @@ async function generatePredictions() {
 
   if (mErr || !matches || matches.length === 0) return;
 
+  // 벌크로 모든 팀의 통계 조회 (1회 쿼리)
+  const allTeamNames = matches.flatMap((m) => [m.home_team, m.away_team]);
+  const teamStatsMap = await bulkGetTeamStats(allTeamNames);
+  const hybridCount = { total: 0, hybrid: 0 };
+
   let predicted = 0;
   let valueBetCount = 0;
 
@@ -40,8 +46,16 @@ async function generatePredictions() {
 
       if (!oddsRecords || oddsRecords.length < 2) continue;
 
-      const prediction = computePrediction(match, oddsRecords);
+      // 팀 통계 매칭
+      const homeStats = teamStatsMap.get(match.home_team) || null;
+      const awayStats = teamStatsMap.get(match.away_team) || null;
+      const teamStats = (homeStats && awayStats) ? { home: homeStats, away: awayStats } : null;
+
+      const prediction = computePrediction(match, oddsRecords, teamStats);
       if (!prediction) continue;
+
+      hybridCount.total++;
+      if (prediction.model_type === 'poisson_v2_hybrid') hybridCount.hybrid++;
 
       // Upsert into ai_predictions
       const { error: insertErr } = await supabase
@@ -66,7 +80,7 @@ async function generatePredictions() {
   }
 
   if (predicted > 0) {
-    log.info(`Generated ${predicted} predictions, ${valueBetCount} value bets`);
+    log.info(`Generated ${predicted} predictions (${hybridCount.hybrid}/${hybridCount.total} hybrid), ${valueBetCount} value bets`);
   }
 }
 

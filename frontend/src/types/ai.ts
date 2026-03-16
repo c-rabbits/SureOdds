@@ -12,6 +12,12 @@ export interface AiPrediction {
   confidence: number;
   value_bets: ValueBet[] | null;
   computed_at: string;
+  // Hybrid model fields
+  team_model_home_goals?: number | null;
+  team_model_away_goals?: number | null;
+  market_model_home_goals?: number | null;
+  market_model_away_goals?: number | null;
+  model_agreement?: number | null;
 }
 
 export interface ValueBet {
@@ -66,6 +72,22 @@ export interface OddsMovementItem {
   last_recorded: string;
 }
 
+export interface TeamStatsInfo {
+  team_name: string;
+  sport: string;
+  league: string;
+  season: string;
+  elo_rating: number | null;
+  attack_rating: number | null;
+  defense_rating: number | null;
+  form_last5: string | null;
+  avg_goals_scored: number | null;
+  avg_goals_conceded: number | null;
+  goals_scored: number | null;
+  goals_conceded: number | null;
+  matches_played: number | null;
+}
+
 export interface MatchPredictionDetail {
   match: {
     id: string;
@@ -88,6 +110,8 @@ export interface MatchPredictionDetail {
     updated_at: string;
   }>;
   prediction: AiPrediction | null;
+  homeTeamStats: TeamStatsInfo | null;
+  awayTeamStats: TeamStatsInfo | null;
 }
 
 export interface ValueBetMatch {

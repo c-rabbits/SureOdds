@@ -2,12 +2,191 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { MatchPredictionDetail, OddsHistoryPoint } from '@/types/ai';
+import type { MatchPredictionDetail, OddsHistoryPoint, TeamStatsInfo } from '@/types/ai';
 import { getAiPrediction, getOddsHistory } from '@/lib/aiApi';
 import { getKoreanTeamName } from '@/lib/teamNames';
 import { getSportEmoji, formatMatchTime, getBookmakerName, formatOdds, isDomesticBookmaker } from '@/lib/utils';
 import OddsChart from '@/components/ai/OddsChart';
 import ValueAnalysis from '@/components/ai/ValueAnalysis';
+
+// ─── 팀 대결 비교 카드 ───
+
+function FormBadges({ form }: { form: string | null }) {
+  if (!form) return <span className="text-gray-600 text-[10px]">데이터 없음</span>;
+  return (
+    <div className="flex gap-0.5">
+      {form.split('').map((c, i) => (
+        <span
+          key={i}
+          className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold ${
+            c === 'W' ? 'bg-green-500/20 text-green-400' :
+            c === 'D' ? 'bg-yellow-500/20 text-yellow-400' :
+            'bg-red-500/20 text-red-400'
+          }`}
+        >
+          {c}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function StatCompareBar({ label, homeVal, awayVal, format, homeColor = 'blue', awayColor = 'red', inverse = false }: {
+  label: string;
+  homeVal: number | null;
+  awayVal: number | null;
+  format?: (v: number) => string;
+  homeColor?: string;
+  awayColor?: string;
+  inverse?: boolean;
+}) {
+  const hv = homeVal ?? 0;
+  const av = awayVal ?? 0;
+  const fmt = format || ((v: number) => v.toFixed(2));
+  const max = Math.max(hv, av, 0.01);
+
+  // inverse: 수비력에서 낮을수록 좋은 경우
+  const homeWidth = inverse ? ((max - hv + 0.01) / max) * 100 : (hv / max) * 100;
+  const awayWidth = inverse ? ((max - av + 0.01) / max) * 100 : (av / max) * 100;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-[10px] text-gray-500">
+        <span className={`font-mono font-bold text-${homeColor}-400`}>{fmt(hv)}</span>
+        <span>{label}</span>
+        <span className={`font-mono font-bold text-${awayColor}-400`}>{fmt(av)}</span>
+      </div>
+      <div className="flex gap-1 h-2">
+        <div className="flex-1 flex justify-end">
+          <div
+            className={`h-full rounded-l bg-${homeColor}-500/60 transition-all`}
+            style={{ width: `${Math.min(100, homeWidth)}%` }}
+          />
+        </div>
+        <div className="flex-1">
+          <div
+            className={`h-full rounded-r bg-${awayColor}-500/60 transition-all`}
+            style={{ width: `${Math.min(100, awayWidth)}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamMatchupCard({ homeStats, awayStats, homeName, awayName, prediction }: {
+  homeStats: TeamStatsInfo;
+  awayStats: TeamStatsInfo;
+  homeName: string;
+  awayName: string;
+  prediction: MatchPredictionDetail['prediction'];
+}) {
+  const eloDiff = (homeStats.elo_rating ?? 1500) - (awayStats.elo_rating ?? 1500);
+  const eloFavor = eloDiff > 0 ? '홈 유리' : eloDiff < 0 ? '원정 유리' : '균형';
+
+  return (
+    <div className="bg-gray-900 border border-cyan-800/30 rounded-lg p-4">
+      <h2 className="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-1.5">
+        ⚔️ 팀 대결 분석
+      </h2>
+
+      {/* 팀 이름 헤더 */}
+      <div className="flex justify-between items-center mb-4 text-xs">
+        <span className="text-blue-400 font-semibold">{getKoreanTeamName(homeName)}</span>
+        <span className="text-gray-600">vs</span>
+        <span className="text-red-400 font-semibold">{getKoreanTeamName(awayName)}</span>
+      </div>
+
+      {/* ELO 비교 */}
+      <div className="bg-gray-800/50 rounded-lg p-3 mb-3">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-blue-400 font-mono font-bold text-sm">{homeStats.elo_rating?.toFixed(0) ?? '-'}</span>
+          <div className="text-center">
+            <p className="text-[10px] text-gray-500">ELO 레이팅</p>
+            <p className={`text-[10px] font-semibold ${eloDiff > 50 ? 'text-blue-400' : eloDiff < -50 ? 'text-red-400' : 'text-gray-400'}`}>
+              {eloDiff > 0 ? '+' : ''}{eloDiff.toFixed(0)} ({eloFavor})
+            </p>
+          </div>
+          <span className="text-red-400 font-mono font-bold text-sm">{awayStats.elo_rating?.toFixed(0) ?? '-'}</span>
+        </div>
+        <div className="flex h-2 rounded-full overflow-hidden bg-gray-700">
+          <div className="bg-blue-500 transition-all" style={{ width: `${((homeStats.elo_rating ?? 1500) / ((homeStats.elo_rating ?? 1500) + (awayStats.elo_rating ?? 1500))) * 100}%` }} />
+          <div className="bg-red-500 transition-all" style={{ width: `${((awayStats.elo_rating ?? 1500) / ((homeStats.elo_rating ?? 1500) + (awayStats.elo_rating ?? 1500))) * 100}%` }} />
+        </div>
+      </div>
+
+      {/* 공격/수비/득실점 비교 */}
+      <div className="space-y-3 mb-3">
+        <StatCompareBar
+          label="공격력"
+          homeVal={homeStats.attack_rating}
+          awayVal={awayStats.attack_rating}
+        />
+        <StatCompareBar
+          label="수비력"
+          homeVal={homeStats.defense_rating}
+          awayVal={awayStats.defense_rating}
+          inverse={true}
+        />
+        <StatCompareBar
+          label="평균 득점"
+          homeVal={homeStats.avg_goals_scored}
+          awayVal={awayStats.avg_goals_scored}
+        />
+        <StatCompareBar
+          label="평균 실점"
+          homeVal={homeStats.avg_goals_conceded}
+          awayVal={awayStats.avg_goals_conceded}
+          inverse={true}
+        />
+      </div>
+
+      {/* 최근 폼 */}
+      <div className="flex justify-between items-center pt-2 border-t border-gray-800">
+        <div>
+          <p className="text-[10px] text-gray-500 mb-1">최근 5경기</p>
+          <FormBadges form={homeStats.form_last5} />
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-gray-500 mb-1">최근 5경기</p>
+          <FormBadges form={awayStats.form_last5} />
+        </div>
+      </div>
+
+      {/* 하이브리드 모델 일치도 */}
+      {prediction?.model_agreement != null && (
+        <div className="mt-3 pt-2 border-t border-gray-800">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-gray-500">시장↔팀 모델 일치도</span>
+            <span className={`font-semibold ${
+              prediction.model_agreement > 0.7 ? 'text-green-400' :
+              prediction.model_agreement > 0.4 ? 'text-yellow-400' :
+              'text-red-400'
+            }`}>
+              {(prediction.model_agreement * 100).toFixed(0)}%
+              {prediction.model_agreement > 0.7 ? ' (높음)' :
+               prediction.model_agreement > 0.4 ? ' (보통)' : ' (낮음 - 주의)'}
+            </span>
+          </div>
+          {prediction.team_model_home_goals != null && prediction.market_model_home_goals != null && (
+            <div className="flex justify-between mt-1.5 text-[10px] text-gray-500">
+              <div>
+                <span className="text-gray-600">시장 모델: </span>
+                <span className="text-white font-mono">{prediction.market_model_home_goals} - {prediction.market_model_away_goals}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">팀 모델: </span>
+                <span className="text-cyan-400 font-mono">{prediction.team_model_home_goals} - {prediction.team_model_away_goals}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 메인 페이지 ───
 
 export default function MatchDetailPage() {
   const params = useParams();
@@ -55,7 +234,7 @@ export default function MatchDetailPage() {
     );
   }
 
-  const { match, odds, prediction: p } = data;
+  const { match, odds, prediction: p, homeTeamStats, awayTeamStats } = data;
   const h2hOdds = odds.filter((o) => o.market_type === 'h2h');
 
   return (
@@ -90,7 +269,7 @@ export default function MatchDetailPage() {
           <h2 className="text-sm font-semibold text-purple-400 mb-3 flex items-center gap-1.5">
             🤖 AI 예측
             <span className="text-[10px] text-gray-500 font-normal">
-              신뢰도 {(p.confidence * 100).toFixed(0)}%
+              {p.model_type === 'poisson_v2_hybrid' ? '하이브리드' : '시장분석'} · 신뢰도 {(p.confidence * 100).toFixed(0)}%
             </span>
           </h2>
 
@@ -146,6 +325,17 @@ export default function MatchDetailPage() {
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 text-center text-gray-500 text-xs">
           예측 데이터가 아직 생성되지 않았습니다.
         </div>
+      )}
+
+      {/* 팀 대결 분석 */}
+      {homeTeamStats && awayTeamStats && (
+        <TeamMatchupCard
+          homeStats={homeTeamStats}
+          awayStats={awayTeamStats}
+          homeName={match.home_team}
+          awayName={match.away_team}
+          prediction={p}
+        />
       )}
 
       {/* 밸류 분석 */}

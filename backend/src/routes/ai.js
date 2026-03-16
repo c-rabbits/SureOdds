@@ -7,6 +7,7 @@ const router = express.Router();
 const { createServiceLogger } = require('../config/logger');
 const { getMatchesWithPredictions, getPrediction, getValueBets } = require('../services/aiPredictionService');
 const { getOddsHistory, getOddsMovement } = require('../services/oddsHistoryService');
+const { getTeamStatsForMatch } = require('../services/teamStrengthModel');
 
 const log = createServiceLogger('AiRoute');
 
@@ -43,12 +44,18 @@ router.get('/predictions/:matchId', async (req, res) => {
       return res.status(404).json({ success: false, error: '경기를 찾을 수 없습니다.' });
     }
 
+    // 양 팀 통계 조회
+    const match = matchResult.data;
+    const teamStats = await getTeamStatsForMatch(match.home_team, match.away_team);
+
     res.json({
       success: true,
       data: {
-        match: matchResult.data,
+        match,
         odds: oddsResult.data || [],
         prediction,
+        homeTeamStats: teamStats.home,
+        awayTeamStats: teamStats.away,
       },
     });
   } catch (err) {
