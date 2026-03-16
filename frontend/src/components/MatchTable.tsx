@@ -45,7 +45,7 @@ function MarketBadge({ marketType, handicapPoint }: { marketType: MarketType; ha
         {getMarketLabel(marketType)}
       </span>
       {handicapPoint !== null && (
-        <span className="text-gray-500">{formatHandicap(handicapPoint, marketType)}</span>
+        <span className="text-[10px] text-gray-500">{formatHandicap(handicapPoint, marketType)}</span>
       )}
     </span>
   );
@@ -149,7 +149,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
               {/* 중간: 팀 이름 */}
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[13px] text-white font-medium truncate max-w-[45%]">{row.homeTeam}</span>
-                <span className="text-[10px] text-gray-600 mx-1">vs</span>
+                <span className="text-xs text-gray-600 mx-1">vs</span>
                 <span className="text-[13px] text-white font-medium truncate max-w-[45%] text-right">{row.awayTeam}</span>
               </div>
 
@@ -175,7 +175,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
                   <span className={`text-sm font-mono ${row.isArbitrage ? 'text-green-400' : 'text-gray-300'}`}>
                     {row.bestOutcome1 ? formatOdds(row.bestOutcome1.odds) : '-'}
                   </span>
-                  <span className="text-[9px] text-gray-500">
+                  <span className="text-[11px] text-gray-500">
                     {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} /> : ''}
                   </span>
                 </div>
@@ -185,7 +185,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
                     <span className="text-sm font-mono text-gray-400">
                       {formatOdds(row.bestDraw.odds)}
                     </span>
-                    <span className="text-[9px] text-gray-500">무</span>
+                    <span className="text-[11px] text-gray-500">무</span>
                   </div>
                 )}
 
@@ -193,7 +193,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
                   <span className={`text-sm font-mono ${row.isArbitrage ? 'text-green-400' : 'text-gray-300'}`}>
                     {row.bestOutcome2 ? formatOdds(row.bestOutcome2.odds) : '-'}
                   </span>
-                  <span className="text-[9px] text-gray-500">
+                  <span className="text-[11px] text-gray-500">
                     {row.bestOutcome2 ? <BookmakerBadge bookmaker={row.bestOutcome2.bookmaker} /> : ''}
                   </span>
                 </div>
