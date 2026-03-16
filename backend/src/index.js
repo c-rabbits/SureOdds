@@ -18,6 +18,8 @@ const { startDailyScheduler: startTeamStatsScheduler } = require('./collector/te
 const { getBot } = require('./services/telegramBot');
 const { startSessionMonitor } = require('./services/sessionMonitor');
 const { startScheduler: startDailyDigestScheduler } = require('./services/dailyDigestService');
+const pushRouter = require('./routes/push');
+const webPushService = require('./services/webPushService');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -57,6 +59,9 @@ app.use('/api/admin', adminRouter);
 // Telegram routes (웹훅은 인증 없음, link/status는 내부에서 requireAuth)
 app.use('/api/telegram', telegramRouter);
 
+// Push routes (vapid-key는 인증 없음, subscribe는 내부에서 requireAuth)
+app.use('/api/push', pushRouter);
+
 // API routes (인증 필요)
 app.use('/api/matches', requireAuth, matchesRouter);
 app.use('/api/odds', requireAuth, oddsRouter);
@@ -95,6 +100,9 @@ app.listen(PORT, async () => {
 
   // Start daily digest scheduler (daily at 08:00)
   startDailyDigestScheduler();
+
+  // Initialize Web Push
+  webPushService.init();
 
   // Register Telegram webhook
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;

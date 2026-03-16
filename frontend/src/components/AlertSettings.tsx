@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAlertService, AlertConfig } from '@/lib/alertService';
 import { getTelegramStatus, generateTelegramLink, unlinkTelegram } from '@/lib/api';
+import { isPushSupported, isPushSubscribed, subscribeToPush, unsubscribeFromPush } from '@/lib/pushService';
 
 interface Props {
   isOpen: boolean;
@@ -19,6 +20,11 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
   const [tgLink, setTgLink] = useState<string | null>(null);
   const [tgLoading, setTgLoading] = useState(false);
   const [tgPolling, setTgPolling] = useState(false);
+
+  // Web Push state
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
   const loadTelegramStatus = useCallback(async () => {
     try {
@@ -42,6 +48,9 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
         setNotifPermission(Notification.permission);
       }
       loadTelegramStatus();
+      // Web Push 상태 확인
+      setPushSupported(isPushSupported());
+      isPushSubscribed().then(setPushSubscribed);
     } else {
       // 닫힐 때 폴링 중지
       setTgPolling(false);
@@ -103,6 +112,33 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
       // error handled by interceptor
     } finally {
       setTgLoading(false);
+    }
+  }
+
+  async function handlePushToggle() {
+    setPushLoading(true);
+    try {
+      // 토큰 가져오기 (Supabase 세션에서)
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+
+      if (pushSubscribed) {
+        const ok = await unsubscribeFromPush(token);
+        if (ok) setPushSubscribed(false);
+      } else {
+        const ok = await subscribeToPush(token);
+        if (ok) setPushSubscribed(true);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setPushLoading(false);
     }
   }
 
@@ -237,6 +273,46 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
               </div>
             )}
           </div>
+
+          {/* ─── Web Push 알림 ─── */}
+          {pushSupported && (
+            <div className="border-t border-gray-800 pt-3">
+              <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+                <span>🔔</span> Web Push 알림
+              </h3>
+
+              {pushSubscribed ? (
+                <div className="bg-green-900/20 border border-green-800/50 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-green-400 text-sm">✅ 활성화됨</span>
+                    <button
+                      onClick={handlePushToggle}
+                      disabled={pushLoading}
+                      className="text-xs px-2 py-1 rounded bg-gray-700 text-red-400 hover:bg-red-900/40 disabled:opacity-50"
+                    >
+                      {pushLoading ? '처리 중...' : '비활성화'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    앱이 닫혀있어도 브라우저 푸시 알림을 받습니다.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <button
+                    onClick={handlePushToggle}
+                    disabled={pushLoading}
+                    className="w-full btn-sm bg-purple-600 hover:bg-purple-500 text-white text-sm py-2 disabled:opacity-50"
+                  >
+                    {pushLoading ? '처리 중...' : 'Web Push 활성화'}
+                  </button>
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    앱을 닫아도 양방/밸류베팅 알림을 브라우저 푸시로 받을 수 있습니다.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Thresholds */}
           <div className="border-t border-gray-800 pt-3">
