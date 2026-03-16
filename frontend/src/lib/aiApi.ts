@@ -5,6 +5,8 @@ import type {
   OddsHistoryPoint,
   OddsMovementItem,
   ValueBetMatch,
+  AccuracyRecord,
+  AccuracySummary,
 } from '@/types/ai';
 
 // ============================================================
@@ -94,4 +96,17 @@ export async function getTeamStats(params?: {
 export async function getLeagues(): Promise<LeagueInfo[]> {
   const { data } = await api.get('/api/ai/leagues');
   return data.data;
+}
+
+// ============================================================
+// 정확도
+// ============================================================
+
+export async function getAccuracyStats(params?: {
+  model_type?: string;
+  league?: string;
+  limit?: number;
+}): Promise<{ records: AccuracyRecord[]; summary: AccuracySummary | null }> {
+  const { data } = await api.get('/api/ai/accuracy', { params });
+  return { records: data.records, summary: data.summary };
 }

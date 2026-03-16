@@ -18,6 +18,7 @@ const {
 } = require('./teamStatsTransformer');
 const { updateMatchScores, getUnprocessedCompletedMatches } = require('../services/matchResultService');
 const { processMatchResults, recalculateForm } = require('../services/eloCalculator');
+const { processCompletedPredictions } = require('../services/predictionAccuracyService');
 
 const log = createServiceLogger('TeamStats');
 
@@ -91,6 +92,7 @@ async function collectTeamStats() {
     let fixturesResult = { updated: 0 };
     let eloResult = { processed: 0 };
     let formResult = { updated: 0 };
+    let accuracyResult = { processed: 0 };
 
     try {
       log.info('--- Fetching fixture results ---');
@@ -105,17 +107,22 @@ async function collectTeamStats() {
       // 7. Recalculate form from match results
       log.info('--- Recalculating form ---');
       formResult = await recalculateForm();
+
+      // 8. Process prediction accuracy for completed matches
+      log.info('--- Processing prediction accuracy ---');
+      accuracyResult = await processCompletedPredictions();
     } catch (fixtureErr) {
       log.warn(`Fixture/ELO processing failed (non-fatal): ${fixtureErr.message}`);
     }
 
-    log.info(`=== Team Stats Collection Complete: ${dbRows.length} teams, ${fixturesResult.updated} scores, ${eloResult.processed} ELO updates, ${duration}ms ===`);
+    log.info(`=== Team Stats Collection Complete: ${dbRows.length} teams, ${fixturesResult.updated} scores, ${eloResult.processed} ELO updates, ${accuracyResult.processed} accuracy, ${duration}ms ===`);
 
     lastResult = {
       ...lastResult,
       fixturesUpdated: fixturesResult.updated,
       eloProcessed: eloResult.processed,
       formUpdated: formResult.updated,
+      accuracyProcessed: accuracyResult.processed,
     };
 
     return lastResult;

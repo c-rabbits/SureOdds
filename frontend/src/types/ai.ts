@@ -125,3 +125,48 @@ export interface ValueBetMatch {
   value_bets: ValueBet[];
   top_edge: number;
 }
+
+export interface AccuracyRecord {
+  match_id: string;
+  model_type: string;
+  predicted_outcome: string;
+  predicted_prob: number;
+  actual_outcome: string;
+  actual_home_goals: number;
+  actual_away_goals: number;
+  correct: boolean;
+  brier_score: number;
+  confidence: number;
+  had_value_bet: boolean;
+  value_bet_outcome: string | null;
+  value_bet_odds: number | null;
+  value_bet_profit: number | null;
+  calculated_at: string;
+  matches: {
+    home_team: string;
+    away_team: string;
+    sport: string;
+    league: string;
+    start_time: string;
+  };
+}
+
+export interface AccuracySummary {
+  total: number;
+  correct: number;
+  accuracy: number;
+  avgBrier: number;
+  avgConfidence: number;
+  valueBets: {
+    total: number;
+    profit: number;
+    roi: number | null;
+  };
+  byModel: Array<{
+    model: string;
+    total: number;
+    correct: number;
+    accuracy: number;
+    avgBrier: number;
+  }>;
+}

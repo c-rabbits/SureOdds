@@ -7,6 +7,7 @@ const tabs = [
   { href: '/ai', label: '오늘 경기', exact: true },
   { href: '/ai/odds-movement', label: '배당 변동', exact: false },
   { href: '/ai/teams', label: '팀 분석', exact: false },
+  { href: '/ai/accuracy', label: '정확도', exact: false },
 ];
 
 export default function AiSubNav() {

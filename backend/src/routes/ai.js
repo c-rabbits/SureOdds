@@ -8,6 +8,7 @@ const { createServiceLogger } = require('../config/logger');
 const { getMatchesWithPredictions, getPrediction, getValueBets } = require('../services/aiPredictionService');
 const { getOddsHistory, getOddsMovement } = require('../services/oddsHistoryService');
 const { getTeamStatsForMatch } = require('../services/teamStrengthModel');
+const { getAccuracyStats } = require('../services/predictionAccuracyService');
 
 const log = createServiceLogger('AiRoute');
 
@@ -203,6 +204,24 @@ router.get('/leagues', async (req, res) => {
   } catch (err) {
     log.error('Error in GET /leagues', { error: err.message });
     res.status(500).json({ success: false, error: '리그 정보를 불러오지 못했습니다.' });
+  }
+});
+
+// ─── Prediction Accuracy ───
+
+// GET /api/ai/accuracy - 예측 정확도 통계
+router.get('/accuracy', async (req, res) => {
+  try {
+    const { model_type, league, limit } = req.query;
+    const result = await getAccuracyStats({
+      model_type,
+      league,
+      limit: limit ? parseInt(limit, 10) : 100,
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    log.error('Error in GET /accuracy', { error: err.message });
+    res.status(500).json({ success: false, error: '정확도 데이터를 불러오지 못했습니다.' });
   }
 });
 

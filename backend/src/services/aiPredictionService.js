@@ -86,16 +86,18 @@ async function generatePredictions() {
 
 /**
  * 단건 경기 예측 조회.
+ * hybrid 모델 우선, 없으면 v1 fallback.
  */
 async function getPrediction(matchId) {
   const { data, error } = await supabase
     .from('ai_predictions')
     .select('*')
     .eq('match_id', matchId)
-    .single();
+    .order('computed_at', { ascending: false })
+    .limit(1);
 
-  if (error) return null;
-  return data;
+  if (error || !data || data.length === 0) return null;
+  return data[0];
 }
 
 /**
@@ -140,12 +142,17 @@ async function getMatchesWithPredictions(filters = {}) {
     return [];
   }
 
-  // 데이터 변환: ai_predictions 배열 → 단일 prediction 객체
-  return (data || []).map((m) => ({
-    ...m,
-    prediction: m.ai_predictions && m.ai_predictions.length > 0 ? m.ai_predictions[0] : null,
-    ai_predictions: undefined,
-  }));
+  // 데이터 변환: ai_predictions 배열 → 단일 prediction 객체 (최신 우선)
+  return (data || []).map((m) => {
+    const preds = m.ai_predictions || [];
+    // 최신 computed_at 우선 정렬
+    preds.sort((a, b) => new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime());
+    return {
+      ...m,
+      prediction: preds.length > 0 ? preds[0] : null,
+      ai_predictions: undefined,
+    };
+  });
 }
 
 /**
