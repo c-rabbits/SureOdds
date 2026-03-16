@@ -7,7 +7,7 @@ const { collectPinnacle, isConfigured: isPinnacleConfigured } = require('./pinna
 const { collectOddsApiIo, isConfigured: isOddsApiIoConfigured } = require('./oddsApiIo');
 const { detectAllArbitrageForMatch } = require('../services/arbitrageEngine');
 const { findMatchingInternationalMatch } = require('../services/teamMatcher');
-const { sendArbitrageAlert } = require('../services/telegramBot');
+const { sendNotification } = require('../services/notificationService');
 const { saveOddsSnapshot } = require('../services/oddsHistoryService');
 const { generatePredictions } = require('../services/aiPredictionService');
 const { createServiceLogger } = require('../config/logger');
@@ -290,7 +290,7 @@ async function runArbitrageDetection(savedMatches) {
 
         log.info(`Arbitrage [${label}]: ${match.home_team} vs ${match.away_team} | Profit: ${opp.profit_percent.toFixed(2)}%`);
         newOpportunities.push({ ...opp, match });
-        await sendArbitrageAlert(opp, match);
+        await sendNotification('arbitrage', { opportunity: opp, match });
       }
     }
   }

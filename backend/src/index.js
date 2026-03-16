@@ -17,6 +17,7 @@ const { startOddsApiIoScheduler } = require('./collector/index');
 const { startDailyScheduler: startTeamStatsScheduler } = require('./collector/teamStatsCollector');
 const { getBot } = require('./services/telegramBot');
 const { startSessionMonitor } = require('./services/sessionMonitor');
+const { startScheduler: startDailyDigestScheduler } = require('./services/dailyDigestService');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -91,6 +92,9 @@ app.listen(PORT, async () => {
 
   // Start team stats collector (daily at 06:00 + startup)
   startTeamStatsScheduler();
+
+  // Start daily digest scheduler (daily at 08:00)
+  startDailyDigestScheduler();
 
   // Register Telegram webhook
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;

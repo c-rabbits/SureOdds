@@ -6,9 +6,15 @@
 const supabase = require('../config/supabase');
 const { computePrediction } = require('./poissonModel');
 const { bulkGetTeamStats } = require('./teamStrengthModel');
+const { sendNotification } = require('./notificationService');
 const { createServiceLogger } = require('../config/logger');
 
 const log = createServiceLogger('AiPrediction');
+
+// 밸류베팅 알림 중복 방지 (match_id:outcome → timestamp)
+const notifiedValueBets = new Map();
+const VALUE_BET_NOTIFY_TTL = 6 * 3600 * 1000; // 6시간
+const VALUE_BET_MIN_EDGE = 0.10; // 최소 10% 엣지
 
 /**
  * 오늘+내일 경기에 대해 AI 예측 일괄 생성/갱신.
@@ -81,6 +87,60 @@ async function generatePredictions() {
 
   if (predicted > 0) {
     log.info(`Generated ${predicted} predictions (${hybridCount.hybrid}/${hybridCount.total} hybrid), ${valueBetCount} value bets`);
+  }
+
+  // ── 밸류베팅 알림 발송 ──
+  await notifyHighEdgeValueBets(matches, teamStatsMap);
+}
+
+/**
+ * 높은 엣지의 밸류베팅을 텔레그램으로 알림.
+ * 중복 방지: match_id:outcome 키로 6시간 내 재발송 방지.
+ */
+async function notifyHighEdgeValueBets(matches, teamStatsMap) {
+  try {
+    // 만료된 항목 정리
+    const now = Date.now();
+    for (const [key, ts] of notifiedValueBets) {
+      if (now - ts > VALUE_BET_NOTIFY_TTL) {
+        notifiedValueBets.delete(key);
+      }
+    }
+
+    // 방금 생성된 예측 중 밸류베팅 조회
+    const matchIds = matches.map((m) => m.id);
+    const { data: predictions } = await supabase
+      .from('ai_predictions')
+      .select('match_id, value_bets, confidence')
+      .in('match_id', matchIds)
+      .not('value_bets', 'is', null);
+
+    if (!predictions || predictions.length === 0) return;
+
+    // match lookup
+    const matchMap = new Map(matches.map((m) => [m.id, m]));
+
+    for (const pred of predictions) {
+      const highEdgeBets = (pred.value_bets || []).filter((vb) => vb.edge >= VALUE_BET_MIN_EDGE);
+      if (highEdgeBets.length === 0) continue;
+
+      // 중복 체크
+      const notifyKey = `${pred.match_id}:${highEdgeBets[0].outcome}`;
+      if (notifiedValueBets.has(notifyKey)) continue;
+
+      const match = matchMap.get(pred.match_id);
+      if (!match) continue;
+
+      notifiedValueBets.set(notifyKey, now);
+
+      await sendNotification('value_bet', {
+        valueBets: highEdgeBets,
+        match,
+        confidence: pred.confidence,
+      });
+    }
+  } catch (err) {
+    log.error('Value bet notification error (non-fatal)', { error: err.message });
   }
 }
 

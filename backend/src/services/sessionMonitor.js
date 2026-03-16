@@ -5,7 +5,7 @@
 
 const supabase = require('../config/supabase');
 const { getAdapter } = require('../adapters');
-const { sendSessionExpiryAlert } = require('./telegramBot');
+const { sendNotification } = require('./notificationService');
 const { createServiceLogger } = require('../config/logger');
 
 const log = createServiceLogger('SessionMonitor');
@@ -67,7 +67,7 @@ async function checkSessions() {
             .eq('id', reg.id);
 
           // 텔레그램 알림 (상태 전환 시 1회)
-          await sendSessionExpiryAlert(reg.user_id, reg.site_name);
+          await sendNotification('session_expiry', { userId: reg.user_id, siteName: reg.site_name });
           log.info(`Session expired: ${reg.site_name} for user ${reg.user_id}`);
         }
       } catch (err) {
@@ -113,7 +113,7 @@ async function checkExpiringSessionsByTime() {
         })
         .eq('id', reg.id);
 
-      await sendSessionExpiryAlert(reg.user_id, reg.site_name);
+      await sendNotification('session_expiry', { userId: reg.user_id, siteName: reg.site_name });
       log.info(`Session time-expired: ${reg.site_name} for user ${reg.user_id}`);
     }
   }

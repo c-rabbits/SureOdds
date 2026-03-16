@@ -179,4 +179,167 @@ async function sendSessionExpiryAlert(userId, siteName) {
   }
 }
 
-module.exports = { getBot, sendArbitrageAlert, sendSessionExpiryAlert };
+/**
+ * 밸류 베팅 알림 메시지 포맷 생성
+ * @param {Array} valueBets - 밸류 베팅 목록
+ * @param {Object} match - 경기 정보
+ * @param {number} confidence - AI 신뢰도
+ */
+function buildValueBetMessage(valueBets, match, confidence) {
+  const topBet = valueBets[0];
+  const outcomeLabel = topBet.outcome === 'home_win' ? '홈승' :
+    topBet.outcome === 'away_win' ? '원정승' : '무승부';
+
+  let lines = [
+    `🎯 *밸류 베팅 발견!*`,
+    ``,
+    `🏆 *${match.league}*`,
+    `⚽ ${match.home_team} vs ${match.away_team}`,
+    `🕐 ${new Date(match.start_time).toLocaleString('ko-KR')}`,
+    ``,
+  ];
+
+  for (const vb of valueBets.slice(0, 3)) {
+    const ol = vb.outcome === 'home_win' ? '홈승' :
+      vb.outcome === 'away_win' ? '원정승' : '무승부';
+    lines.push(`📊 ${ol}: AI ${(vb.model_prob * 100).toFixed(0)}% vs 시장 ${(vb.implied_prob * 100).toFixed(0)}%`);
+    lines.push(`💎 엣지: +${(vb.edge * 100).toFixed(1)}% | ${vb.bookmaker} @${vb.odds}`);
+  }
+
+  lines.push(``);
+  if (confidence) {
+    lines.push(`🎚 신뢰도: ${(confidence * 100).toFixed(0)}%`);
+  }
+  lines.push(`_${new Date().toLocaleString('ko-KR')} 탐지_`);
+
+  return lines.join('\n');
+}
+
+/**
+ * 일일 요약 메시지 포맷 생성
+ * @param {Object} summary - 일일 요약 데이터
+ */
+function buildDailyDigestMessage(summary) {
+  let lines = [
+    `📋 *일일 AI 요약*`,
+    ``,
+    `📊 오늘 예측: ${summary.todayPredictions}경기`,
+    `🎯 밸류베팅: ${summary.todayValueBets}건 발견`,
+  ];
+
+  if (summary.yesterday) {
+    const y = summary.yesterday;
+    lines.push(``);
+    lines.push(`📈 *어제 결과:*`);
+    lines.push(`✅ 적중: ${y.correct}/${y.total} (${(y.accuracy * 100).toFixed(1)}%)`);
+    if (y.valueBetROI !== null) {
+      lines.push(`💰 밸류벳 ROI: ${y.valueBetROI > 0 ? '+' : ''}${(y.valueBetROI * 100).toFixed(1)}%`);
+    }
+    lines.push(`📉 Brier Score: ${y.avgBrier.toFixed(4)}`);
+  }
+
+  if (summary.topValueBets && summary.topValueBets.length > 0) {
+    lines.push(``);
+    lines.push(`🔥 *오늘 Top 밸류:*`);
+    summary.topValueBets.forEach((vb, i) => {
+      const ol = vb.outcome === 'home_win' ? '홈승' :
+        vb.outcome === 'away_win' ? '원정승' : '무';
+      lines.push(`${i + 1}. ${vb.home_team} vs ${vb.away_team} | ${ol} +${(vb.edge * 100).toFixed(1)}%`);
+    });
+  }
+
+  lines.push(``);
+  lines.push(`_${new Date().toLocaleString('ko-KR')}_`);
+
+  return lines.join('\n');
+}
+
+/**
+ * 연동된 모든 유저에게 텔레그램 메시지 발송 (재사용 가능)
+ * @param {string} message - 마크다운 메시지
+ * @returns {{ sent: number, failed: number }}
+ */
+async function sendToAllLinkedUsers(message) {
+  const b = getBot();
+  if (!b) {
+    log.info('Telegram bot not configured. Skipping notification.');
+    return { sent: 0, failed: 0 };
+  }
+
+  const adminChatId = process.env.TELEGRAM_CHAT_ID;
+  const chatIds = [];
+
+  if (adminChatId) {
+    chatIds.push({ chatId: adminChatId, userId: null, isAdmin: true });
+  }
+
+  try {
+    const supabase = require('../config/supabase');
+    const { data: users, error } = await supabase
+      .from('profiles')
+      .select('id, telegram_chat_id')
+      .not('telegram_chat_id', 'is', null)
+      .eq('is_active', true);
+
+    if (!error && users) {
+      for (const user of users) {
+        if (user.telegram_chat_id !== adminChatId) {
+          chatIds.push({ chatId: user.telegram_chat_id, userId: user.id, isAdmin: false });
+        }
+      }
+    }
+  } catch (err) {
+    log.error('Failed to fetch telegram users', { error: err.message });
+  }
+
+  if (chatIds.length === 0) {
+    return { sent: 0, failed: 0 };
+  }
+
+  const results = await Promise.allSettled(
+    chatIds.map(({ chatId }) =>
+      b.sendMessage(chatId, message, { parse_mode: 'Markdown' })
+    )
+  );
+
+  let sent = 0;
+  let failed = 0;
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const { chatId, userId } = chatIds[i];
+
+    if (result.status === 'fulfilled') {
+      sent++;
+    } else {
+      failed++;
+      const errMsg = result.reason?.message || '';
+      log.error(`Failed to send to chatId=${chatId}`, { error: errMsg });
+
+      if (errMsg.includes('403') && userId) {
+        try {
+          const supabase = require('../config/supabase');
+          await supabase
+            .from('profiles')
+            .update({ telegram_chat_id: null, telegram_linked_at: null })
+            .eq('id', userId);
+          log.info(`Auto-unlinked blocked user: ${userId}`);
+        } catch (unlinkErr) {
+          log.error('Failed to auto-unlink', { error: unlinkErr.message });
+        }
+      }
+    }
+  }
+
+  return { sent, failed };
+}
+
+module.exports = {
+  getBot,
+  sendArbitrageAlert,
+  sendSessionExpiryAlert,
+  sendToAllLinkedUsers,
+  buildValueBetMessage,
+  buildDailyDigestMessage,
+  buildAlertMessage,
+};
