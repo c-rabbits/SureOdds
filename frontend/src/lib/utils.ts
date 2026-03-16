@@ -86,9 +86,9 @@ export interface BookmakerInfo {
 
 export const BOOKMAKER_CONFIG: BookmakerInfo[] = [
   // 북메이커 (해외 3개 고정)
-  { key: 'pinnacle', name: 'Pinnacle', short: 'PINN', domestic: false },
-  { key: 'sbobet', name: 'SBOBet', short: 'SBO', domestic: false },
-  { key: 'dafabet', name: 'MaxBet', short: 'MAX', domestic: false },
+  { key: 'pinnacle', name: '피나클', short: '피나클', domestic: false },
+  { key: 'sbobet', name: '스보벳', short: '스보벳', domestic: false },
+  { key: 'dafabet', name: '맥스벳', short: '맥스벳', domestic: false },
   // 국내 사이트
   { key: 'stake', name: 'Stake.com', short: 'STK', domestic: true },
   { key: 'betman_proto', name: '베트맨 프로토', short: 'BM', domestic: true },
