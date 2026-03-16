@@ -13,6 +13,7 @@ import {
   getSportCategory,
   isDomesticBookmaker,
 } from '@/lib/utils';
+import { getKoreanTeamName } from '@/lib/teamNames';
 
 interface Props {
   rows: TableRow[];
@@ -148,9 +149,9 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
 
               {/* 중간: 팀 이름 */}
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[13px] text-white font-medium truncate max-w-[45%]">{row.homeTeam}</span>
+                <span className="text-[13px] text-white font-medium truncate max-w-[45%]" title={row.homeTeam}>{getKoreanTeamName(row.homeTeam)}</span>
                 <span className="text-xs text-gray-600 mx-1">vs</span>
-                <span className="text-[13px] text-white font-medium truncate max-w-[45%] text-right">{row.awayTeam}</span>
+                <span className="text-[13px] text-white font-medium truncate max-w-[45%] text-right" title={row.awayTeam}>{getKoreanTeamName(row.awayTeam)}</span>
               </div>
 
               {/* 하단: 배당 정보 */}
@@ -241,8 +242,8 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
                 <td className="text-center">{getSportEmoji(row.sport)}</td>
                 <td className="text-gray-400">{formatShortTime(row.startTime)}</td>
                 <td className="text-gray-300 max-w-[120px] truncate" title={row.league}>{row.league}</td>
-                <td className="text-white font-medium max-w-[140px] truncate" title={row.homeTeam}>{row.homeTeam}</td>
-                <td className="text-white font-medium max-w-[140px] truncate" title={row.awayTeam}>{row.awayTeam}</td>
+                <td className="text-white font-medium max-w-[140px] truncate" title={row.homeTeam}>{getKoreanTeamName(row.homeTeam)}</td>
+                <td className="text-white font-medium max-w-[140px] truncate" title={row.awayTeam}>{getKoreanTeamName(row.awayTeam)}</td>
                 <td>
                   <MarketBadge marketType={row.marketType} handicapPoint={row.handicapPoint} />
                 </td>
