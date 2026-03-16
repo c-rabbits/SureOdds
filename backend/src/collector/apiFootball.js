@@ -117,10 +117,64 @@ async function fetchAllLeagueStandings(season) {
   return results;
 }
 
+/**
+ * Fetch completed fixture results for a league within a date range.
+ * Returns array of fixture objects with scores.
+ */
+async function fetchFixtureResults(leagueId, season, from, to) {
+  log.info(`Fetching fixtures: league=${leagueId}, from=${from}, to=${to}`);
+  const response = await apiRequest('/fixtures', {
+    league: leagueId,
+    season,
+    from,
+    to,
+    status: 'FT', // Finished (Full Time) only
+  });
+
+  return response || [];
+}
+
+/**
+ * Fetch completed fixtures for all leagues within the last N days.
+ * Total: 5 API requests.
+ */
+async function fetchAllLeagueFixtures(season, days = 7, customFrom = null, customTo = null) {
+  let from, to;
+  if (customFrom && customTo) {
+    from = customFrom;
+    to = customTo;
+  } else {
+    to = new Date().toISOString().split('T')[0]; // today YYYY-MM-DD
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - days);
+    from = fromDate.toISOString().split('T')[0];
+  }
+
+  const results = {};
+
+  for (const [key, league] of Object.entries(LEAGUES)) {
+    try {
+      const fixtures = await fetchFixtureResults(league.id, season, from, to);
+      results[key] = { league, fixtures };
+      log.info(`  ${league.name}: ${fixtures.length} completed fixtures`);
+    } catch (err) {
+      log.error(`Failed to fetch fixtures for ${league.name}: ${err.message}`);
+      results[key] = { league, fixtures: [] };
+    }
+  }
+
+  const totalFixtures = Object.values(results).reduce((sum, r) => sum + r.fixtures.length, 0);
+  log.info(`Fetched ${totalFixtures} completed fixtures across ${Object.keys(results).length} leagues (quota: ${quotaInfo.remaining} remaining)`);
+
+  return results;
+}
+
 module.exports = {
   isConfigured,
   getQuotaInfo,
   fetchStandings,
   fetchAllLeagueStandings,
+  fetchFixtureResults,
+  fetchAllLeagueFixtures,
   LEAGUES,
 };

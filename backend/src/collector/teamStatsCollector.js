@@ -9,13 +9,15 @@
 const cron = require('node-cron');
 const { createServiceLogger } = require('../config/logger');
 const supabase = require('../config/supabase');
-const { isConfigured, fetchAllLeagueStandings, getQuotaInfo } = require('./apiFootball');
+const { isConfigured, fetchAllLeagueStandings, fetchAllLeagueFixtures, getQuotaInfo } = require('./apiFootball');
 const {
   transformStandingsToTeamStats,
   calculateLeagueRatings,
   calculateEloFromStandings,
   cleanForDb,
 } = require('./teamStatsTransformer');
+const { updateMatchScores, getUnprocessedCompletedMatches } = require('../services/matchResultService');
+const { processMatchResults, recalculateForm } = require('../services/eloCalculator');
 
 const log = createServiceLogger('TeamStats');
 
@@ -85,7 +87,37 @@ async function collectTeamStats() {
       timestamp: new Date().toISOString(),
     };
 
-    log.info(`=== Team Stats Collection Complete: ${dbRows.length} teams, ${duration}ms ===`);
+    // 5. Fetch fixture results and update match scores (5 more requests)
+    let fixturesResult = { updated: 0 };
+    let eloResult = { processed: 0 };
+    let formResult = { updated: 0 };
+
+    try {
+      log.info('--- Fetching fixture results ---');
+      const allFixtures = await fetchAllLeagueFixtures(parseInt(season), 7);
+      fixturesResult = await updateMatchScores(allFixtures);
+
+      // 6. Process unprocessed completed matches for ELO update
+      log.info('--- Processing ELO updates ---');
+      const unprocessed = await getUnprocessedCompletedMatches();
+      eloResult = await processMatchResults(unprocessed);
+
+      // 7. Recalculate form from match results
+      log.info('--- Recalculating form ---');
+      formResult = await recalculateForm();
+    } catch (fixtureErr) {
+      log.warn(`Fixture/ELO processing failed (non-fatal): ${fixtureErr.message}`);
+    }
+
+    log.info(`=== Team Stats Collection Complete: ${dbRows.length} teams, ${fixturesResult.updated} scores, ${eloResult.processed} ELO updates, ${duration}ms ===`);
+
+    lastResult = {
+      ...lastResult,
+      fixturesUpdated: fixturesResult.updated,
+      eloProcessed: eloResult.processed,
+      formUpdated: formResult.updated,
+    };
+
     return lastResult;
   } catch (err) {
     const duration = Date.now() - startTime;
