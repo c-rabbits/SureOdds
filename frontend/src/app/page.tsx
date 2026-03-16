@@ -155,33 +155,25 @@ export default function HomePage() {
         onOpenAlertSettings={() => setAlertSettingsOpen(true)}
       />
 
-      {/* Main content: table + detail split */}
+      {/* Main content: table */}
       <div className="md:flex-1 flex flex-col md:overflow-hidden">
-        {/* Table panel */}
-        <div className={`${selectedRow ? 'md:h-[60%]' : 'md:flex-1'} md:overflow-hidden`}>
-          <MatchTable
-            rows={rows}
-            filters={filters}
-            selectedRowKey={selectedRowKey}
-            onSelectRow={handleSelectRow}
-          />
-        </div>
-
-        {/* Detail panel (only shown when a row is selected) */}
-        {selectedRow && (
-          <>
-            <div className="panel-handle h-1.5 shrink-0" />
-            <div className="md:h-[40%] md:overflow-hidden">
-              <DetailPanel
-                match={selectedRow.matchData}
-                initialMarketType={selectedRow.marketType}
-                initialHandicapPoint={selectedRow.handicapPoint}
-                onClose={() => setSelectedRow(null)}
-              />
-            </div>
-          </>
-        )}
+        <MatchTable
+          rows={rows}
+          filters={filters}
+          selectedRowKey={selectedRowKey}
+          onSelectRow={handleSelectRow}
+        />
       </div>
+
+      {/* Detail bottom sheet popup */}
+      {selectedRow && (
+        <DetailPanel
+          match={selectedRow.matchData}
+          initialMarketType={selectedRow.marketType}
+          initialHandicapPoint={selectedRow.handicapPoint}
+          onClose={() => setSelectedRow(null)}
+        />
+      )}
 
       {/* Alert settings modal */}
       <AlertSettings
