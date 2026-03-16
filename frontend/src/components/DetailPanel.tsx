@@ -430,23 +430,27 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
 
         {/* Footer: arb summary + calc toggle button */}
         {hasValidOdds && (
-          <div className="px-4 py-2.5 border-t border-gray-800 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3 text-xs overflow-x-auto min-w-0">
-              <span className="text-gray-500 whitespace-nowrap">
-                최적: {label1}@{best1 ? getBookmakerName(best1.bookmaker) : '-'} {formatOdds(best1?.odds)}
-                {bestDraw && ` + ${labelDraw}@${getBookmakerName(bestDraw.bookmaker)} ${formatOdds(bestDraw.odds)}`}
-                {' + '}{label2}@{best2 ? getBookmakerName(best2.bookmaker) : '-'} {formatOdds(best2?.odds)}
+          <div className="px-4 py-2.5 border-t border-gray-800 shrink-0">
+            {/* 수익률 + 버튼 */}
+            <div className="flex items-center justify-between mb-1.5">
+              <span className={`font-mono font-bold text-sm ${isArb ? 'text-green-400' : 'text-red-400'}`}>
+                수익률 {profitPercent !== null && (profitPercent > 0 ? '+' : '')}{profitPercent?.toFixed(2)}%
               </span>
-              <span className={`font-mono font-bold shrink-0 ${isArb ? 'text-green-400' : 'text-red-400'}`}>
-                {profitPercent !== null && (profitPercent > 0 ? '+' : '')}{profitPercent?.toFixed(2)}%
-              </span>
+              <button
+                onClick={() => setShowCalc((v) => !v)}
+                className={`btn-sm shrink-0 ${showCalc ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-green-600 hover:bg-green-500 text-white'}`}
+              >
+                {showCalc ? '접기' : '배분 계산'}
+              </button>
             </div>
-            <button
-              onClick={() => setShowCalc((v) => !v)}
-              className={`btn-sm shrink-0 ml-2 ${showCalc ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-green-600 hover:bg-green-500 text-white'}`}
-            >
-              {showCalc ? '접기' : '배분 계산'}
-            </button>
+            {/* 최적 조합 (줄 바꿈) */}
+            <div className="text-[11px] text-gray-500 space-y-0.5">
+              <div>{label1}: <span className="text-gray-400">{best1 ? getBookmakerName(best1.bookmaker) : '-'}</span> <span className="text-white font-mono">{formatOdds(best1?.odds)}</span></div>
+              {bestDraw && (
+                <div>{labelDraw}: <span className="text-gray-400">{getBookmakerName(bestDraw.bookmaker)}</span> <span className="text-white font-mono">{formatOdds(bestDraw.odds)}</span></div>
+              )}
+              <div>{label2}: <span className="text-gray-400">{best2 ? getBookmakerName(best2.bookmaker) : '-'}</span> <span className="text-white font-mono">{formatOdds(best2?.odds)}</span></div>
+            </div>
           </div>
         )}
       </div>

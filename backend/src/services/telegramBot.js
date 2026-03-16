@@ -24,38 +24,38 @@ function buildAlertMessage(opportunity, match) {
 
   if (opportunity.market_type === 'h2h') {
     const is3way = !!opportunity.odds_draw;
-    marketLabel = is3way ? 'H2H 3-way (1X2)' : 'H2H 2-way';
-    oddsText = `🏠 Home  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
+    marketLabel = is3way ? '승무패 (1X2)' : '승패 (12)';
+    oddsText = `🏠 홈  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
     if (is3way) {
-      oddsText += `🤝 Draw  (${opportunity.bookmaker_draw}): ${opportunity.odds_draw}\n`;
+      oddsText += `🤝 무승부  (${opportunity.bookmaker_draw}): ${opportunity.odds_draw}\n`;
     }
-    oddsText += `✈️ Away  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
+    oddsText += `✈️ 원정  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
   } else if (opportunity.market_type === 'spreads') {
-    marketLabel = `Spread ${opportunity.handicap_point > 0 ? '+' : ''}${opportunity.handicap_point}`;
-    oddsText = `🏠 Home ${opportunity.handicap_point}  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
-    oddsText += `✈️ Away ${-opportunity.handicap_point}  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
+    marketLabel = `핸디캡 ${opportunity.handicap_point > 0 ? '+' : ''}${opportunity.handicap_point}`;
+    oddsText = `🏠 홈 ${opportunity.handicap_point}  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
+    oddsText += `✈️ 원정 ${-opportunity.handicap_point}  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
   } else if (opportunity.market_type === 'totals') {
-    marketLabel = `Over/Under ${opportunity.handicap_point}`;
-    oddsText = `⬆️ Over ${opportunity.handicap_point}  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
-    oddsText += `⬇️ Under ${opportunity.handicap_point}  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
+    marketLabel = `오버/언더 ${opportunity.handicap_point}`;
+    oddsText = `⬆️ 오버 ${opportunity.handicap_point}  (${opportunity.bookmaker_a}): ${opportunity.odds_a}\n`;
+    oddsText += `⬇️ 언더 ${opportunity.handicap_point}  (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
   } else {
     marketLabel = opportunity.market_type;
     oddsText = `A (${opportunity.bookmaker_a}): ${opportunity.odds_a}\nB (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
   }
 
   return `
-⚡ *Sure Bet Found!*
+⚡ *양방 기회 발견!*
 
 🏆 *${match.league}*
 ⚽ ${match.home_team} vs ${match.away_team}
-🕐 ${new Date(match.start_time).toLocaleString()}
+🕐 ${new Date(match.start_time).toLocaleString('ko-KR')}
 
-📊 Market: ${marketLabel}
+📊 마켓: ${marketLabel}
 ${oddsText}
 
-💰 *Profit: ${profit}%*
+💰 *수익률: +${profit}%*
 
-_Detected at ${new Date().toLocaleString()}_
+_${new Date().toLocaleString('ko-KR')} 탐지_
   `.trim();
 }
 
