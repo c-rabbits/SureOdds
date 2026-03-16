@@ -18,18 +18,18 @@ export default function PredictionCard({ match }: Props) {
     <Link href={`/ai/match/${match.id}`} className="block">
       <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-600 transition-colors cursor-pointer">
         {/* 상단: 리그 + 시간 */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-            <span>{getSportEmoji(match.sport)}</span>
-            <span className="truncate max-w-[200px]">{match.league}</span>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 min-w-0 flex-1">
+            <span className="shrink-0">{getSportEmoji(match.sport)}</span>
+            <span className="truncate">{match.league}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             {valueBetCount > 0 && (
               <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold">
                 밸류 {valueBetCount}
               </span>
             )}
-            <span className="text-[10px] text-gray-500">{formatShortTime(match.start_time)}</span>
+            <span className="text-[10px] text-gray-500 whitespace-nowrap">{formatShortTime(match.start_time)}</span>
           </div>
         </div>
 
@@ -56,22 +56,22 @@ export default function PredictionCard({ match }: Props) {
             </div>
 
             {/* 예상 골 + 신뢰도 */}
-            <div className="flex items-center justify-between text-[11px]">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between text-[10px] gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 {hasGoals && (
-                  <span className="text-gray-400">
-                    예상: <span className="text-white font-mono">{p.expected_home_goals}</span>
-                    {' - '}
+                  <span className="text-gray-400 whitespace-nowrap">
+                    예상 <span className="text-white font-mono">{p.expected_home_goals}</span>
+                    -
                     <span className="text-white font-mono">{p.expected_away_goals}</span>
                   </span>
                 )}
                 {p.over_2_5_prob != null && (
-                  <span className="text-gray-500">
+                  <span className="text-gray-500 whitespace-nowrap">
                     O2.5 <span className="font-mono">{(p.over_2_5_prob * 100).toFixed(0)}%</span>
                   </span>
                 )}
               </div>
-              <span className="text-gray-600">
+              <span className="text-gray-600 shrink-0 whitespace-nowrap">
                 신뢰도 {(p.confidence * 100).toFixed(0)}%
               </span>
             </div>

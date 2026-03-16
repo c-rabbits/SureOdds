@@ -97,18 +97,18 @@ export default function AiOverviewPage() {
           <div className="bg-green-900/10 border border-green-800/30 rounded-lg p-3">
             <div className="space-y-2">
               {valueBets.slice(0, 5).map((vb) => (
-                <div key={vb.match_id} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span>{getSportEmoji(vb.sport)}</span>
+                <div key={vb.match_id} className="flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="shrink-0">{getSportEmoji(vb.sport)}</span>
                     <span className="text-white truncate">
                       {getKoreanTeamName(vb.home_team)} vs {getKoreanTeamName(vb.away_team)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 text-right">
                     {vb.value_bets.slice(0, 1).map((bet, i) => (
-                      <span key={i} className="text-green-400 font-bold">
+                      <span key={i} className="text-green-400 font-bold whitespace-nowrap">
                         {bet.outcome_label} +{(bet.edge * 100).toFixed(1)}%
-                        <span className="text-gray-500 font-normal ml-1">{getBookmakerShort(bet.bookmaker)}</span>
+                        <span className="text-gray-500 font-normal ml-1 hidden sm:inline">{getBookmakerShort(bet.bookmaker)}</span>
                       </span>
                     ))}
                   </div>

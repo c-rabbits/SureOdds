@@ -135,118 +135,119 @@ export default function TeamsPage() {
 
       {/* League Summary */}
       {leagueStats && (
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          <div className="bg-gray-800/60 rounded-lg p-3 text-center">
-            <div className="text-xs text-gray-500">평균 ELO</div>
-            <div className="text-lg font-bold text-white">{leagueStats.avgElo}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          <div className="bg-gray-800/60 rounded-lg p-2.5 text-center">
+            <div className="text-[10px] text-gray-500">평균 ELO</div>
+            <div className="text-base font-bold text-white">{leagueStats.avgElo}</div>
           </div>
-          <div className="bg-gray-800/60 rounded-lg p-3 text-center">
-            <div className="text-xs text-gray-500">평균 공격력</div>
-            <div className="text-lg font-bold text-blue-400">{leagueStats.avgAtk}</div>
+          <div className="bg-gray-800/60 rounded-lg p-2.5 text-center">
+            <div className="text-[10px] text-gray-500">평균 공격력</div>
+            <div className="text-base font-bold text-blue-400">{leagueStats.avgAtk}</div>
           </div>
-          <div className="bg-gray-800/60 rounded-lg p-3 text-center">
-            <div className="text-xs text-gray-500">평균 수비력</div>
-            <div className="text-lg font-bold text-red-400">{leagueStats.avgDef}</div>
+          <div className="bg-gray-800/60 rounded-lg p-2.5 text-center">
+            <div className="text-[10px] text-gray-500">평균 수비력</div>
+            <div className="text-base font-bold text-red-400">{leagueStats.avgDef}</div>
           </div>
-          <div className="bg-gray-800/60 rounded-lg p-3 text-center">
-            <div className="text-xs text-gray-500">평균 득점</div>
-            <div className="text-lg font-bold text-green-400">{leagueStats.avgGoals}</div>
+          <div className="bg-gray-800/60 rounded-lg p-2.5 text-center">
+            <div className="text-[10px] text-gray-500">평균 득점</div>
+            <div className="text-base font-bold text-green-400">{leagueStats.avgGoals}</div>
           </div>
         </div>
       )}
 
       {/* Team Table */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-        {/* Table Header */}
-        <div className="grid grid-cols-[40px_1fr_70px_80px_80px_60px_70px] gap-1 px-3 py-2.5 bg-gray-800/80 text-xs text-gray-400 font-medium">
-          <div>#</div>
-          <div>팀</div>
-          <button onClick={() => handleSort('elo_rating')} className="text-right flex items-center justify-end hover:text-white">
-            ELO<SortIcon field="elo_rating" />
-          </button>
-          <button onClick={() => handleSort('attack_rating')} className="text-right flex items-center justify-end hover:text-white">
-            공격력<SortIcon field="attack_rating" />
-          </button>
-          <button onClick={() => handleSort('defense_rating')} className="text-right flex items-center justify-end hover:text-white">
-            수비력<SortIcon field="defense_rating" />
-          </button>
-          <div className="text-center">폼</div>
-          <button onClick={() => handleSort('avg_goals_scored')} className="text-right flex items-center justify-end hover:text-white">
-            득/실<SortIcon field="avg_goals_scored" />
-          </button>
+        {/* Sort Buttons */}
+        <div className="flex items-center gap-1 px-3 py-2 bg-gray-800/80 overflow-x-auto scrollbar-hide">
+          <span className="text-[10px] text-gray-500 mr-1 shrink-0">정렬:</span>
+          {([
+            { field: 'elo_rating' as SortField, label: 'ELO' },
+            { field: 'attack_rating' as SortField, label: '공격' },
+            { field: 'defense_rating' as SortField, label: '수비' },
+            { field: 'avg_goals_scored' as SortField, label: '득점' },
+          ]).map(({ field, label }) => (
+            <button
+              key={field}
+              onClick={() => handleSort(field)}
+              className={`text-[10px] px-2 py-1 rounded whitespace-nowrap ${
+                sortField === field
+                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                  : 'text-gray-500 hover:text-gray-300 bg-gray-700/50'
+              }`}
+            >
+              {label}<SortIcon field={field} />
+            </button>
+          ))}
         </div>
 
-        {/* Team Rows */}
+        {/* Team Rows — 모바일 2줄 레이아웃 */}
         {filtered.map((team, idx) => (
           <div
             key={team.id}
-            className="grid grid-cols-[40px_1fr_70px_80px_80px_60px_70px] gap-1 px-3 py-2.5 border-t border-gray-800/50 hover:bg-gray-800/40 transition-colors items-center"
+            className="px-3 py-2.5 border-t border-gray-800/50 hover:bg-gray-800/40 transition-colors"
           >
-            {/* Rank */}
-            <div className="text-xs text-gray-500 font-mono">{idx + 1}</div>
-
-            {/* Team Name + League Badge */}
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-white truncate">
-                {getKoreanTeamName(team.team_name)}
+            {/* 1행: 순위 + 팀명 + ELO */}
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="text-xs text-gray-500 font-mono w-5 shrink-0">{idx + 1}</span>
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-white truncate block">
+                    {getKoreanTeamName(team.team_name)}
+                  </span>
+                  {selectedLeague === 'all' && (
+                    <span className="text-[10px] text-gray-500">{team.league}</span>
+                  )}
+                </div>
               </div>
-              {selectedLeague === 'all' && (
-                <div className="text-[10px] text-gray-500 truncate">{team.league}</div>
-              )}
+              <div className={`text-sm font-bold font-mono shrink-0 ${eloColor(team.elo_rating)}`}>
+                {Math.round(team.elo_rating)}
+              </div>
             </div>
 
-            {/* ELO */}
-            <div className={`text-right text-sm font-bold font-mono ${eloColor(team.elo_rating)}`}>
-              {Math.round(team.elo_rating)}
-            </div>
-
-            {/* Attack Rating */}
-            <div className="text-right">
-              <div className="flex items-center justify-end gap-1">
-                <div className="w-12 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            {/* 2행: 공격 · 수비 · 폼 · 득실 */}
+            <div className="flex items-center gap-3 ml-7">
+              {/* 공격력 */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-gray-500">공</span>
+                <div className="w-10 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-500 rounded-full"
                     style={{ width: `${ratingPct(team.attack_rating)}%` }}
                   />
                 </div>
-                <span className="text-xs font-mono text-blue-400 w-8 text-right">
-                  {team.attack_rating?.toFixed(2)}
-                </span>
+                <span className="text-[10px] font-mono text-blue-400">{team.attack_rating?.toFixed(2)}</span>
               </div>
-            </div>
 
-            {/* Defense Rating */}
-            <div className="text-right">
-              <div className="flex items-center justify-end gap-1">
-                <div className="w-12 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+              {/* 수비력 */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-gray-500">수</span>
+                <div className="w-10 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-red-500 rounded-full"
                     style={{ width: `${ratingPct(2 - team.defense_rating)}%` }}
                   />
                 </div>
-                <span className="text-xs font-mono text-red-400 w-8 text-right">
-                  {team.defense_rating?.toFixed(2)}
-                </span>
+                <span className="text-[10px] font-mono text-red-400">{team.defense_rating?.toFixed(2)}</span>
               </div>
-            </div>
 
-            {/* Form */}
-            <div className="flex justify-center gap-0.5">
-              {(team.form_last5 || '').split('').map((ch, i) => (
-                <span
-                  key={i}
-                  className={`w-4 h-4 rounded-sm flex items-center justify-center text-[9px] font-bold text-white ${formColor(ch)}`}
-                >
-                  {ch}
-                </span>
-              ))}
-            </div>
+              {/* 폼 */}
+              <div className="flex gap-0.5 shrink-0">
+                {(team.form_last5 || '').split('').map((ch, i) => (
+                  <span
+                    key={i}
+                    className={`w-3.5 h-3.5 rounded-sm flex items-center justify-center text-[8px] font-bold text-white ${formColor(ch)}`}
+                  >
+                    {ch}
+                  </span>
+                ))}
+              </div>
 
-            {/* Goals */}
-            <div className="text-right text-xs font-mono">
-              <span className="text-green-400">{team.avg_goals_scored?.toFixed(1)}</span>
-              <span className="text-gray-600"> / </span>
-              <span className="text-red-400">{team.avg_goals_conceded?.toFixed(1)}</span>
+              {/* 득/실 */}
+              <div className="text-[10px] font-mono shrink-0">
+                <span className="text-green-400">{team.avg_goals_scored?.toFixed(1)}</span>
+                <span className="text-gray-600">/</span>
+                <span className="text-red-400">{team.avg_goals_conceded?.toFixed(1)}</span>
+              </div>
             </div>
           </div>
         ))}
