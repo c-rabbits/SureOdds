@@ -268,7 +268,7 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
                   onClick={() => setActivePoint(pt)}
                   className={`tab ${activePoint === pt ? 'tab-active' : 'tab-inactive'}`}
                 >
-                  {formatHandicap(pt, activeMarket) || 'Default'}
+                  {formatHandicap(pt, activeMarket) || '기본'}
                 </button>
               ))}
             </>

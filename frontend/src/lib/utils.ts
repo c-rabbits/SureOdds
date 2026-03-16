@@ -200,7 +200,7 @@ export function formatHandicap(point: number | null, marketType: MarketType): st
     return point > 0 ? `+${point}` : `${point}`;
   }
   if (marketType === 'totals') {
-    return `O/U ${point}`;
+    return `오/언 ${point}`;
   }
   return '';
 }
@@ -210,9 +210,9 @@ export function formatHandicap(point: number | null, marketType: MarketType): st
  */
 export function getMarketLabel(marketType: MarketType): string {
   switch (marketType) {
-    case 'h2h': return 'H2H';
-    case 'spreads': return 'Spread';
-    case 'totals': return 'O/U';
+    case 'h2h': return '승무패';
+    case 'spreads': return '핸디캡';
+    case 'totals': return '오버/언더';
     default: return marketType;
   }
 }
