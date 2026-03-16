@@ -174,4 +174,40 @@ router.get('/quota', async (req, res) => {
   }
 });
 
+// ─── Team Stats (API-Football) ───
+
+let collectTeamStats, getTeamStatsLastResult, getTeamStatsQuota;
+
+try {
+  const teamStatsCollector = require('../collector/teamStatsCollector');
+  collectTeamStats = teamStatsCollector.collectTeamStats;
+  getTeamStatsLastResult = teamStatsCollector.getLastResult;
+  getTeamStatsQuota = teamStatsCollector.getQuotaInfo;
+} catch (e) {
+  collectTeamStats = async () => ({ success: false, error: 'Module not loaded' });
+  getTeamStatsLastResult = () => null;
+  getTeamStatsQuota = () => ({ used: null, remaining: null });
+}
+
+// POST /api/collector/trigger-team-stats
+router.post('/trigger-team-stats', async (req, res) => {
+  try {
+    const result = await collectTeamStats();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/collector/team-stats-status
+router.get('/team-stats-status', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      lastResult: getTeamStatsLastResult(),
+      quota: getTeamStatsQuota(),
+    },
+  });
+});
+
 module.exports = router;

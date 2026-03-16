@@ -14,6 +14,7 @@ const aiRouter = require('./routes/ai');
 const { requireAuth } = require('./middleware/auth');
 const { logger, createServiceLogger, requestLogger } = require('./config/logger');
 const { startOddsApiIoScheduler } = require('./collector/index');
+const { startDailyScheduler: startTeamStatsScheduler } = require('./collector/teamStatsCollector');
 const { getBot } = require('./services/telegramBot');
 const { startSessionMonitor } = require('./services/sessionMonitor');
 
@@ -87,6 +88,9 @@ app.listen(PORT, async () => {
 
   // Start session monitor (every 5 min)
   startSessionMonitor();
+
+  // Start team stats collector (daily at 06:00 + startup)
+  startTeamStatsScheduler();
 
   // Register Telegram webhook
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
