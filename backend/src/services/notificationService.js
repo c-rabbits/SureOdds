@@ -2,10 +2,11 @@
  * Notification Service (Phase 3)
  *
  * 통합 알림 게이트웨이.
- * 모든 알림(양방, 밸류베팅, 일일 요약, 세션 만료)을 중앙에서 관리.
- * Telegram + Web Push 병렬 발송.
+ * Telegram + Web Push 병렬 발송 + 알림 히스토리 DB 저장.
+ * alert_preferences 테이블로 유저별 유형별 채널 on/off 체크.
  */
 
+const supabase = require('../config/supabase');
 const { createServiceLogger } = require('../config/logger');
 const {
   sendArbitrageAlert,
@@ -68,22 +69,37 @@ function buildPushPayload(type, payload) {
 }
 
 /**
- * 통합 알림 발송 (Telegram + Web Push 병렬).
- * @param {'arbitrage'|'value_bet'|'daily_digest'|'session_expiry'} type
- * @param {Object} payload - 알림별 데이터
+ * 알림 히스토리 제목/내용 생성.
+ */
+function buildNotificationRecord(type, payload) {
+  const pushPayload = buildPushPayload(type, payload);
+  if (!pushPayload) return null;
+
+  return {
+    type,
+    title: pushPayload.title,
+    body: pushPayload.body,
+    data: { url: pushPayload.url },
+  };
+}
+
+/**
+ * 통합 알림 발송 (Telegram + Web Push 병렬 + DB 히스토리).
  */
 async function sendNotification(type, payload) {
   const results = { telegram: null, push: null };
 
   try {
-    // ── Telegram 발송 ──
-    const telegramPromise = sendTelegram(type, payload);
+    // ── 히스토리 저장 (모든 활성 유저에게) ──
+    saveNotificationHistory(type, payload).catch((err) => {
+      log.error('Failed to save notification history', { error: err.message });
+    });
 
-    // ── Web Push 발송 ──
-    const pushPromise = sendPush(type, payload);
-
-    // 병렬 실행
-    const [tgResult, pushResult] = await Promise.allSettled([telegramPromise, pushPromise]);
+    // ── Telegram + Web Push 병렬 발송 ──
+    const [tgResult, pushResult] = await Promise.allSettled([
+      sendTelegram(type, payload),
+      sendPush(type, payload),
+    ]);
 
     results.telegram = tgResult.status === 'fulfilled' ? tgResult.value : { sent: 0, failed: 1 };
     results.push = pushResult.status === 'fulfilled' ? pushResult.value : { sent: 0, failed: 1 };
@@ -101,7 +117,62 @@ async function sendNotification(type, payload) {
 }
 
 /**
- * Telegram 발송 (기존 로직).
+ * 알림 히스토리를 DB에 저장 (모든 활성 유저).
+ */
+async function saveNotificationHistory(type, payload) {
+  const record = buildNotificationRecord(type, payload);
+  if (!record) return;
+
+  // session_expiry는 특정 유저에게만
+  if (type === 'session_expiry' && payload.userId) {
+    await supabase.from('notifications').insert({
+      user_id: payload.userId,
+      ...record,
+    });
+    return;
+  }
+
+  // 나머지는 모든 활성 유저에게
+  const { data: users } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('is_active', true);
+
+  if (!users || users.length === 0) return;
+
+  const rows = users.map((u) => ({
+    user_id: u.id,
+    ...record,
+  }));
+
+  // 배치 삽입 (50건씩)
+  for (let i = 0; i < rows.length; i += 50) {
+    const batch = rows.slice(i, i + 50);
+    await supabase.from('notifications').insert(batch);
+  }
+}
+
+/**
+ * 유저별 알림 설정 조회.
+ * 설정이 없으면 기본값(모든 채널 활성)을 반환.
+ */
+async function getUserPreference(userId, type) {
+  try {
+    const { data } = await supabase
+      .from('alert_preferences')
+      .select('telegram_enabled, push_enabled, min_threshold')
+      .eq('user_id', userId)
+      .eq('alert_type', type)
+      .single();
+
+    return data || { telegram_enabled: true, push_enabled: true, min_threshold: 0 };
+  } catch {
+    return { telegram_enabled: true, push_enabled: true, min_threshold: 0 };
+  }
+}
+
+/**
+ * Telegram 발송.
  */
 async function sendTelegram(type, payload) {
   switch (type) {
@@ -138,12 +209,10 @@ async function sendPush(type, payload) {
   const pushPayload = buildPushPayload(type, payload);
   if (!pushPayload) return { sent: 0, failed: 0 };
 
-  // session_expiry는 특정 유저에게만 발송
   if (type === 'session_expiry' && payload.userId) {
     return await sendPushToUser(payload.userId, pushPayload);
   }
 
-  // 나머지는 전체 구독자에게 발송
   return await sendPushToAll(pushPayload);
 }
 

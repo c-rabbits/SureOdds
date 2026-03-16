@@ -4,11 +4,27 @@ import { useState, useEffect, useCallback } from 'react';
 import { getAlertService, AlertConfig } from '@/lib/alertService';
 import { getTelegramStatus, generateTelegramLink, unlinkTelegram } from '@/lib/api';
 import { isPushSupported, isPushSubscribed, subscribeToPush, unsubscribeFromPush } from '@/lib/pushService';
+import { getAlertPreferences, updateAlertPreferences } from '@/lib/notificationApi';
+import type { AlertPreference, NotificationType } from '@/types/notification';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const ALERT_TYPES: { type: NotificationType; label: string; icon: string; desc: string; hasThreshold: boolean; thresholdLabel?: string; thresholdUnit?: string }[] = [
+  { type: 'arbitrage', label: '양방 기회', icon: '⚡', desc: '양방 배팅 기회 감지 시 알림', hasThreshold: true, thresholdLabel: '최소 수익률', thresholdUnit: '%' },
+  { type: 'value_bet', label: '밸류 베팅', icon: '🎯', desc: '고가치 밸류베팅 감지 시 알림', hasThreshold: true, thresholdLabel: '최소 엣지', thresholdUnit: '%' },
+  { type: 'daily_digest', label: '일일 요약', icon: '📋', desc: '매일 아침 예측/결과 요약', hasThreshold: false },
+  { type: 'session_expiry', label: '세션 만료', icon: '⚠️', desc: '사이트 세션 만료 임박 알림', hasThreshold: false },
+];
+
+const DEFAULT_PREF: AlertPreference = {
+  alert_type: 'arbitrage',
+  telegram_enabled: true,
+  push_enabled: true,
+  min_threshold: 0,
+};
 
 export default function AlertSettings({ isOpen, onClose }: Props) {
   const [config, setConfig] = useState<AlertConfig | null>(null);
@@ -22,9 +38,13 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
   const [tgPolling, setTgPolling] = useState(false);
 
   // Web Push state
-  const [pushSupported, setPushSupported] = useState(false);
-  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushSupportedState, setPushSupportedState] = useState(false);
+  const [pushSubscribedState, setPushSubscribedState] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+
+  // 유형별 알림 설정
+  const [preferences, setPreferences] = useState<AlertPreference[]>([]);
+  const [prefSaving, setPrefSaving] = useState(false);
 
   const loadTelegramStatus = useCallback(async () => {
     try {
@@ -32,7 +52,7 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
       setTgLinked(status.linked);
       setTgLinkedAt(status.linkedAt);
       if (status.linked) {
-        setTgLink(null); // 연동 완료면 링크 숨김
+        setTgLink(null);
         setTgPolling(false);
       }
     } catch {
@@ -48,11 +68,10 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
         setNotifPermission(Notification.permission);
       }
       loadTelegramStatus();
-      // Web Push 상태 확인
-      setPushSupported(isPushSupported());
-      isPushSubscribed().then(setPushSubscribed);
+      setPushSupportedState(isPushSupported());
+      isPushSubscribed().then(setPushSubscribedState);
+      loadPreferences();
     } else {
-      // 닫힐 때 폴링 중지
       setTgPolling(false);
       setTgLink(null);
     }
@@ -62,12 +81,53 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
   useEffect(() => {
     if (!tgPolling) return;
     const interval = setInterval(loadTelegramStatus, 5000);
-    const timeout = setTimeout(() => setTgPolling(false), 120000); // 2분 후 중지
+    const timeout = setTimeout(() => setTgPolling(false), 120000);
     return () => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
   }, [tgPolling, loadTelegramStatus]);
+
+  async function loadPreferences() {
+    try {
+      const prefs = await getAlertPreferences();
+      setPreferences(prefs);
+    } catch {
+      // ignore
+    }
+  }
+
+  function getPref(type: NotificationType): AlertPreference {
+    return preferences.find((p) => p.alert_type === type) || { ...DEFAULT_PREF, alert_type: type };
+  }
+
+  function updatePref(type: NotificationType, updates: Partial<AlertPreference>) {
+    setPreferences((prev) => {
+      const exists = prev.find((p) => p.alert_type === type);
+      if (exists) {
+        return prev.map((p) => (p.alert_type === type ? { ...p, ...updates } : p));
+      }
+      return [...prev, { ...DEFAULT_PREF, alert_type: type, ...updates }];
+    });
+  }
+
+  async function savePreferences() {
+    setPrefSaving(true);
+    try {
+      // 모든 유형에 대해 설정 생성
+      const allPrefs = ALERT_TYPES.map((at) => getPref(at.type));
+      // 업데이트된 preferences에서 값 가져오기
+      const merged = allPrefs.map((p) => {
+        const updated = preferences.find((u) => u.alert_type === p.alert_type);
+        return updated || p;
+      });
+      await updateAlertPreferences(merged);
+    } catch {
+      // ignore
+    } finally {
+      setPrefSaving(false);
+    }
+  }
 
   if (!isOpen || !config) return null;
 
@@ -94,7 +154,7 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
     try {
       const result = await generateTelegramLink();
       setTgLink(result.link);
-      setTgPolling(true); // 자동 폴링 시작
+      setTgPolling(true);
     } catch {
       // error handled by interceptor
     } finally {
@@ -118,7 +178,6 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
   async function handlePushToggle() {
     setPushLoading(true);
     try {
-      // 토큰 가져오기 (Supabase 세션에서)
       const { createBrowserClient } = await import('@supabase/ssr');
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -128,12 +187,12 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
       const token = session?.access_token;
       if (!token) return;
 
-      if (pushSubscribed) {
+      if (pushSubscribedState) {
         const ok = await unsubscribeFromPush(token);
-        if (ok) setPushSubscribed(false);
+        if (ok) setPushSubscribedState(false);
       } else {
         const ok = await subscribeToPush(token);
-        if (ok) setPushSubscribed(true);
+        if (ok) setPushSubscribedState(true);
       }
     } catch {
       // ignore
@@ -155,7 +214,7 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
         </div>
 
         <div className="space-y-4">
-          {/* Enable alerts */}
+          {/* 기본 알림 설정 */}
           <label className="flex items-center justify-between">
             <span className="text-sm text-gray-300">알림 활성화</span>
             <input
@@ -166,7 +225,6 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
             />
           </label>
 
-          {/* Sound */}
           <label className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-300">소리</span>
@@ -182,7 +240,6 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
             />
           </label>
 
-          {/* Browser notifications */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-300">브라우저 알림</span>
             {notifPermission === 'granted' ? (
@@ -208,7 +265,6 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
             </h3>
 
             {tgLinked ? (
-              // 연동 완료
               <div className="bg-green-900/20 border border-green-800/50 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -232,7 +288,6 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
                 </p>
               </div>
             ) : tgLink ? (
-              // 연동 대기 중 (딥링크 표시)
               <div className="bg-blue-900/20 border border-blue-800/50 rounded-lg p-3 space-y-2">
                 <p className="text-xs text-gray-300">
                   아래 링크를 클릭해 봇에서 <strong>시작</strong> 버튼을 누르세요:
@@ -258,7 +313,6 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
                 </div>
               </div>
             ) : (
-              // 미연동
               <div>
                 <button
                   onClick={handleGenerateLink}
@@ -275,13 +329,13 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
           </div>
 
           {/* ─── Web Push 알림 ─── */}
-          {pushSupported && (
+          {pushSupportedState && (
             <div className="border-t border-gray-800 pt-3">
               <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
                 <span>🔔</span> Web Push 알림
               </h3>
 
-              {pushSubscribed ? (
+              {pushSubscribedState ? (
                 <div className="bg-green-900/20 border border-green-800/50 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-green-400 text-sm">✅ 활성화됨</span>
@@ -314,7 +368,74 @@ export default function AlertSettings({ isOpen, onClose }: Props) {
             </div>
           )}
 
-          {/* Thresholds */}
+          {/* ─── 유형별 알림 설정 ─── */}
+          <div className="border-t border-gray-800 pt-3">
+            <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+              <span>📊</span> 유형별 알림 설정
+            </h3>
+            <div className="space-y-2">
+              {ALERT_TYPES.map((at) => {
+                const pref = getPref(at.type);
+                return (
+                  <div key={at.type} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm">{at.icon}</span>
+                      <span className="text-sm font-medium text-white">{at.label}</span>
+                      <span className="text-[10px] text-gray-600 ml-auto">{at.desc}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {/* 텔레그램 토글 */}
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pref.telegram_enabled}
+                          onChange={(e) => updatePref(at.type, { telegram_enabled: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-gray-400">📱 TG</span>
+                      </label>
+
+                      {/* Push 토글 */}
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pref.push_enabled}
+                          onChange={(e) => updatePref(at.type, { push_enabled: e.target.checked })}
+                          className="w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500"
+                        />
+                        <span className="text-xs text-gray-400">🔔 Push</span>
+                      </label>
+
+                      {/* 최소 기준값 */}
+                      {at.hasThreshold && (
+                        <div className="flex items-center gap-1 ml-auto">
+                          <span className="text-[10px] text-gray-500">{at.thresholdLabel}</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={pref.min_threshold}
+                            onChange={(e) => updatePref(at.type, { min_threshold: parseFloat(e.target.value) || 0 })}
+                            className="w-16 bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-white text-xs font-mono text-right focus:outline-none focus:border-blue-500"
+                          />
+                          <span className="text-[10px] text-gray-500">{at.thresholdUnit}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={savePreferences}
+              disabled={prefSaving}
+              className="mt-3 w-full btn-sm bg-green-600 hover:bg-green-500 text-white text-xs py-1.5 disabled:opacity-50"
+            >
+              {prefSaving ? '저장 중...' : '유형별 설정 저장'}
+            </button>
+          </div>
+
+          {/* 알림 기준 수익률 (로컬) */}
           <div className="border-t border-gray-800 pt-3">
             <h3 className="text-sm font-medium text-gray-400 mb-2">알림 기준 수익률 (%)</h3>
             <div className="grid grid-cols-2 gap-2">

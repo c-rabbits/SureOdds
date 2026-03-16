@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import NotificationBadge from './NotificationBadge';
 
 const baseLinks = [
   { href: '/', label: '대시보드', icon: '📊', short: '대시' },
@@ -66,6 +67,7 @@ export default function Navbar() {
 
           {user && (
             <>
+              <NotificationBadge />
               <span className="text-[11px] text-gray-400 hidden sm:inline">
                 {user.display_name || user.email}
               </span>

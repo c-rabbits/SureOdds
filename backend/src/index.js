@@ -19,6 +19,7 @@ const { getBot } = require('./services/telegramBot');
 const { startSessionMonitor } = require('./services/sessionMonitor');
 const { startScheduler: startDailyDigestScheduler } = require('./services/dailyDigestService');
 const pushRouter = require('./routes/push');
+const notificationsRouter = require('./routes/notifications');
 const webPushService = require('./services/webPushService');
 
 const app = express();
@@ -69,6 +70,7 @@ app.use('/api/arbitrage', requireAuth, arbitrageRouter);
 app.use('/api/collector', requireAuth, collectorRouter);
 app.use('/api/domestic', requireAuth, domesticRouter);
 app.use('/api/ai', requireAuth, aiRouter);
+app.use('/api/notifications', requireAuth, notificationsRouter);
 
 // 404 handler
 app.use((req, res) => {
