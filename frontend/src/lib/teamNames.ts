@@ -527,7 +527,6 @@ const ENGLISH_TO_KOREAN: Record<string, string> = {
   'Plymouth Argyle': '플리머스',
   'Cardiff City': '카디프',
   'Sunderland FC': '선덜랜드',
-  'Burnley FC': '번리',
 
   // ─── MLS ───
   'Nashville SC': '내슈빌SC',

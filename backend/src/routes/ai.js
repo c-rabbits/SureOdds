@@ -101,4 +101,102 @@ router.get('/value-bets', async (req, res) => {
   }
 });
 
+// ─── Team Stats ───
+
+// GET /api/ai/team-stats - 팀 통계 목록
+router.get('/team-stats', async (req, res) => {
+  try {
+    const supabase = require('../config/supabase');
+    const { league, sort, order, limit } = req.query;
+
+    let query = supabase
+      .from('team_stats')
+      .select('*');
+
+    if (league) {
+      query = query.eq('league', league);
+    }
+
+    const sortField = sort || 'elo_rating';
+    const sortOrder = order === 'asc' ? true : false;
+    query = query.order(sortField, { ascending: sortOrder });
+
+    if (limit) {
+      query = query.limit(parseInt(limit, 10));
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data, count: data.length });
+  } catch (err) {
+    log.error('Error in GET /team-stats', { error: err.message });
+    res.status(500).json({ success: false, error: '팀 통계를 불러오지 못했습니다.' });
+  }
+});
+
+// GET /api/ai/team-stats/:teamName - 팀 상세 통계
+router.get('/team-stats/:teamName', async (req, res) => {
+  try {
+    const supabase = require('../config/supabase');
+    const { teamName } = req.params;
+
+    const { data: stats, error } = await supabase
+      .from('team_stats')
+      .select('*')
+      .eq('team_name', decodeURIComponent(teamName))
+      .single();
+
+    if (error || !stats) {
+      return res.status(404).json({ success: false, error: '팀을 찾을 수 없습니다.' });
+    }
+
+    // ELO history for this team
+    const { data: eloHistory } = await supabase
+      .from('elo_history')
+      .select('elo_before, elo_after, elo_change, recorded_at')
+      .eq('team_name', decodeURIComponent(teamName))
+      .order('recorded_at', { ascending: true })
+      .limit(20);
+
+    res.json({
+      success: true,
+      data: {
+        stats,
+        eloHistory: eloHistory || [],
+      },
+    });
+  } catch (err) {
+    log.error('Error in GET /team-stats/:teamName', { error: err.message });
+    res.status(500).json({ success: false, error: '팀 상세를 불러오지 못했습니다.' });
+  }
+});
+
+// GET /api/ai/leagues - 리그 목록 (통계 요약)
+router.get('/leagues', async (req, res) => {
+  try {
+    const supabase = require('../config/supabase');
+
+    const { data, error } = await supabase
+      .from('team_stats')
+      .select('league, sport');
+
+    if (error) throw error;
+
+    // Group by league
+    const leagueMap = {};
+    for (const row of (data || [])) {
+      if (!leagueMap[row.league]) {
+        leagueMap[row.league] = { league: row.league, sport: row.sport, teamCount: 0 };
+      }
+      leagueMap[row.league].teamCount++;
+    }
+
+    res.json({ success: true, data: Object.values(leagueMap) });
+  } catch (err) {
+    log.error('Error in GET /leagues', { error: err.message });
+    res.status(500).json({ success: false, error: '리그 정보를 불러오지 못했습니다.' });
+  }
+});
+
 module.exports = router;
