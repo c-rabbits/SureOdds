@@ -10,13 +10,16 @@ const baseLinks = [
   { href: '/calculator', label: '계산기', icon: '🧮', short: '계산' },
 ];
 
-const adminLink = { href: '/admin', label: '관리자', icon: '⚙️', short: '관리' };
+const adminLinks = [
+  { href: '/ai', label: 'AI 예측', icon: '🤖', short: 'AI' },
+  { href: '/admin', label: '관리자', icon: '⚙️', short: '관리' },
+];
 
 export default function Navbar() {
   const pathname = usePathname();
   const { user, isAdmin, signOut } = useAuth();
 
-  const navLinks = isAdmin ? [...baseLinks, adminLink] : baseLinks;
+  const navLinks = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks;
 
   return (
     <nav className="border-b border-gray-800 bg-gray-950 shrink-0 sticky top-0 z-50">
@@ -36,7 +39,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={`px-2.5 sm:px-3 py-1.5 rounded-md text-[13px] sm:text-xs font-semibold transition-colors ${
-                  pathname === link.href
+                  (link.href === '/' ? pathname === '/' : pathname.startsWith(link.href))
                     ? 'bg-gray-700 text-white'
                     : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
                 }`}

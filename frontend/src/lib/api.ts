@@ -488,3 +488,6 @@ export async function generateTelegramLink(): Promise<{ link: string; expiresAt:
 export async function unlinkTelegram(): Promise<void> {
   await api.delete('/api/telegram/link');
 }
+
+// axios 인스턴스 export (aiApi.ts에서 재사용)
+export { api };

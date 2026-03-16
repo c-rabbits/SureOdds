@@ -8,6 +8,8 @@ const { collectOddsApiIo, isConfigured: isOddsApiIoConfigured } = require('./odd
 const { detectAllArbitrageForMatch } = require('../services/arbitrageEngine');
 const { findMatchingInternationalMatch } = require('../services/teamMatcher');
 const { sendArbitrageAlert } = require('../services/telegramBot');
+const { saveOddsSnapshot } = require('../services/oddsHistoryService');
+const { generatePredictions } = require('../services/aiPredictionService');
 const { createServiceLogger } = require('../config/logger');
 require('dotenv').config();
 
@@ -321,6 +323,23 @@ async function collect(sports, markets) {
     const savedMatches = await saveToDatabase(matches, oddsRows);
     log.info(`Saved ${savedMatches.length} matches, ${oddsRows.length} odds rows`);
 
+    // 배당 히스토리 스냅샷 저장
+    try {
+      const idMap = {};
+      for (const m of savedMatches) idMap[m.external_id] = m.id;
+      const snapshotRows = oddsRows
+        .filter((o) => idMap[o.match_external_id])
+        .map(({ match_external_id, ...rest }) => ({
+          ...rest,
+          match_id: idMap[match_external_id],
+          handicap_point: rest.handicap_point ?? 0,
+          source_type: rest.source_type || 'international',
+        }));
+      await saveOddsSnapshot(snapshotRows);
+    } catch (snapErr) {
+      log.warn('Odds snapshot error (non-fatal)', { error: snapErr.message });
+    }
+
     // ─── Pinnacle direct API ───
     let pinnacleMatchCount = 0;
     let pinnacleOddsCount = 0;
@@ -585,6 +604,13 @@ async function collect(sports, markets) {
     const newOpps = await runArbitrageDetection(savedMatches);
     log.info(`Found ${newOpps.length} new arbitrage opportunities`);
 
+    // AI 예측 생성/갱신
+    try {
+      await generatePredictions();
+    } catch (predErr) {
+      log.warn('AI prediction error (non-fatal)', { error: predErr.message });
+    }
+
     await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${betmanMatchCount} domestic + ${stakeMatchCount} stake matches`);
 
     lastCollectionResult = {
@@ -681,9 +707,23 @@ async function collectOddsApiIoAndSave() {
       if (oErr) log.error('[Odds-API.io] Error upserting odds', { error: oErr.message });
     }
 
+    // 배당 히스토리 스냅샷 저장
+    try {
+      await saveOddsSnapshot(oddsWithIds);
+    } catch (snapErr) {
+      log.warn('[Odds-API.io] Snapshot error (non-fatal)', { error: snapErr.message });
+    }
+
     // Run arbitrage detection for affected matches
     const savedMatches = Object.entries(idMap).map(([eid, id]) => ({ id, external_id: eid }));
     const newOpps = await runArbitrageDetection(savedMatches);
+
+    // AI 예측 갱신
+    try {
+      await generatePredictions();
+    } catch (predErr) {
+      log.warn('[Odds-API.io] AI prediction error (non-fatal)', { error: predErr.message });
+    }
 
     const duration = Date.now() - startTime;
     lastOddsApiIoResult = {

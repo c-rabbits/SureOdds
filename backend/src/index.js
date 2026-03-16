@@ -10,6 +10,7 @@ const domesticRouter = require('./routes/domestic');
 const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const telegramRouter = require('./routes/telegram');
+const aiRouter = require('./routes/ai');
 const { requireAuth } = require('./middleware/auth');
 const { logger, createServiceLogger, requestLogger } = require('./config/logger');
 const { startOddsApiIoScheduler } = require('./collector/index');
@@ -60,6 +61,7 @@ app.use('/api/odds', requireAuth, oddsRouter);
 app.use('/api/arbitrage', requireAuth, arbitrageRouter);
 app.use('/api/collector', requireAuth, collectorRouter);
 app.use('/api/domestic', requireAuth, domesticRouter);
+app.use('/api/ai', requireAuth, aiRouter);
 
 // 404 handler
 app.use((req, res) => {
