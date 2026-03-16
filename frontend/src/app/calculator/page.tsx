@@ -7,6 +7,25 @@ import { calculateStakes } from '@/lib/api';
 import { StakeCalculation, MarketType } from '@/types';
 import { getMarketLabel } from '@/lib/utils';
 
+// 환율 캐시 (세션 동안 유지)
+let cachedRate: { rate: number; fetchedAt: number } | null = null;
+const RATE_CACHE_TTL = 30 * 60 * 1000; // 30분
+
+async function fetchExchangeRate(): Promise<number> {
+  if (cachedRate && Date.now() - cachedRate.fetchedAt < RATE_CACHE_TTL) {
+    return cachedRate.rate;
+  }
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await res.json();
+    const rate = data.rates?.KRW ?? 1450;
+    cachedRate = { rate, fetchedAt: Date.now() };
+    return rate;
+  } catch {
+    return cachedRate?.rate ?? 1450;
+  }
+}
+
 function CalculatorContent() {
   const searchParams = useSearchParams();
   const oddsParam = searchParams.get('odds');
@@ -16,7 +35,13 @@ function CalculatorContent() {
   const [numOutcomes, setNumOutcomes] = useState(2);
   const [odds, setOdds] = useState<string[]>(['2.10', '2.05', '3.20']);
   const [handicap, setHandicap] = useState('');
-  const [totalStake, setTotalStake] = useState('1000');
+
+  // 투자금 (달러/원화)
+  const [stakeUsd, setStakeUsd] = useState('100');
+  const [stakeKrw, setStakeKrw] = useState('');
+  const [exchangeRate, setExchangeRate] = useState(1450);
+  const [rateLoading, setRateLoading] = useState(false);
+
   const [result, setResult] = useState<StakeCalculation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,6 +51,18 @@ function CalculatorContent() {
     : marketType === 'spreads'
     ? ['홈 스프레드', '원정 스프레드', '']
     : ['홈승', '원정승', '무승부'];
+
+  // 환율 로드
+  useEffect(() => {
+    setRateLoading(true);
+    fetchExchangeRate().then((r) => {
+      setExchangeRate(r);
+      setRateLoading(false);
+      const usd = parseFloat(stakeUsd);
+      if (!isNaN(usd)) setStakeKrw(Math.round(usd * r).toLocaleString('en-US'));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (oddsParam) {
@@ -42,9 +79,34 @@ function CalculatorContent() {
     const pointParam = searchParams.get('point');
     if (pointParam) setHandicap(pointParam);
     const stakeParam = searchParams.get('stake');
-    if (stakeParam) setTotalStake(stakeParam);
+    if (stakeParam) setStakeUsd(stakeParam);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [oddsParam, marketParam]);
+
+  // 달러 입력 시 원화 자동 계산
+  const handleUsdChange = (val: string) => {
+    setStakeUsd(val);
+    setResult(null);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0) {
+      setStakeKrw(Math.round(num * exchangeRate).toLocaleString('en-US'));
+    } else {
+      setStakeKrw('');
+    }
+  };
+
+  // 원화 입력 시 달러 자동 계산
+  const handleKrwChange = (val: string) => {
+    const clean = val.replace(/,/g, '');
+    setStakeKrw(val);
+    setResult(null);
+    const num = parseFloat(clean);
+    if (!isNaN(num) && num >= 0) {
+      setStakeUsd((num / exchangeRate).toFixed(2));
+    } else {
+      setStakeUsd('');
+    }
+  };
 
   function handleMarketChange(mt: MarketType) {
     setMarketType(mt);
@@ -62,14 +124,14 @@ function CalculatorContent() {
   async function handleCalculate() {
     setError('');
     const oddsArray = odds.slice(0, numOutcomes).map(Number);
-    const stake = parseFloat(totalStake);
+    const stake = parseFloat(stakeUsd);
 
     if (oddsArray.some((o) => isNaN(o) || o <= 1)) {
       setError('모든 배당은 1.00보다 커야 합니다.');
       return;
     }
     if (isNaN(stake) || stake <= 0) {
-      setError('총 투자금은 양수여야 합니다.');
+      setError('투자금을 입력하세요.');
       return;
     }
 
@@ -200,24 +262,44 @@ function CalculatorContent() {
             </div>
             {isArbitrage && (
               <div className="mt-2 flex items-center gap-1.5 text-green-400 text-xs font-semibold">
-                <span>⚡</span> 양방 기회 탐지!
+                <span>&#x26A1;</span> 양방 기회 탐지!
               </div>
             )}
           </div>
         )}
 
-        {/* 총 투자금 */}
+        {/* ─── 투자금 (달러/원화) ─── */}
         <div>
-          <label className="block text-sm text-gray-400 mb-2">총 투자금 (₩)</label>
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={totalStake}
-            onChange={(e) => { setTotalStake(e.target.value); setResult(null); }}
-            placeholder="예: 1000000"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-green-500"
-          />
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm text-gray-400">투자금</label>
+            <span className="text-xs text-gray-500">
+              {rateLoading ? '환율 로딩...' : (
+                <>USD/KRW: <span className="text-cyan-400 font-mono">&#36;1 = &#8361;{exchangeRate.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</span></>
+              )}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-gray-500 mb-1">&#36; 달러 (USD)</label>
+              <input
+                type="number"
+                value={stakeUsd}
+                onChange={(e) => handleUsdChange(e.target.value)}
+                placeholder="100"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-gray-500 mb-1">&#8361; 원화 (KRW)</label>
+              <input
+                type="text"
+                value={stakeKrw}
+                onChange={(e) => handleKrwChange(e.target.value)}
+                placeholder="145,000"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+          </div>
         </div>
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -240,12 +322,15 @@ function CalculatorContent() {
                     {outcomeLabels[i] || `결과 ${i + 1}`}
                   </div>
                   <div className="text-xs text-gray-500">
-                    예상 회수: ₩{result.returns[i].toFixed(0)}
+                    예상 회수: &#36;{result.returns[i].toFixed(2)} / &#8361;{Math.round(result.returns[i] * exchangeRate).toLocaleString()}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold font-mono text-white">₩{stake.toFixed(0)}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-base font-bold font-mono text-white">&#36;{stake.toFixed(2)}</div>
+                  <div className="text-xs text-gray-400 font-mono">
+                    &#8361;{Math.round(stake * exchangeRate).toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-gray-600">
                     {((stake / result.totalStake) * 100).toFixed(1)}%
                   </div>
                 </div>
@@ -256,19 +341,34 @@ function CalculatorContent() {
           <div className="border-t border-gray-800 pt-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">총 투자금:</span>
-              <span className="font-mono text-white">₩{result.totalStake.toFixed(0)}</span>
+              <span className="font-mono text-white">
+                &#36;{result.totalStake.toFixed(2)} / &#8361;{Math.round(result.totalStake * exchangeRate).toLocaleString()}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">보장 회수금:</span>
-              <span className="font-mono text-gray-300">₩{Math.min(...result.returns).toFixed(0)}</span>
+              <span className="font-mono text-gray-300">
+                &#36;{Math.min(...result.returns).toFixed(2)} / &#8361;{Math.round(Math.min(...result.returns) * exchangeRate).toLocaleString()}
+              </span>
             </div>
-            <div className="flex justify-between font-bold">
-              <span className={result.profit >= 0 ? 'text-green-400' : 'text-red-400'}>
-                {result.profit >= 0 ? '보장 수익:' : '손실:'}
-              </span>
-              <span className={`font-mono text-lg ${result.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {result.profit >= 0 ? '+' : ''}₩{result.profit.toFixed(0)} ({result.profitPercent.toFixed(4)}%)
-              </span>
+            <div className={`rounded-lg p-3 mt-2 ${result.isArbitrage ? 'bg-green-900/20 border border-green-800/30' : 'bg-red-900/20 border border-red-800/30'}`}>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-xs text-gray-400">예상 수익률</span>
+                  <p className={`text-lg font-bold font-mono ${result.isArbitrage ? 'text-green-400' : 'text-red-400'}`}>
+                    {result.profitPercent > 0 ? '+' : ''}{result.profitPercent.toFixed(2)}%
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400">보장 수익</span>
+                  <p className={`text-sm font-bold font-mono ${result.isArbitrage ? 'text-green-400' : 'text-red-400'}`}>
+                    &#36;{result.profit.toFixed(2)}
+                  </p>
+                  <p className={`text-sm font-mono ${result.isArbitrage ? 'text-green-400/70' : 'text-red-400/70'}`}>
+                    &#8361;{Math.round(result.profit * exchangeRate).toLocaleString()}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
