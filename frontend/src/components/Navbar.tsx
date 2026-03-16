@@ -11,15 +11,21 @@ const baseLinks = [
 ];
 
 const adminLinks = [
-  { href: '/ai', label: 'AI 예측', icon: '🤖', short: 'AI' },
   { href: '/admin', label: '관리자', icon: '⚙️', short: '관리' },
 ];
+
+const AI_ALLOWED_EMAIL = 'qmirrorp@gmail.com';
+const aiLink = { href: '/ai', label: 'AI 예측', icon: '🤖', short: 'AI' };
 
 export default function Navbar() {
   const pathname = usePathname();
   const { user, isAdmin, signOut } = useAuth();
 
-  const navLinks = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks;
+  const navLinks = [
+    ...baseLinks,
+    ...(user?.email === AI_ALLOWED_EMAIL ? [aiLink] : []),
+    ...(isAdmin ? adminLinks : []),
+  ];
 
   return (
     <nav className="border-b border-gray-800 bg-gray-950 shrink-0 sticky top-0 z-50">

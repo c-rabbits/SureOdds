@@ -5,15 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import AiSubNav from '@/components/ai/AiSubNav';
 
+const AI_ALLOWED_EMAIL = 'qmirrorp@gmail.com';
+
 export default function AiLayout({ children }: { children: React.ReactNode }) {
-  const { isAdmin, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
+  const hasAccess = user?.email === AI_ALLOWED_EMAIL;
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
+    if (!loading && !hasAccess) {
       router.replace('/');
     }
-  }, [isAdmin, loading, router]);
+  }, [hasAccess, loading, router]);
 
   if (loading) {
     return (
@@ -23,7 +26,7 @@ export default function AiLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAdmin) {
+  if (!hasAccess) {
     return null;
   }
 
