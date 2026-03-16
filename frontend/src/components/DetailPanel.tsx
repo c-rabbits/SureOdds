@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { MatchWithOdds, Odds, MarketType, StakeCalculation } from '@/types';
 import { calculateStakes } from '@/lib/api';
 import {
@@ -119,10 +119,13 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
   const { best1, best2, bestDraw } = findBestOdds(activeOdds);
   const [label1, label2, labelDraw] = getOutcomeLabels(activeMarket);
 
-  // Arb calculation
-  const arbOdds = bestDraw
+  // Arb calculation (memoized to avoid infinite re-render loop)
+  const arbOdds = useMemo(() => bestDraw
     ? [best1?.odds ?? 0, bestDraw.odds, best2?.odds ?? 0]
-    : [best1?.odds ?? 0, best2?.odds ?? 0];
+    : [best1?.odds ?? 0, best2?.odds ?? 0],
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [best1?.odds, best2?.odds, bestDraw?.odds]);
+  const arbOddsKey = arbOdds.join(',');
   const hasValidOdds = arbOdds.every((o) => o > 1);
   const arbFactor = hasValidOdds ? arbOdds.reduce((s, o) => s + 1 / o, 0) : null;
   const isArb = arbFactor !== null && arbFactor < 1;
@@ -169,30 +172,26 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
     }
   };
 
-  // 배분 계산 실행
-  const runCalculation = useCallback(async () => {
-    if (!hasValidOdds) return;
+  // 배분 계산 자동 실행 (debounced, stable dependencies)
+  useEffect(() => {
+    if (!showCalc || !hasValidOdds) return;
     const totalUsd = parseFloat(stakeUsd);
     if (isNaN(totalUsd) || totalUsd <= 0) return;
 
-    setCalcLoading(true);
-    try {
-      const result = await calculateStakes(totalUsd, arbOdds);
-      setCalcResult(result);
-    } catch {
-      setCalcResult(null);
-    } finally {
-      setCalcLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stakeUsd, arbOdds, hasValidOdds]);
-
-  // 배분 계산 자동 실행 (debounced)
-  useEffect(() => {
-    if (!showCalc || !hasValidOdds) return;
-    const timer = setTimeout(runCalculation, 500);
+    const timer = setTimeout(async () => {
+      setCalcLoading(true);
+      try {
+        const result = await calculateStakes(totalUsd, arbOdds);
+        setCalcResult(result);
+      } catch {
+        // keep previous result
+      } finally {
+        setCalcLoading(false);
+      }
+    }, 500);
     return () => clearTimeout(timer);
-  }, [showCalc, runCalculation, hasValidOdds]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCalc, stakeUsd, arbOddsKey, hasValidOdds]);
 
   // 결과 라벨
   const outcomeLabels = bestDraw
