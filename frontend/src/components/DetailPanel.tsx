@@ -211,9 +211,9 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
       className={`fixed inset-0 z-50 transition-colors duration-200 ${visible ? 'bg-black/50' : 'bg-transparent pointer-events-none'}`}
     >
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 rounded-t-2xl flex flex-col transition-all duration-300 ease-out ${
+        className={`fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 rounded-t-2xl flex flex-col transition-transform duration-200 ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
-        } ${showCalc ? 'max-h-[92vh] md:max-h-[85vh]' : 'max-h-[75vh] md:max-h-[60vh]'}`}
+        } max-h-[92vh] md:max-h-[85vh]`}
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-2 pb-1 cursor-pointer shrink-0" onClick={handleClose}>
@@ -375,10 +375,8 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
               </div>
 
               {/* 계산 결과 */}
-              {calcLoading ? (
-                <div className="text-center py-3 text-gray-500 text-xs">계산 중...</div>
-              ) : calcResult ? (
-                <div className="space-y-2">
+              {calcResult ? (
+                <div className={`space-y-2 transition-opacity duration-150 ${calcLoading ? 'opacity-50' : 'opacity-100'}`}>
                   {/* 배분 결과 테이블 */}
                   <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
                     <table className="w-full text-xs">
