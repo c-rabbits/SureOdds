@@ -16,10 +16,10 @@ export default function PredictionCard({ match }: Props) {
 
   return (
     <Link href={`/ai/match/${match.id}`} className="block">
-      <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4 hover:border-gray-600 transition-colors cursor-pointer">
+      <div className="rounded-lg border border-gray-800 bg-gray-900/80 p-3 hover:border-gray-600 hover:bg-gray-900 transition-all">
         {/* 상단: 리그 + 시간 */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400 min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 min-w-0 flex-1">
             <span className="shrink-0">{getSportEmoji(match.sport)}</span>
             <span className="truncate">{match.league}</span>
           </div>
@@ -29,17 +29,17 @@ export default function PredictionCard({ match }: Props) {
                 밸류 {valueBetCount}
               </span>
             )}
-            <span className="text-[10px] text-gray-500 whitespace-nowrap">{formatShortTime(match.start_time)}</span>
+            <span className="text-[10px] text-gray-600 whitespace-nowrap">{formatShortTime(match.start_time)}</span>
           </div>
         </div>
 
         {/* 팀 이름 */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-white font-medium truncate max-w-[42%]" title={match.home_team}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-white font-medium truncate max-w-[42%]" title={match.home_team}>
             {getKoreanTeamName(match.home_team)}
           </span>
-          <span className="text-xs text-gray-600 mx-2">vs</span>
-          <span className="text-sm text-white font-medium truncate max-w-[42%] text-right" title={match.away_team}>
+          <span className="text-[10px] text-gray-600 mx-2">vs</span>
+          <span className="text-xs text-white font-medium truncate max-w-[42%] text-right" title={match.away_team}>
             {getKoreanTeamName(match.away_team)}
           </span>
         </div>
@@ -47,26 +47,24 @@ export default function PredictionCard({ match }: Props) {
         {/* 예측 확률 바 */}
         {p ? (
           <>
-            <div className="flex items-center gap-1 mb-1.5">
-              <ProbBar
-                homeProb={p.home_win_prob}
-                drawProb={p.draw_prob}
-                awayProb={p.away_win_prob}
-              />
-            </div>
+            <ProbBar
+              homeProb={p.home_win_prob}
+              drawProb={p.draw_prob}
+              awayProb={p.away_win_prob}
+            />
 
             {/* 예상 골 + 신뢰도 */}
-            <div className="flex items-center justify-between text-[10px] gap-2">
+            <div className="flex items-center justify-between text-[10px] gap-2 mt-1.5">
               <div className="flex items-center gap-2 min-w-0">
                 {hasGoals && (
-                  <span className="text-gray-400 whitespace-nowrap">
+                  <span className="text-gray-500 whitespace-nowrap">
                     예상 <span className="text-white font-mono">{p.expected_home_goals}</span>
                     -
                     <span className="text-white font-mono">{p.expected_away_goals}</span>
                   </span>
                 )}
                 {p.over_2_5_prob != null && (
-                  <span className="text-gray-500 whitespace-nowrap">
+                  <span className="text-gray-600 whitespace-nowrap">
                     O2.5 <span className="font-mono">{(p.over_2_5_prob * 100).toFixed(0)}%</span>
                   </span>
                 )}
@@ -77,7 +75,7 @@ export default function PredictionCard({ match }: Props) {
             </div>
           </>
         ) : (
-          <div className="text-[11px] text-gray-600 text-center py-2">
+          <div className="text-[10px] text-gray-600 text-center py-2 bg-gray-800/30 rounded">
             예측 데이터 준비 중...
           </div>
         )}
@@ -100,24 +98,24 @@ function ProbBar({
   const a = Math.round(awayProb * 100);
 
   return (
-    <div className="flex-1">
+    <div>
       {/* 수치 */}
-      <div className="flex justify-between text-[11px] mb-0.5">
+      <div className="flex justify-between text-[10px] mb-0.5">
         <span className="text-blue-400 font-bold">{h}%</span>
-        {d > 0 && <span className="text-gray-400">{d}%</span>}
+        {d > 0 && <span className="text-gray-500">{d}%</span>}
         <span className="text-red-400 font-bold">{a}%</span>
       </div>
       {/* 바 */}
-      <div className="flex h-2 rounded-full overflow-hidden bg-gray-800">
+      <div className="flex h-1.5 rounded-full overflow-hidden bg-gray-800">
         <div className="bg-blue-500" style={{ width: `${h}%` }} />
         {d > 0 && <div className="bg-gray-600" style={{ width: `${d}%` }} />}
         <div className="bg-red-500" style={{ width: `${a}%` }} />
       </div>
       {/* 라벨 */}
       <div className="flex justify-between text-[9px] mt-0.5">
-        <span className="text-gray-500">홈승</span>
+        <span className="text-gray-600">홈승</span>
         {d > 0 && <span className="text-gray-600">무</span>}
-        <span className="text-gray-500">원정승</span>
+        <span className="text-gray-600">원정승</span>
       </div>
     </div>
   );

@@ -14,17 +14,17 @@ export default function AiSubNav() {
   const pathname = usePathname();
 
   return (
-    <div className="border-b border-gray-800 bg-gray-900/50 px-4 py-1.5 shrink-0">
-      <div className="flex items-center gap-1">
+    <div className="border-b border-gray-800 bg-gray-950 px-3 py-1.5 shrink-0">
+      <div className="flex items-center gap-0.5">
         {tabs.map((tab) => {
           const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 isActive
-                  ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
+                  ? 'bg-gray-700 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/60'
               }`}
             >
