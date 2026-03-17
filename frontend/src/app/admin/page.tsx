@@ -8,6 +8,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  changeUserPassword,
   getAdminSiteRegistrations,
   updateAdminSiteRegistration,
   getAdminSiteRequests,
@@ -19,9 +20,24 @@ import {
   getAdminSettings,
   updateAdminSetting,
 } from '@/lib/api';
-import { UserProfile, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
+import { UserProfile, UserRole, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
 
 type AdminTab = 'users' | 'sites' | 'requests' | 'settings';
+
+const ROLE_OPTIONS: { value: UserRole; label: string; color: string }[] = [
+  { value: 'admin', label: '관리자', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  { value: 'vip5', label: 'VIP 5', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  { value: 'vip4', label: 'VIP 4', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  { value: 'vip3', label: 'VIP 3', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  { value: 'vip2', label: 'VIP 2', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  { value: 'vip1', label: 'VIP 1', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  { value: 'test_account', label: '테스트', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+  { value: 'user', label: '일반', color: 'bg-gray-700/50 text-gray-400 border-gray-600/30' },
+];
+
+function getRoleStyle(role: string) {
+  return ROLE_OPTIONS.find(r => r.value === role) || ROLE_OPTIONS[ROLE_OPTIONS.length - 1];
+}
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: '대기중', color: 'bg-yellow-900/30 text-yellow-400 border-yellow-800' },
@@ -49,9 +65,13 @@ export default function AdminPage() {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
+  const [newRole, setNewRole] = useState<UserRole>('user');
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
+  // 비밀번호 변경
+  const [pwUserId, setPwUserId] = useState<string | null>(null);
+  const [pwValue, setPwValue] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
 
   // ─── 사이트 관리 ───
   const [sites, setSites] = useState<SiteRegWithProfile[]>([]);
@@ -162,11 +182,11 @@ export default function AdminPage() {
       setCreateError('관리자는 이메일이 필수입니다.');
       return;
     }
-    if (newRole === 'user' && !newUsername) {
+    if (newRole !== 'admin' && !newUsername) {
       setCreateError('아이디는 필수입니다.');
       return;
     }
-    if (newRole === 'user' && !/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
+    if (newRole !== 'admin' && !/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
       setCreateError('아이디는 영문, 숫자, 밑줄(_)만 사용하여 3~20자로 입력하세요.');
       return;
     }
@@ -177,8 +197,8 @@ export default function AdminPage() {
     setCreating(true);
     try {
       const payload = newRole === 'admin'
-        ? { email: newEmail, password: newPassword, display_name: newName || undefined, role: 'admin' as const }
-        : { username: newUsername, password: newPassword, display_name: newName || undefined, role: 'user' as const };
+        ? { email: newEmail, password: newPassword, display_name: newName || undefined, role: newRole }
+        : { username: newUsername, password: newPassword, display_name: newName || undefined, role: newRole };
       await createUser(payload);
       setNewEmail(''); setNewUsername(''); setNewPassword(''); setNewName(''); setNewRole('user');
       setShowCreateForm(false);
@@ -197,6 +217,35 @@ export default function AdminPage() {
       await loadUsers();
     } catch (err) {
       console.error('Toggle active failed:', err);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!pwUserId || pwValue.length < 6) {
+      alert('비밀번호는 최소 6자 이상이어야 합니다.');
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await changeUserPassword(pwUserId, pwValue);
+      alert('비밀번호가 변경되었습니다.');
+      setPwUserId(null);
+      setPwValue('');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      alert(error.response?.data?.error || '비밀번호 변경에 실패했습니다.');
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
+  async function handleRoleChange(u: UserProfile, newRole: UserRole) {
+    if (u.role === newRole) return;
+    try {
+      await updateUser(u.id, { role: newRole });
+      await loadUsers();
+    } catch (err) {
+      console.error('Role change failed:', err);
     }
   }
 
@@ -446,10 +495,11 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">역할</label>
-                  <select value={newRole} onChange={(e) => { setNewRole(e.target.value as 'user' | 'admin'); setNewEmail(''); setNewUsername(''); }}
+                  <select value={newRole} onChange={(e) => { setNewRole(e.target.value as UserRole); setNewEmail(''); setNewUsername(''); }}
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500">
-                    <option value="user">일반 사용자</option>
-                    <option value="admin">관리자</option>
+                    {ROLE_OPTIONS.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
                   </select>
                 </div>
                 {newRole === 'admin' ? (
@@ -489,6 +539,30 @@ export default function AdminPage() {
             </div>
           )}
 
+          {/* 비밀번호 변경 모달 */}
+          {pwUserId && (
+            <div className="card mb-4 border-blue-500/30">
+              <h3 className="text-sm font-semibold text-white mb-3">비밀번호 변경</h3>
+              <p className="text-xs text-gray-400 mb-2">
+                대상: {users.find(u => u.id === pwUserId)?.username || users.find(u => u.id === pwUserId)?.email}
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="password"
+                  value={pwValue}
+                  onChange={(e) => setPwValue(e.target.value)}
+                  placeholder="새 비밀번호 (최소 6자)"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                  onKeyDown={(e) => e.key === 'Enter' && handleChangePassword()}
+                />
+                <button onClick={handleChangePassword} disabled={pwSaving}
+                  className="btn-primary text-sm py-2 px-4">{pwSaving ? '...' : '변경'}</button>
+                <button onClick={() => { setPwUserId(null); setPwValue(''); }}
+                  className="btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600 py-2 px-3">취소</button>
+              </div>
+            </div>
+          )}
+
           <div className="card p-0 overflow-hidden">
             {usersLoading ? (
               <div className="text-center py-8 text-gray-500 text-sm">로딩 중...</div>
@@ -524,13 +598,21 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td>
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                            u.role === 'admin'
-                              ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                              : 'bg-gray-700/50 text-gray-400 border border-gray-600/30'
-                          }`}>
-                            {u.role === 'admin' ? '관리자' : '사용자'}
-                          </span>
+                          {u.id === user?.id ? (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getRoleStyle(u.role).color}`}>
+                              {getRoleStyle(u.role).label}
+                            </span>
+                          ) : (
+                            <select
+                              value={u.role}
+                              onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
+                              className={`text-[10px] font-semibold rounded px-1.5 py-0.5 border cursor-pointer focus:outline-none ${getRoleStyle(u.role).color} bg-transparent`}
+                            >
+                              {ROLE_OPTIONS.map((r) => (
+                                <option key={r.value} value={r.value} className="bg-gray-900 text-white">{r.label}</option>
+                              ))}
+                            </select>
+                          )}
                         </td>
                         <td>
                           <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${u.is_active ? 'text-green-400' : 'text-red-400'}`}>
@@ -544,10 +626,14 @@ export default function AdminPage() {
                           <div className="flex items-center justify-center gap-1">
                             {u.id !== user?.id && (
                               <>
+                                <button onClick={() => { setPwUserId(u.id); setPwValue(''); }}
+                                  className="btn-sm text-blue-400 hover:bg-blue-500/10" title="비밀번호 변경">
+                                  비번
+                                </button>
                                 <button onClick={() => handleToggleActive(u)}
                                   className={`btn-sm ${u.is_active ? 'text-yellow-400 hover:bg-yellow-500/10' : 'text-green-400 hover:bg-green-500/10'}`}
                                   title={u.is_active ? '비활성화' : '활성화'}>
-                                  {u.is_active ? '비활성화' : '활성화'}
+                                  {u.is_active ? '비활성' : '활성'}
                                 </button>
                                 <button onClick={() => handleDelete(u)}
                                   className="btn-sm text-red-400 hover:bg-red-500/10" title="삭제">

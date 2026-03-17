@@ -59,10 +59,11 @@ router.post('/users', async (req, res) => {
   try {
     const { email, username, password, display_name, role = 'user' } = req.body;
 
-    if (!['admin', 'user'].includes(role)) {
+    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_account', 'user'];
+    if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({
         success: false,
-        error: '역할은 admin 또는 user만 가능합니다.',
+        error: `역할은 ${VALID_ROLES.join(', ')} 중 하나여야 합니다.`,
       });
     }
 
@@ -84,7 +85,7 @@ router.post('/users', async (req, res) => {
       authEmail = email;
       userDisplayName = display_name || email.split('@')[0];
     } else {
-      // 일반회원: 아이디 필수
+      // 일반/VIP/테스트 회원: 아이디 필수
       if (!username) {
         return res.status(400).json({ success: false, error: '아이디는 필수입니다.' });
       }
@@ -152,12 +153,12 @@ router.patch('/users/:id', async (req, res) => {
     const { role, is_active, display_name } = req.body;
     const updates = {};
 
-    // 역할 변경 불가
+    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_account', 'user'];
     if (role !== undefined) {
-      return res.status(400).json({
-        success: false,
-        error: '역할 변경은 지원하지 않습니다.',
-      });
+      if (!VALID_ROLES.includes(role)) {
+        return res.status(400).json({ success: false, error: `유효하지 않은 역할입니다.` });
+      }
+      updates.role = role;
     }
     if (is_active !== undefined) updates.is_active = is_active;
     if (display_name !== undefined) updates.display_name = display_name;
@@ -181,6 +182,27 @@ router.patch('/users/:id', async (req, res) => {
     res.json({ success: true, data });
   } catch (err) {
     log.error('Update user error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
+// PATCH /api/admin/users/:id/password - 비밀번호 변경 (관리자)
+// ============================================================
+router.patch('/users/:id/password', async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, error: '비밀번호는 최소 6자 이상이어야 합니다.' });
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(req.params.id, { password });
+    if (error) throw error;
+
+    log.info('Password changed by admin', { targetUserId: req.params.id, adminId: req.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    log.error('Change password error', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -15,16 +15,20 @@ const adminLinks = [
   { href: '/admin', label: '관리자' },
 ];
 
-const AI_ALLOWED_EMAIL = 'qmirrorp@gmail.com';
 const aiLink = { href: '/ai', label: 'AI 예측' };
+
+// VIP2 이상 또는 admin만 AI 예측 접근 가능
+const AI_ROLES = ['admin', 'vip2', 'vip3', 'vip4', 'vip5'];
 
 export default function Navbar() {
   const pathname = usePathname();
   const { user, isAdmin } = useAuth();
 
+  const canAccessAI = user && AI_ROLES.includes(user.role);
+
   const navLinks = [
     ...baseLinks,
-    ...(user?.email === AI_ALLOWED_EMAIL ? [aiLink] : []),
+    ...(canAccessAI ? [aiLink] : []),
     ...(isAdmin ? adminLinks : []),
   ];
 

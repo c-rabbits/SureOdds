@@ -353,6 +353,10 @@ export async function deleteUser(id: string): Promise<void> {
   await api.delete(`/api/admin/users/${id}`);
 }
 
+export async function changeUserPassword(id: string, password: string): Promise<void> {
+  await api.patch(`/api/admin/users/${id}/password`, { password });
+}
+
 // ============================================================
 // Available Sites (마스터 사이트 목록 - 드롭다운용)
 // ============================================================

@@ -139,8 +139,8 @@ async function requireAuth(req, res, next) {
       }
     }
 
-    // 유지보수 모드 체크 (관리자는 통과)
-    if (profile.role !== 'admin') {
+    // 유지보수 모드 체크 (관리자 + test_account는 통과)
+    if (profile.role !== 'admin' && profile.role !== 'test_account') {
       try {
         const { data: setting } = await supabase
           .from('app_settings')
