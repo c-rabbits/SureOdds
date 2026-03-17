@@ -66,49 +66,43 @@ export default function OddsMovementPage() {
       {/* 필터 바 */}
       <div className="flex items-center gap-3 mb-4 overflow-x-auto pb-0.5">
         {/* 기간 필터 */}
-        <div className="flex items-center gap-1 shrink-0">
-          <span className="text-xs text-gray-500 mr-0.5">기간:</span>
-          {[6, 12, 24, 48].map((h) => (
-            <button
-              key={h}
-              onClick={() => setHours(h)}
-              className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-                hours === h
-                  ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
-                  : 'text-gray-500 hover:text-gray-300 bg-gray-800/60'
-              }`}
-            >
-              {h}시간
-            </button>
-          ))}
-        </div>
+        {[6, 12, 24, 48].map((h) => (
+          <button
+            key={h}
+            onClick={() => setHours(h)}
+            className={`text-xs px-2 py-1 rounded-md transition-colors ${
+              hours === h
+                ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
+                : 'text-gray-500 hover:text-gray-300 bg-gray-800/60'
+            }`}
+          >
+            {h}h
+          </button>
+        ))}
 
         <div className="h-4 w-px bg-gray-700 shrink-0" />
 
         {/* 정렬 */}
-        <div className="flex items-center gap-1 shrink-0">
-          <span className="text-xs text-gray-500 mr-0.5">정렬:</span>
-          <button
-            onClick={() => handleSort('change')}
-            className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-              sortField === 'change'
-                ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                : 'text-gray-500 hover:text-gray-300 bg-gray-800/60'
-            }`}
-          >
-            변동률 {sortField === 'change' && (sortDir === 'desc' ? '↓' : '↑')}
-          </button>
-          <button
-            onClick={() => handleSort('time')}
-            className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
-              sortField === 'time'
-                ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                : 'text-gray-500 hover:text-gray-300 bg-gray-800/60'
-            }`}
-          >
-            경기시간 {sortField === 'time' && (sortDir === 'desc' ? '↓' : '↑')}
-          </button>
-        </div>
+        <button
+          onClick={() => handleSort('change')}
+          className={`text-xs px-2 py-1 rounded-md transition-colors ${
+            sortField === 'change'
+              ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+              : 'text-gray-500 hover:text-gray-300 bg-gray-800/60'
+          }`}
+        >
+          변동률{sortField === 'change' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+        </button>
+        <button
+          onClick={() => handleSort('time')}
+          className={`text-xs px-2 py-1 rounded-md transition-colors ${
+            sortField === 'time'
+              ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+              : 'text-gray-500 hover:text-gray-300 bg-gray-800/60'
+          }`}
+        >
+          시간{sortField === 'time' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
+        </button>
       </div>
 
       {/* 결과 카운트 */}
@@ -132,7 +126,7 @@ export default function OddsMovementPage() {
           <p className="text-xs text-gray-600 mt-1">데이터가 축적되면 자동으로 표시됩니다.</p>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3.5">
           {sorted.map((m, i) => (
             <Link key={`${m.match_id}-${m.bookmaker}-${m.outcome}-${i}`} href={`/ai/match/${m.match_id}`}>
               <div className="rounded-xl border border-gray-800 bg-gray-900/60 hover:border-gray-600 hover:bg-gray-900 transition-all cursor-pointer">
