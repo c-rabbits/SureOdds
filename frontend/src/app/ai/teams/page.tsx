@@ -191,7 +191,7 @@ export default function TeamsPage() {
               {/* 공격력 */}
               <div className="flex items-center gap-1">
                 <span className="text-xs text-gray-500">공</span>
-                <div className="w-10 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                <div className="w-7 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-500 rounded-full"
                     style={{ width: `${ratingPct(team.attack_rating)}%` }}
@@ -203,7 +203,7 @@ export default function TeamsPage() {
               {/* 수비력 */}
               <div className="flex items-center gap-1">
                 <span className="text-xs text-gray-500">수</span>
-                <div className="w-10 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                <div className="w-7 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-red-500 rounded-full"
                     style={{ width: `${ratingPct(2 - team.defense_rating)}%` }}
