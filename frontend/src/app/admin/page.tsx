@@ -16,10 +16,12 @@ import {
   createAvailableSite,
   updateAvailableSite,
   deleteAvailableSite,
+  getAdminSettings,
+  updateAdminSetting,
 } from '@/lib/api';
 import { UserProfile, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
 
-type AdminTab = 'users' | 'sites' | 'requests';
+type AdminTab = 'users' | 'sites' | 'requests' | 'settings';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: '대기중', color: 'bg-yellow-900/30 text-yellow-400 border-yellow-800' },
@@ -71,6 +73,11 @@ export default function AdminPage() {
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [editingReqId, setEditingReqId] = useState<string | null>(null);
   const [editAdminNotes, setEditAdminNotes] = useState('');
+
+  // ─── 설정 ───
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingSaving, setSettingSaving] = useState<string | null>(null);
 
   // 비관리자 리다이렉트
   useEffect(() => {
@@ -128,12 +135,25 @@ export default function AdminPage() {
     }
   }, []);
 
+  const loadSettings = useCallback(async () => {
+    try {
+      setSettingsLoading(true);
+      const data = await getAdminSettings();
+      setSettings(data);
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAdmin) return;
     if (activeTab === 'users') loadUsers();
     else if (activeTab === 'sites') loadSites();
     else if (activeTab === 'requests') loadRequests();
-  }, [isAdmin, activeTab, loadUsers, loadSites, loadRequests]);
+    else if (activeTab === 'settings') loadSettings();
+  }, [isAdmin, activeTab, loadUsers, loadSites, loadRequests, loadSettings]);
 
   // ─── 회원 관리 핸들러 ───
   async function handleCreate() {
@@ -321,6 +341,25 @@ export default function AdminPage() {
     }
   }
 
+  // ─── 설정 핸들러 ───
+  function getSettingBool(key: string, defaultVal = false): boolean {
+    const val = settings[key];
+    if (val === undefined || val === null) return defaultVal;
+    try { return JSON.parse(val); } catch { return defaultVal; }
+  }
+
+  async function handleToggleSetting(key: string, currentVal: boolean) {
+    setSettingSaving(key);
+    try {
+      await updateAdminSetting(key, !currentVal);
+      setSettings((prev) => ({ ...prev, [key]: JSON.stringify(!currentVal) }));
+    } catch (err) {
+      console.error('Setting update failed:', err);
+    } finally {
+      setSettingSaving(null);
+    }
+  }
+
   // 유틸
   function formatDate(dateStr: string | null | undefined) {
     if (!dateStr) return '-';
@@ -342,6 +381,7 @@ export default function AdminPage() {
     { key: 'users', label: '회원 관리', count: users.length },
     { key: 'sites', label: '사이트 관리', count: sites.length },
     { key: 'requests', label: '작업요청', count: requests.filter((r) => r.status === 'pending').length },
+    { key: 'settings', label: '설정', count: 0 },
   ];
 
   return (
@@ -922,6 +962,142 @@ export default function AdminPage() {
           </div>
         </>
       )}
+
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* TAB: 설정 */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {activeTab === 'settings' && (
+        <>
+          {settingsLoading ? (
+            <div className="text-center py-8 text-gray-500 text-sm">로딩 중...</div>
+          ) : (
+            <div className="space-y-6">
+              {/* 로그인 보안 */}
+              <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-800">
+                  <h3 className="text-sm font-semibold text-white">로그인 보안</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">중복 로그인 및 세션 관련 설정</p>
+                </div>
+                <div className="divide-y divide-gray-800/50">
+                  {/* 중복 로그인 허용 */}
+                  <SettingToggleRow
+                    label="중복 로그인 허용"
+                    description="같은 계정으로 여러 기기/브라우저에서 동시 로그인 허용"
+                    checked={getSettingBool('allow_concurrent_login', true)}
+                    saving={settingSaving === 'allow_concurrent_login'}
+                    onChange={() => handleToggleSetting('allow_concurrent_login', getSettingBool('allow_concurrent_login', true))}
+                  />
+                  {/* 기존 세션 강제 로그아웃 */}
+                  <SettingToggleRow
+                    label="신규 로그인 시 기존 세션 종료"
+                    description="중복 로그인 불가 시, 새 로그인이 기존 세션을 자동 로그아웃"
+                    checked={getSettingBool('force_logout_on_new_login', true)}
+                    saving={settingSaving === 'force_logout_on_new_login'}
+                    onChange={() => handleToggleSetting('force_logout_on_new_login', getSettingBool('force_logout_on_new_login', true))}
+                    disabled={getSettingBool('allow_concurrent_login', true)}
+                  />
+                  {/* 최대 동시 세션 수 제한 */}
+                  <SettingToggleRow
+                    label="최대 동시 세션 수 제한"
+                    description="중복 로그인 허용 시, 동시 접속 가능한 최대 기기 수 제한 (3대)"
+                    checked={getSettingBool('limit_max_sessions', false)}
+                    saving={settingSaving === 'limit_max_sessions'}
+                    onChange={() => handleToggleSetting('limit_max_sessions', getSettingBool('limit_max_sessions', false))}
+                    disabled={!getSettingBool('allow_concurrent_login', true)}
+                  />
+                </div>
+              </div>
+
+              {/* 알림 설정 */}
+              <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-800">
+                  <h3 className="text-sm font-semibold text-white">알림</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">푸시 알림 및 텔레그램 설정</p>
+                </div>
+                <div className="divide-y divide-gray-800/50">
+                  <SettingToggleRow
+                    label="웹 푸시 알림"
+                    description="브라우저 푸시 알림 전체 활성화/비활성화"
+                    checked={getSettingBool('enable_web_push', true)}
+                    saving={settingSaving === 'enable_web_push'}
+                    onChange={() => handleToggleSetting('enable_web_push', getSettingBool('enable_web_push', true))}
+                  />
+                  <SettingToggleRow
+                    label="텔레그램 알림"
+                    description="텔레그램 봇 알림 전체 활성화/비활성화"
+                    checked={getSettingBool('enable_telegram', true)}
+                    saving={settingSaving === 'enable_telegram'}
+                    onChange={() => handleToggleSetting('enable_telegram', getSettingBool('enable_telegram', true))}
+                  />
+                </div>
+              </div>
+
+              {/* 시스템 */}
+              <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-800">
+                  <h3 className="text-sm font-semibold text-white">시스템</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">유지보수 및 접근 제어</p>
+                </div>
+                <div className="divide-y divide-gray-800/50">
+                  <SettingToggleRow
+                    label="유지보수 모드"
+                    description="활성화 시 관리자 외 모든 접근 차단"
+                    checked={getSettingBool('maintenance_mode', false)}
+                    saving={settingSaving === 'maintenance_mode'}
+                    onChange={() => handleToggleSetting('maintenance_mode', getSettingBool('maintenance_mode', false))}
+                  />
+                  <SettingToggleRow
+                    label="신규 가입 허용"
+                    description="새로운 사용자 자체 가입 허용 (관리자 생성은 항상 가능)"
+                    checked={getSettingBool('allow_signup', false)}
+                    saving={settingSaving === 'allow_signup'}
+                    onChange={() => handleToggleSetting('allow_signup', getSettingBool('allow_signup', false))}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── 설정 토글 행 컴포넌트 ───
+function SettingToggleRow({
+  label,
+  description,
+  checked,
+  saving,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  saving: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}>
+      <div className="flex-1 min-w-0 mr-3">
+        <div className="text-sm text-white font-medium">{label}</div>
+        <div className="text-[11px] text-gray-500 mt-0.5">{description}</div>
+      </div>
+      <button
+        onClick={onChange}
+        disabled={saving || disabled}
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
+          checked ? 'bg-green-500' : 'bg-gray-600'
+        } ${saving ? 'opacity-50' : ''}`}
+      >
+        <span
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+            checked ? 'translate-x-4.5' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
     </div>
   );
 }

@@ -489,5 +489,18 @@ export async function unlinkTelegram(): Promise<void> {
   await api.delete('/api/telegram/link');
 }
 
+// ============================================================
+// 관리자 설정
+// ============================================================
+
+export async function getAdminSettings(): Promise<Record<string, string>> {
+  const { data } = await api.get('/api/admin/settings');
+  return data.data;
+}
+
+export async function updateAdminSetting(key: string, value: unknown): Promise<void> {
+  await api.patch('/api/admin/settings', { key, value });
+}
+
 // axios 인스턴스 export (aiApi.ts에서 재사용)
 export { api };

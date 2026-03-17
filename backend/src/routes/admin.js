@@ -384,4 +384,57 @@ router.delete('/available-sites/:id', async (req, res) => {
   }
 });
 
+// ============================================================
+// 앱 설정 (app_settings 테이블)
+// ============================================================
+
+// GET /api/admin/settings - 전체 설정 조회
+router.get('/settings', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('*');
+
+    if (error) throw error;
+
+    // key-value 형태로 변환
+    const settings = {};
+    (data || []).forEach((row) => {
+      settings[row.key] = row.value;
+    });
+
+    res.json({ success: true, data: settings });
+  } catch (err) {
+    // 테이블이 없으면 기본값 반환
+    log.error('Get settings error', { error: err.message });
+    res.json({ success: true, data: {} });
+  }
+});
+
+// PATCH /api/admin/settings - 설정 변경 (upsert)
+router.patch('/settings', async (req, res) => {
+  try {
+    const { key, value } = req.body;
+
+    if (!key) {
+      return res.status(400).json({ success: false, error: '설정 키가 필요합니다.' });
+    }
+
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(
+        { key, value: JSON.stringify(value), updated_at: new Date().toISOString(), updated_by: req.user.id },
+        { onConflict: 'key' }
+      );
+
+    if (error) throw error;
+
+    log.info(`Setting updated: ${key} = ${JSON.stringify(value)} by ${req.user.id}`);
+    res.json({ success: true });
+  } catch (err) {
+    log.error('Update setting error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
