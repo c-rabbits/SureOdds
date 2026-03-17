@@ -106,28 +106,33 @@ async function requireAuth(req, res, next) {
 
         if (!allowConcurrent) {
           const tokenPrefix = token.substring(0, 50);
-          const { data: session } = await supabase
+
+          // 이 유저의 유효 세션이 하나라도 있는지 확인
+          const { data: allSessions } = await supabase
             .from('active_sessions')
-            .select('id, is_valid')
+            .select('id, session_token, is_valid')
             .eq('user_id', user.id)
-            .eq('session_token', tokenPrefix)
-            .eq('is_valid', true)
-            .single();
+            .eq('is_valid', true);
 
-          if (!session) {
-            // 이 토큰에 해당하는 유효 세션이 없음 → 다른 기기에서 로그인됨
-            return res.status(401).json({
-              success: false,
-              error: '다른 기기에서 로그인되어 현재 세션이 종료되었습니다.',
-              code: 'SESSION_EXPIRED',
-            });
+          if (allSessions && allSessions.length > 0) {
+            // 유효 세션이 있지만 현재 토큰과 일치하는 게 없으면 → 다른 기기에서 로그인됨
+            const mySession = allSessions.find(s => s.session_token === tokenPrefix);
+
+            if (!mySession) {
+              return res.status(401).json({
+                success: false,
+                error: '다른 기기에서 로그인되어 현재 세션이 종료되었습니다.',
+                code: 'SESSION_EXPIRED',
+              });
+            }
+
+            // last_seen_at 업데이트
+            await supabase
+              .from('active_sessions')
+              .update({ last_seen_at: new Date().toISOString() })
+              .eq('id', mySession.id);
           }
-
-          // last_seen_at 업데이트 (5분 간격)
-          await supabase
-            .from('active_sessions')
-            .update({ last_seen_at: new Date().toISOString() })
-            .eq('id', session.id);
+          // allSessions가 비어있으면 → 아직 세션 등록 전 (로그인 직후) → 통과
         }
       } catch {
         // active_sessions 테이블 없거나 조회 실패 시 통과

@@ -108,14 +108,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (identifier: string, password: string) => {
     // 아이디(@없음) → 내부 이메일로 변환, 이메일(@포함) → 그대로 사용
     const email = identifier.includes('@') ? identifier : `${identifier}@sureodds.local`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
 
-    // 세션 등록 (중복 로그인 제어)
-    try {
-      await registerLoginSession();
-    } catch {
-      // 세션 등록 실패해도 로그인은 성공 처리
+    // 세션 등록 (중복 로그인 제어) — onAuthStateChange보다 먼저 등록
+    if (data.session?.access_token) {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/login`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${data.session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        const json = await res.json();
+        if (json.success && json.data) {
+          setUser(json.data);
+        }
+      } catch {
+        // 세션 등록 실패해도 로그인은 성공 처리
+      }
     }
 
     return { error: null };
