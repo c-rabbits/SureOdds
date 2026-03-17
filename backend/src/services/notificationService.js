@@ -30,7 +30,7 @@ function buildPushPayload(type, payload) {
         title: `⚡ 양방 +${opportunity.profit_percent.toFixed(1)}%`,
         body: `${match.home_team} vs ${match.away_team}`,
         icon: '/icon-192.png',
-        url: '/',
+        url: `/?match=${match.id}`,
         tag: `arb-${match.id}`,
       };
     }

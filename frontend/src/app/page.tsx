@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { MatchWithOdds, TableRow, QuotaInfo } from '@/types';
 import { getMatchesWithOdds, getArbitrage, triggerCollection, getApiQuota, invalidateCache } from '@/lib/api';
 import { flattenMatchesToRows } from '@/lib/utils';
@@ -15,6 +16,7 @@ import { DashboardSkeleton } from '@/components/Skeleton';
 
 export default function HomePage() {
   const { isAdmin } = useAuth();
+  const searchParams = useSearchParams();
   const [matches, setMatches] = useState<MatchWithOdds[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,6 +24,7 @@ export default function HomePage() {
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null);
   const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
+  const autoSelectedRef = useRef(false);
 
   const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker } = useFilters();
 
@@ -91,6 +94,17 @@ export default function HomePage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Auto-select match from URL query param (e.g., /?match=xxx from notification click)
+  useEffect(() => {
+    const matchId = searchParams.get('match');
+    if (!matchId || autoSelectedRef.current || rows.length === 0) return;
+    const targetRow = rows.find((r) => r.matchId === matchId);
+    if (targetRow) {
+      setSelectedRow(targetRow);
+      autoSelectedRef.current = true;
+    }
+  }, [searchParams, rows]);
 
   // Auto-refresh every 60s
   useEffect(() => {
