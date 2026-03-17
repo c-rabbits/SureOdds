@@ -57,9 +57,9 @@ router.get('/users', async (req, res) => {
 // ============================================================
 router.post('/users', async (req, res) => {
   try {
-    const { email, username, password, display_name, role = 'user' } = req.body;
+    const { email, username, password, display_name, role = 'vip1' } = req.body;
 
-    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_vip1', 'test_vip2', 'test_vip3', 'test_vip4', 'test_vip5', 'user'];
+    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_vip1', 'test_vip2', 'test_vip3', 'test_vip4', 'test_vip5'];
     if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({
         success: false,
@@ -107,13 +107,13 @@ router.post('/users', async (req, res) => {
       user_metadata: {
         display_name: userDisplayName,
         role,
-        username: role === 'user' ? username : undefined,
+        username: role !== 'admin' ? username : undefined,
       },
     });
 
     if (error) {
       // 중복 이메일 에러를 아이디 중복으로 변환
-      if (error.message.includes('already been registered') && role === 'user') {
+      if (error.message.includes('already been registered') && role !== 'admin') {
         throw new Error('이미 사용 중인 아이디입니다.');
       }
       throw error;
@@ -125,7 +125,7 @@ router.post('/users', async (req, res) => {
       .update({
         role,
         display_name: userDisplayName,
-        username: role === 'user' ? username : null,
+        username: role !== 'admin' ? username : null,
       })
       .eq('id', data.user.id);
 
@@ -134,7 +134,7 @@ router.post('/users', async (req, res) => {
       data: {
         id: data.user.id,
         email: authEmail,
-        username: role === 'user' ? username : null,
+        username: role !== 'admin' ? username : null,
         role,
         display_name: userDisplayName,
       },
@@ -153,7 +153,7 @@ router.patch('/users/:id', async (req, res) => {
     const { role, is_active, display_name } = req.body;
     const updates = {};
 
-    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_vip1', 'test_vip2', 'test_vip3', 'test_vip4', 'test_vip5', 'user'];
+    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_vip1', 'test_vip2', 'test_vip3', 'test_vip4', 'test_vip5'];
     if (role !== undefined) {
       if (!VALID_ROLES.includes(role)) {
         return res.status(400).json({ success: false, error: `유효하지 않은 역할입니다.` });

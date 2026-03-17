@@ -36,7 +36,6 @@ const ROLE_OPTIONS: { value: UserRole; label: string; color: string }[] = [
   { value: 'test_vip3', label: 'T-VIP3', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
   { value: 'test_vip2', label: 'T-VIP2', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
   { value: 'test_vip1', label: 'T-VIP1', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
-  { value: 'user', label: '일반', color: 'bg-gray-700/50 text-gray-400 border-gray-600/30' },
 ];
 
 function getRoleStyle(role: string) {
@@ -69,7 +68,7 @@ export default function AdminPage() {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<UserRole>('user');
+  const [newRole, setNewRole] = useState<UserRole>('vip1');
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
   // 비밀번호 변경
@@ -182,15 +181,16 @@ export default function AdminPage() {
   // ─── 회원 관리 핸들러 ───
   async function handleCreate() {
     setCreateError('');
-    if (newRole === 'admin' && !newEmail) {
+    const isAdminRole = newRole === 'admin';
+    if (isAdminRole && !newEmail) {
       setCreateError('관리자는 이메일이 필수입니다.');
       return;
     }
-    if (newRole !== 'admin' && !newUsername) {
+    if (!isAdminRole && !newUsername) {
       setCreateError('아이디는 필수입니다.');
       return;
     }
-    if (newRole !== 'admin' && !/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
+    if (!isAdminRole && !/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
       setCreateError('아이디는 영문, 숫자, 밑줄(_)만 사용하여 3~20자로 입력하세요.');
       return;
     }
@@ -200,11 +200,11 @@ export default function AdminPage() {
     }
     setCreating(true);
     try {
-      const payload = newRole === 'admin'
+      const payload = isAdminRole
         ? { email: newEmail, password: newPassword, display_name: newName || undefined, role: newRole }
         : { username: newUsername, password: newPassword, display_name: newName || undefined, role: newRole };
       await createUser(payload);
-      setNewEmail(''); setNewUsername(''); setNewPassword(''); setNewName(''); setNewRole('user');
+      setNewEmail(''); setNewUsername(''); setNewPassword(''); setNewName(''); setNewRole('vip1');
       setShowCreateForm(false);
       await loadUsers();
     } catch (err: unknown) {
