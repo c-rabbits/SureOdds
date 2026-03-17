@@ -126,7 +126,7 @@ export default function OddsMovementPage() {
           <p className="text-xs text-gray-600 mt-1">데이터가 축적되면 자동으로 표시됩니다.</p>
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div className="space-y-2.5">
           {sorted.map((m, i) => (
             <Link key={`${m.match_id}-${m.bookmaker}-${m.outcome}-${i}`} href={`/ai/match/${m.match_id}`}>
               <div className="rounded-xl border border-gray-800 bg-gray-900/60 hover:border-gray-600 hover:bg-gray-900 transition-all cursor-pointer">
