@@ -134,11 +134,6 @@ router.post('/logout', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/auth/session-check - 세션 유효성 체크 (폴링용)
-router.get('/session-check', requireAuth, async (req, res) => {
-  res.json({ success: true, valid: true });
-});
-
 // PATCH /api/auth/me - 닉네임 변경
 router.patch('/me', requireAuth, async (req, res) => {
   try {
