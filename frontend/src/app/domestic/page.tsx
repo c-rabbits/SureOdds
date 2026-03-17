@@ -287,26 +287,6 @@ export default function DomesticPage() {
           </p>
         </div>
 
-        {/* Stats bar */}
-        <div className="grid grid-cols-4 gap-3">
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-white">{matches.length}</div>
-            <div className="text-xs text-gray-400">전체 경기</div>
-          </div>
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-blue-400">{domesticOddsCount}</div>
-            <div className="text-xs text-gray-400">국내 배당</div>
-          </div>
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-green-400">{rounds.length}</div>
-            <div className="text-xs text-gray-400">프로토 회차</div>
-          </div>
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-400">{sites.filter((s) => s.is_active).length}/{sites.length}</div>
-            <div className="text-xs text-gray-400">등록 사이트</div>
-          </div>
-        </div>
-
         {/* ─── Section 1: 기본 배당 소스 (자동 수집) ─── */}
         <div className="card p-5">
           <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
