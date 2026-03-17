@@ -613,7 +613,7 @@ export default function AdminPage() {
                         <button onClick={() => handleToggleAvailableSite(as)}
                           className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors flex-shrink-0 ${as.is_active ? 'bg-green-600' : 'bg-gray-600'}`}
                           title={as.is_active ? 'ON' : 'OFF'}>
-                          <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${as.is_active ? 'translate-x-[16px]' : 'translate-x-[2px]'}`} />
+                          <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${as.is_active ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                         </button>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs text-white font-medium truncate">{as.site_name}</div>
@@ -1086,7 +1086,7 @@ function SettingToggleRow({
       >
         <span
           className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-            checked ? 'translate-x-[18px]' : 'translate-x-[2px]'
+            checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
           }`}
         />
       </button>
