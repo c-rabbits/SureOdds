@@ -122,6 +122,15 @@ api.interceptors.response.use(
 
     // 401: 로그인 페이지로 리다이렉트
     if (status === 401) {
+      const code = error.response?.data && (error.response.data as { code?: string }).code;
+      if (code === 'SESSION_EXPIRED') {
+        // 중복 로그인으로 세션 만료
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          alert('다른 기기에서 로그인되어 현재 세션이 종료되었습니다.');
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
         window.location.href = '/login';
       }
@@ -304,6 +313,12 @@ export async function getCurrentUser(): Promise<UserProfile> {
 
 export async function updateMyProfile(payload: { display_name: string }): Promise<UserProfile> {
   const { data } = await api.patch('/api/auth/me', payload);
+  return data.data;
+}
+
+/** 로그인 후 세션 등록 (중복 로그인 제어용) */
+export async function registerLoginSession(): Promise<UserProfile> {
+  const { data } = await api.post('/api/auth/login');
   return data.data;
 }
 

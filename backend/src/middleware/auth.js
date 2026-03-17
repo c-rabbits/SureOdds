@@ -16,6 +16,21 @@ const isSupabaseConfigured = !!(supabaseUrl && supabaseServiceKey);
 const supabase = require('../config/supabase');
 
 /**
+ * 헬퍼: app_settings에서 설정값 읽기
+ */
+async function getSettingValue(sb, key, defaultValue) {
+  try {
+    const { data } = await sb
+      .from('app_settings')
+      .select('value')
+      .eq('key', key)
+      .single();
+    if (data) return JSON.parse(data.value);
+  } catch { /* ignore */ }
+  return defaultValue;
+}
+
+/**
  * JWT 토큰 검증 + 프로필 조회 미들웨어
  * Authorization: Bearer <token> 헤더 필요
  */
@@ -82,6 +97,42 @@ async function requireAuth(req, res, next) {
       email: user.email,
       profile,
     };
+
+    // 중복 로그인 세션 유효성 체크 (관리자는 통과, /api/auth/login은 제외)
+    const isLoginRoute = req.originalUrl === '/api/auth/login';
+    if (profile.role !== 'admin' && !isLoginRoute) {
+      try {
+        const allowConcurrent = await getSettingValue(supabase, 'allow_concurrent_login', true);
+
+        if (!allowConcurrent) {
+          const tokenPrefix = token.substring(0, 50);
+          const { data: session } = await supabase
+            .from('active_sessions')
+            .select('id, is_valid')
+            .eq('user_id', user.id)
+            .eq('session_token', tokenPrefix)
+            .eq('is_valid', true)
+            .single();
+
+          if (!session) {
+            // 이 토큰에 해당하는 유효 세션이 없음 → 다른 기기에서 로그인됨
+            return res.status(401).json({
+              success: false,
+              error: '다른 기기에서 로그인되어 현재 세션이 종료되었습니다.',
+              code: 'SESSION_EXPIRED',
+            });
+          }
+
+          // last_seen_at 업데이트 (5분 간격)
+          await supabase
+            .from('active_sessions')
+            .update({ last_seen_at: new Date().toISOString() })
+            .eq('id', session.id);
+        }
+      } catch {
+        // active_sessions 테이블 없거나 조회 실패 시 통과
+      }
+    }
 
     // 유지보수 모드 체크 (관리자는 통과)
     if (profile.role !== 'admin') {

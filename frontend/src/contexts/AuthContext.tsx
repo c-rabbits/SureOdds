@@ -11,6 +11,7 @@ import {
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types';
+import { registerLoginSession } from '@/lib/api';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -44,6 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (json.success) {
           setUser(json.data);
           setMaintenance(false);
+          return;
+        }
+      }
+      // 401 + SESSION_EXPIRED → 다른 기기에서 로그인됨
+      if (res.status === 401) {
+        const json = await res.json().catch(() => ({}));
+        if (json.code === 'SESSION_EXPIRED') {
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          if (typeof window !== 'undefined') {
+            alert('다른 기기에서 로그인되어 현재 세션이 종료되었습니다.');
+            window.location.href = '/login';
+          }
           return;
         }
       }
@@ -94,7 +109,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 아이디(@없음) → 내부 이메일로 변환, 이메일(@포함) → 그대로 사용
     const email = identifier.includes('@') ? identifier : `${identifier}@sureodds.local`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message || null };
+    if (error) return { error: error.message };
+
+    // 세션 등록 (중복 로그인 제어)
+    try {
+      await registerLoginSession();
+    } catch {
+      // 세션 등록 실패해도 로그인은 성공 처리
+    }
+
+    return { error: null };
   }, []);
 
   const signOut = useCallback(async () => {
