@@ -64,16 +64,19 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
 
     if (filters.sourceFilter && filters.sourceFilter !== 'all') {
       if (filters.sourceFilter === 'cross') {
+        // 혼합: 국내 vs 해외 조합
         result = result.filter((r) => r.isCrossSource);
       } else if (filters.sourceFilter === 'domestic') {
+        // 국내: 양쪽 모두 국내 북메이커
         result = result.filter((r) => {
           const bookmakers = [r.bestOutcome1?.bookmaker, r.bestOutcome2?.bookmaker, r.bestDraw?.bookmaker].filter(Boolean);
-          return bookmakers.some((b) => isDomesticBookmaker(b!));
+          return bookmakers.length > 0 && bookmakers.every((b) => isDomesticBookmaker(b!));
         });
       } else if (filters.sourceFilter === 'international') {
+        // 해외: 양쪽 모두 해외 북메이커
         result = result.filter((r) => {
           const bookmakers = [r.bestOutcome1?.bookmaker, r.bestOutcome2?.bookmaker, r.bestDraw?.bookmaker].filter(Boolean);
-          return bookmakers.every((b) => !isDomesticBookmaker(b!));
+          return bookmakers.length > 0 && bookmakers.every((b) => !isDomesticBookmaker(b!));
         });
       }
     }
