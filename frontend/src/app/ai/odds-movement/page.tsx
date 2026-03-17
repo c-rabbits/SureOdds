@@ -64,7 +64,7 @@ export default function OddsMovementPage() {
       </div>
 
       {/* 필터 바 */}
-      <div className="flex items-center gap-3 mb-4 overflow-x-auto pb-0.5">
+      <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-0.5">
         {/* 기간 필터 */}
         {[6, 12, 24, 48].map((h) => (
           <button
