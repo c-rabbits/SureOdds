@@ -180,32 +180,14 @@ export default function TeamsPage() {
           ))}
         </div>
 
-        {/* Team Rows — 모바일 2줄 레이아웃 */}
+        {/* Team Rows */}
         {filtered.map((team, idx) => (
           <div
             key={team.id}
-            className="px-3 py-2.5 border-t border-gray-800/50 hover:bg-gray-800/40 transition-colors"
+            className="px-3 pr-4 py-2.5 border-t border-gray-800/50 hover:bg-gray-800/40 transition-colors"
           >
-            {/* 1행: 순위 + 팀명 + ELO */}
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="text-xs text-gray-500 font-mono w-5 shrink-0">{idx + 1}</span>
-                <div className="min-w-0">
-                  <span className="text-sm font-medium text-white truncate block">
-                    {getKoreanTeamName(team.team_name)}
-                  </span>
-                  {selectedLeague === 'all' && (
-                    <span className="text-[10px] text-gray-500">{team.league}</span>
-                  )}
-                </div>
-              </div>
-              <div className={`text-sm font-bold font-mono shrink-0 ${eloColor(team.elo_rating)}`}>
-                {Math.round(team.elo_rating)}
-              </div>
-            </div>
-
-            {/* 2행: 공격 · 수비 · 폼 · 득실 */}
-            <div className="flex items-center gap-3 ml-7">
+            {/* 1행: 공격력/수비력/폼 */}
+            <div className="flex items-center gap-2.5 mb-1.5">
               {/* 공격력 */}
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-gray-500">공</span>
@@ -247,6 +229,24 @@ export default function TeamsPage() {
                 <span className="text-green-400">{team.avg_goals_scored?.toFixed(1)}</span>
                 <span className="text-gray-600">/</span>
                 <span className="text-red-400">{team.avg_goals_conceded?.toFixed(1)}</span>
+              </div>
+            </div>
+
+            {/* 2행: 순위 + 팀명 + ELO */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="text-xs text-gray-500 font-mono w-5 shrink-0">{idx + 1}</span>
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-white truncate block">
+                    {getKoreanTeamName(team.team_name)}
+                  </span>
+                  {selectedLeague === 'all' && (
+                    <span className="text-[10px] text-gray-500">{team.league}</span>
+                  )}
+                </div>
+              </div>
+              <div className={`text-sm font-bold font-mono shrink-0 ${eloColor(team.elo_rating)}`}>
+                {Math.round(team.elo_rating)}
               </div>
             </div>
           </div>

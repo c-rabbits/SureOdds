@@ -33,7 +33,7 @@ export default function AiLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col h-full">
       <AiSubNav />
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {children}
       </div>
     </div>

@@ -15,8 +15,8 @@ export default function PredictionCard({ match }: Props) {
   const valueBetCount = p?.value_bets?.length ?? 0;
 
   return (
-    <Link href={`/ai/match/${match.id}`} className="block">
-      <div className="rounded-lg border border-gray-800 bg-gray-900/80 p-3 hover:border-gray-600 hover:bg-gray-900 transition-all">
+    <Link href={`/ai/match/${match.id}`} className="block min-w-0">
+      <div className="rounded-lg border border-gray-800 bg-gray-900/80 p-3 hover:border-gray-600 hover:bg-gray-900 transition-all overflow-hidden">
         {/* 상단: 리그 + 시간 */}
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-1.5 text-[10px] text-gray-500 min-w-0 flex-1">
