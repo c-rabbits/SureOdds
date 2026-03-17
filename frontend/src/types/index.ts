@@ -106,7 +106,7 @@ export interface FilterState {
 // ============================================================
 // Auth types
 // ============================================================
-export type UserRole = 'admin' | 'vip1' | 'vip2' | 'vip3' | 'vip4' | 'vip5' | 'test_account' | 'user';
+export type UserRole = 'admin' | 'vip1' | 'vip2' | 'vip3' | 'vip4' | 'vip5' | 'test_vip1' | 'test_vip2' | 'test_vip3' | 'test_vip4' | 'test_vip5' | 'user';
 
 export interface UserProfile {
   id: string;

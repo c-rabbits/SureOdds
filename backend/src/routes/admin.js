@@ -59,7 +59,7 @@ router.post('/users', async (req, res) => {
   try {
     const { email, username, password, display_name, role = 'user' } = req.body;
 
-    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_account', 'user'];
+    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_vip1', 'test_vip2', 'test_vip3', 'test_vip4', 'test_vip5', 'user'];
     if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({
         success: false,
@@ -153,7 +153,7 @@ router.patch('/users/:id', async (req, res) => {
     const { role, is_active, display_name } = req.body;
     const updates = {};
 
-    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_account', 'user'];
+    const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_vip1', 'test_vip2', 'test_vip3', 'test_vip4', 'test_vip5', 'user'];
     if (role !== undefined) {
       if (!VALID_ROLES.includes(role)) {
         return res.status(400).json({ success: false, error: `유효하지 않은 역할입니다.` });

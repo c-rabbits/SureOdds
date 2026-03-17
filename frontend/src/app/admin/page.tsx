@@ -31,7 +31,11 @@ const ROLE_OPTIONS: { value: UserRole; label: string; color: string }[] = [
   { value: 'vip3', label: 'VIP 3', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
   { value: 'vip2', label: 'VIP 2', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
   { value: 'vip1', label: 'VIP 1', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  { value: 'test_account', label: '테스트', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+  { value: 'test_vip5', label: 'T-VIP5', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+  { value: 'test_vip4', label: 'T-VIP4', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+  { value: 'test_vip3', label: 'T-VIP3', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+  { value: 'test_vip2', label: 'T-VIP2', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+  { value: 'test_vip1', label: 'T-VIP1', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
   { value: 'user', label: '일반', color: 'bg-gray-700/50 text-gray-400 border-gray-600/30' },
 ];
 

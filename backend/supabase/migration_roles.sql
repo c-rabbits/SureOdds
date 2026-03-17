@@ -4,4 +4,4 @@
 -- 기존 CHECK 제약 삭제 후 새로 추가
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
-  CHECK (role IN ('admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_account', 'user'));
+  CHECK (role IN ('admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_vip1', 'test_vip2', 'test_vip3', 'test_vip4', 'test_vip5', 'user'));
