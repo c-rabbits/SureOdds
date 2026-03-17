@@ -20,7 +20,7 @@ const aiLink = { href: '/ai', label: 'AI 예측' };
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const navLinks = [
     ...baseLinks,
@@ -66,20 +66,20 @@ export default function Navbar() {
           {user && (
             <>
               <NotificationBadge />
-              <span className="text-[11px] text-gray-400 hidden sm:inline">
-                {user.display_name || user.email}
-              </span>
-              <button
-                onClick={() => signOut()}
-                className="p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
-                title="로그아웃"
+              <Link
+                href="/profile"
+                className={`p-1.5 rounded-md transition-colors ${
+                  pathname === '/profile'
+                    ? 'text-white bg-gray-700'
+                    : 'text-gray-500 hover:text-white hover:bg-gray-800'
+                }`}
+                title="프로필"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
-              </button>
+              </Link>
             </>
           )}
         </div>

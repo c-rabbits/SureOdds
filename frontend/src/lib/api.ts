@@ -302,6 +302,11 @@ export async function getCurrentUser(): Promise<UserProfile> {
   return data.data;
 }
 
+export async function updateMyProfile(payload: { display_name: string }): Promise<UserProfile> {
+  const { data } = await api.patch('/api/auth/me', payload);
+  return data.data;
+}
+
 // ============================================================
 // Admin API
 // ============================================================
