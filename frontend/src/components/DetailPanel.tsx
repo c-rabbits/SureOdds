@@ -255,7 +255,7 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
                   .map((g) => g.handicapPoint);
                 setActivePoint(pts[0] ?? null);
               }}
-              className={`tab ${activeMarket === mt ? 'tab-active' : 'tab-inactive'}`}
+              className={`tab whitespace-nowrap ${activeMarket === mt ? 'tab-active' : 'tab-inactive'}`}
             >
               {getMarketLabel(mt)}
             </button>
