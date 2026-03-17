@@ -31,10 +31,10 @@ export default function ProfilePage() {
   const handleTelegramLink = async () => {
     try {
       const res = await generateTelegramLink();
-      if (res.bot_url) {
-        setTgBotUrl(res.bot_url);
+      if (res.link) {
+        setTgBotUrl(res.link);
         setTgLinking(true);
-        window.open(res.bot_url, '_blank');
+        window.open(res.link, '_blank');
         // 5초 간격으로 연동 상태 폴링 (2분 제한)
         let elapsed = 0;
         tgPollRef.current = setInterval(async () => {
