@@ -7,7 +7,7 @@ import NotificationBadge from './NotificationBadge';
 
 const baseLinks = [
   { href: '/', label: '대시보드' },
-  { href: '/domestic', label: '국내' },
+  { href: '/domestic', label: '사이트' },
   { href: '/calculator', label: '계산기' },
 ];
 
