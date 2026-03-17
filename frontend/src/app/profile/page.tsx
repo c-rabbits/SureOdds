@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateMyProfile } from '@/lib/api';
+import { updateMyProfile, generateTelegramLink, getTelegramStatus, unlinkTelegram } from '@/lib/api';
 
 export default function ProfilePage() {
   const { user, isAdmin, signOut } = useAuth();
@@ -10,6 +10,62 @@ export default function ProfilePage() {
   const [nickname, setNickname] = useState(user?.display_name || '');
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState(user?.display_name || '');
+
+  // 텔레그램 연동
+  const [tgLinked, setTgLinked] = useState(!!user?.telegram_chat_id);
+  const [tgLinking, setTgLinking] = useState(false);
+  const [tgBotUrl, setTgBotUrl] = useState('');
+  const [tgUnlinking, setTgUnlinking] = useState(false);
+  const tgPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    setTgLinked(!!user?.telegram_chat_id);
+  }, [user?.telegram_chat_id]);
+
+  useEffect(() => {
+    return () => {
+      if (tgPollRef.current) clearInterval(tgPollRef.current);
+    };
+  }, []);
+
+  const handleTelegramLink = async () => {
+    try {
+      const res = await generateTelegramLink();
+      if (res.bot_url) {
+        setTgBotUrl(res.bot_url);
+        setTgLinking(true);
+        window.open(res.bot_url, '_blank');
+        // 5초 간격으로 연동 상태 폴링 (2분 제한)
+        let elapsed = 0;
+        tgPollRef.current = setInterval(async () => {
+          elapsed += 5000;
+          if (elapsed > 120000) {
+            if (tgPollRef.current) clearInterval(tgPollRef.current);
+            setTgLinking(false);
+            return;
+          }
+          try {
+            const status = await getTelegramStatus();
+            if (status.linked) {
+              if (tgPollRef.current) clearInterval(tgPollRef.current);
+              setTgLinked(true);
+              setTgLinking(false);
+            }
+          } catch { /* ignore */ }
+        }, 5000);
+      }
+    } catch { /* error */ }
+  };
+
+  const handleTelegramUnlink = async () => {
+    if (!confirm('텔레그램 연동을 해제하시겠습니까?')) return;
+    setTgUnlinking(true);
+    try {
+      await unlinkTelegram();
+      setTgLinked(false);
+    } catch { /* error */ }
+    setTgUnlinking(false);
+  };
 
   if (!user) return null;
 
@@ -148,26 +204,60 @@ export default function ProfilePage() {
 
       {/* 연동 서비스 */}
       <Section title="연동 서비스" icon={<LinkIcon />}>
-        <div className="flex items-center justify-between py-2.5">
-          <div className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
-              <path d="m22 2-7 20-4-9-9-4z" />
-              <path d="M22 2 11 13" />
-            </svg>
-            <span className="text-xs text-gray-300">Telegram</span>
-          </div>
-          {user.telegram_chat_id ? (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-green-500/15 text-green-400 flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6 9 17l-5-5" />
+        <div className="py-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                <path d="m22 2-7 20-4-9-9-4z" />
+                <path d="M22 2 11 13" />
               </svg>
-              연동됨
-            </span>
-          ) : (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-gray-700/50 text-gray-500">
-              미연동
-            </span>
-          )}
+              <span className="text-xs text-gray-300">Telegram</span>
+            </div>
+            {tgLinked ? (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-green-500/15 text-green-400 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                연동됨
+              </span>
+            ) : (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-gray-700/50 text-gray-500">
+                미연동
+              </span>
+            )}
+          </div>
+          {/* 텔레그램 액션 버튼 */}
+          <div className="mt-2.5">
+            {tgLinked ? (
+              <button
+                onClick={handleTelegramUnlink}
+                disabled={tgUnlinking}
+                className="w-full py-2 rounded-lg bg-gray-800 border border-gray-700/50 text-[11px] text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-colors disabled:opacity-50"
+              >
+                {tgUnlinking ? '해제 중...' : '연동 해제'}
+              </button>
+            ) : tgLinking ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                  <span className="text-[11px] text-blue-400">텔레그램 봇에서 시작 버튼을 눌러주세요</span>
+                </div>
+                <button
+                  onClick={() => window.open(tgBotUrl, '_blank')}
+                  className="w-full py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-[11px] text-blue-400 hover:bg-blue-600/30 transition-colors"
+                >
+                  텔레그램 봇 열기
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleTelegramLink}
+                className="w-full py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-[11px] text-blue-400 hover:bg-blue-600/30 transition-colors"
+              >
+                텔레그램 연동하기
+              </button>
+            )}
+          </div>
         </div>
       </Section>
 
