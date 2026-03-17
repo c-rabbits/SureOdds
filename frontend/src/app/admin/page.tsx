@@ -602,48 +602,40 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* 목록 */}
+            {/* 목록 — 카드 형태 */}
             {availableSites.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-700 text-gray-400">
-                      <th className="text-left py-1.5 px-2">상태</th>
-                      <th className="text-left py-1.5 px-2">사이트명</th>
-                      <th className="text-left py-1.5 px-2">URL</th>
-                      <th className="text-left py-1.5 px-2">설명</th>
-                      <th className="text-center py-1.5 px-2">사용자</th>
-                      <th className="text-center py-1.5 px-2">작업</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {availableSites.map((as) => (
-                      <tr key={as.id} className={`border-b border-gray-800 ${!as.is_active ? 'opacity-40' : ''}`}>
-                        <td className="py-1.5 px-2">
-                          <button onClick={() => handleToggleAvailableSite(as)}
-                            className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${as.is_active ? 'bg-green-600' : 'bg-gray-600'}`}
-                            title={as.is_active ? 'ON - 클릭하여 비활성화' : 'OFF - 클릭하여 활성화'}>
-                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${as.is_active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                          </button>
-                        </td>
-                        <td className="py-1.5 px-2 text-white font-medium">{as.site_name}</td>
-                        <td className="py-1.5 px-2 text-gray-400">{as.site_url}</td>
-                        <td className="py-1.5 px-2 text-gray-500">{as.description || '-'}</td>
-                        <td className="py-1.5 px-2 text-center">
-                          {getSiteUserCount(as.site_url) > 0 ? (
-                            <span className="text-green-400 font-medium">{getSiteUserCount(as.site_url)}명</span>
-                          ) : (
-                            <span className="text-gray-600">0</span>
-                          )}
-                        </td>
-                        <td className="py-1.5 px-2 text-center">
-                          <button onClick={() => handleDeleteAvailableSite(as)}
-                            className="text-red-400 hover:text-red-300 text-[10px]">삭제</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-2">
+                {availableSites.map((as) => (
+                  <div key={as.id} className={`bg-gray-800/50 rounded-lg px-3 py-2.5 ${!as.is_active ? 'opacity-40' : ''}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      {/* 좌: 토글 + 사이트명 */}
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <button onClick={() => handleToggleAvailableSite(as)}
+                          className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors flex-shrink-0 ${as.is_active ? 'bg-green-600' : 'bg-gray-600'}`}
+                          title={as.is_active ? 'ON' : 'OFF'}>
+                          <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${as.is_active ? 'translate-x-[16px]' : 'translate-x-[2px]'}`} />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs text-white font-medium truncate">{as.site_name}</div>
+                          <div className="text-[10px] text-gray-500 truncate">{as.site_url}</div>
+                        </div>
+                      </div>
+                      {/* 우: 사용자 수 + 삭제 */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {getSiteUserCount(as.site_url) > 0 ? (
+                          <span className="text-green-400 text-[10px] font-medium">{getSiteUserCount(as.site_url)}명</span>
+                        ) : (
+                          <span className="text-gray-600 text-[10px]">0명</span>
+                        )}
+                        <button onClick={() => handleDeleteAvailableSite(as)}
+                          className="text-red-400 hover:text-red-300 text-[10px]">삭제</button>
+                      </div>
+                    </div>
+                    {as.description && (
+                      <div className="text-[10px] text-gray-500 mt-1 pl-10 truncate">{as.description}</div>
+                    )}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="text-center py-3 text-gray-500 text-xs">등록된 사이트가 없습니다.</div>
