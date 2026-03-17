@@ -43,7 +43,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       <div className="min-h-screen bg-gray-950 flex items-center justify-center px-6">
         <div className="text-center max-w-sm">
           <div className="mb-6">
-            <svg className="w-14 h-14 mx-auto text-yellow-500 animate-[spin_8s_linear_infinite]" viewBox="0 0 24 24" fill="none">
+            <svg className="w-10 h-10 mx-auto text-yellow-500 animate-[spin_8s_linear_infinite]" viewBox="0 0 24 24" fill="none">
               <path
                 d="M12 15a3 3 0 100-6 3 3 0 000 6z"
                 stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
