@@ -435,8 +435,8 @@ export default function ProfilePage() {
                   {at.hasThreshold && (
                     <div className="flex items-center gap-1 ml-auto">
                       <span className="text-[10px] text-gray-500">{at.thresholdLabel}</span>
-                      <input type="number" step="0.5" min="0" value={pref.min_threshold}
-                        onChange={(e) => updatePref(at.type, { min_threshold: parseFloat(e.target.value) || 0 })}
+                      <input type="number" step="0.5" min="0" value={pref.min_threshold || ''}
+                        onChange={(e) => updatePref(at.type, { min_threshold: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                         className="w-14 bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-white text-[10px] font-mono text-right focus:outline-none focus:border-blue-500" />
                       <span className="text-[10px] text-gray-500">{at.thresholdUnit}</span>
                     </div>
@@ -462,8 +462,8 @@ export default function ProfilePage() {
                   {level === 'medium' ? '보통' : level === 'high' ? '높음' : '매우높음'}
                 </span>
                 <div className="flex items-center gap-1">
-                  <input type="number" step="0.5" min="0" value={alertConfig.thresholds[level]}
-                    onChange={(e) => saveAlertConfig({ thresholds: { ...alertConfig.thresholds, [level]: parseFloat(e.target.value) || 0 } })}
+                  <input type="number" step="0.5" min="0" value={alertConfig.thresholds[level] || ''}
+                    onChange={(e) => saveAlertConfig({ thresholds: { ...alertConfig.thresholds, [level]: e.target.value === '' ? 0 : parseFloat(e.target.value) } })}
                     className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs font-mono text-right focus:outline-none focus:border-green-500" />
                   <span className="text-[10px] text-gray-500">%</span>
                 </div>
