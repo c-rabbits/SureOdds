@@ -117,8 +117,9 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
 
   if (filteredRows.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12 text-gray-500">
-        경기를 찾을 수 없습니다. 필터를 조정하거나 새로고침하세요.
+      <div className="flex flex-col items-center justify-center py-12 text-gray-500 text-center">
+        <p>경기를 찾을 수 없습니다.</p>
+        <p>필터를 조정하거나 새로고침하세요.</p>
       </div>
     );
   }
