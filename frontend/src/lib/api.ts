@@ -127,9 +127,17 @@ api.interceptors.response.use(
       }
     }
 
+    // 503 유지보수 모드: 페이지 새로고침으로 LayoutContent가 차단 화면 표시
+    if (status === 503 && error.response?.data && (error.response.data as { maintenance?: boolean }).maintenance) {
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+      return Promise.reject(error);
+    }
+
     // Toast로 에러 메시지 표시 (401 리다이렉트 시 제외, 무음 요청 제외)
     const silent = (error.config as { _silent?: boolean })?._silent;
-    if (_addToast && !silent && status !== 401) {
+    if (_addToast && !silent && status !== 401 && status !== 503) {
       const { title, message } = getErrorMessage(error);
       _addToast({ type: status && status >= 500 ? 'error' : 'warning', title, message });
     }

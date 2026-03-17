@@ -17,6 +17,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
+  maintenance: boolean;
   signIn: (identifier: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [maintenance, setMaintenance] = useState(false);
 
   // 백엔드에서 프로필 조회
   const fetchProfile = useCallback(async (accessToken: string) => {
@@ -41,6 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const json = await res.json();
         if (json.success) {
           setUser(json.data);
+          setMaintenance(false);
+          return;
+        }
+      }
+      // 503 유지보수 모드 감지
+      if (res.status === 503) {
+        const json = await res.json().catch(() => ({}));
+        if (json.maintenance) {
+          setMaintenance(true);
+          setUser(null);
           return;
         }
       }
@@ -98,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         loading,
         isAdmin: user?.role === 'admin',
+        maintenance,
         signIn,
         signOut,
       }}

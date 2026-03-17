@@ -83,6 +83,27 @@ async function requireAuth(req, res, next) {
       profile,
     };
 
+    // 유지보수 모드 체크 (관리자는 통과)
+    if (profile.role !== 'admin') {
+      try {
+        const { data: setting } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'maintenance_mode')
+          .single();
+
+        if (setting && JSON.parse(setting.value) === true) {
+          return res.status(503).json({
+            success: false,
+            error: '유지보수 중입니다. 잠시 후 다시 이용해 주세요.',
+            maintenance: true,
+          });
+        }
+      } catch {
+        // app_settings 테이블 없거나 조회 실패 시 통과
+      }
+    }
+
     next();
   } catch (err) {
     log.error('Auth middleware error', { error: err.message });
