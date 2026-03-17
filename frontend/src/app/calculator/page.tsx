@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { calculateStakes } from '@/lib/api';
 import { StakeCalculation, MarketType } from '@/types';
 import { getMarketLabel } from '@/lib/utils';
@@ -147,17 +146,12 @@ function CalculatorContent() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white mb-1">배팅 계산기</h1>
-          <p className="text-sm text-gray-400">
-            보장 수익을 위한 최적 스테이크 배분을 계산합니다.
-          </p>
-        </div>
-        <Link href="/" className="btn-sm bg-gray-800 text-gray-300 hover:bg-gray-700">
-          대시보드로
-        </Link>
+    <div className="max-w-2xl mx-auto p-4 overflow-hidden">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white mb-1">배팅 계산기</h1>
+        <p className="text-sm text-gray-400">
+          보장 수익을 위한 최적 스테이크 배분을 계산합니다.
+        </p>
       </div>
 
       <div className="card space-y-5">
@@ -174,9 +168,6 @@ function CalculatorContent() {
                 }`}
               >
                 {getMarketLabel(mt)}
-                <span className="text-xs ml-1 opacity-60">
-                  {mt === 'h2h' ? '(1X2)' : mt === 'spreads' ? '(핸디캡)' : '(오버/언더)'}
-                </span>
               </button>
             ))}
           </div>
@@ -224,8 +215,8 @@ function CalculatorContent() {
           <label className="block text-sm text-gray-400 mb-2">배당 (소수점)</label>
           <div className="space-y-2">
             {Array.from({ length: numOutcomes }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="text-xs text-gray-500 w-24 shrink-0">{outcomeLabels[i] || `결과 ${i + 1}`}</span>
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-16 shrink-0">{outcomeLabels[i] || `결과 ${i + 1}`}</span>
                 <input
                   type="number"
                   step="0.01"
