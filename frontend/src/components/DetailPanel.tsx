@@ -301,7 +301,7 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
                       <td className="py-1.5 text-gray-300 font-medium">
                         <span className="flex items-center gap-1.5">
                           {isDomesticBookmaker(o.bookmaker) && <span className="text-[10px]">&#x1F1F0;&#x1F1F7;</span>}
-                          {o.bookmaker_title || getBookmakerName(o.bookmaker)}
+                          {getBookmakerName(o.bookmaker) || o.bookmaker_title}
                         </span>
                       </td>
                       <td className="py-1.5 text-center font-mono">

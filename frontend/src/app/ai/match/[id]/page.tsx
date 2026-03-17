@@ -344,7 +344,7 @@ export default function MatchDetailPage() {
                   <td className="py-1.5 text-gray-300">
                     <span className="flex items-center gap-1">
                       {isDomesticBookmaker(o.bookmaker) && <span className="text-[10px]">🇰🇷</span>}
-                      {o.bookmaker_title || getBookmakerName(o.bookmaker)}
+                      {getBookmakerName(o.bookmaker) || o.bookmaker_title}
                     </span>
                   </td>
                   <td className="py-1.5 text-center font-mono text-gray-300">{formatOdds(o.outcome_1_odds)}</td>

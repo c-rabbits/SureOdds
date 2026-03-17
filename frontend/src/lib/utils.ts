@@ -150,18 +150,34 @@ const BOOKMAKER_SHORT_MAP: Record<string, string> = Object.fromEntries(
   BOOKMAKER_CONFIG.map((b) => [b.key, b.short])
 );
 
+// API에서 다양한 형태로 올 수 있는 북메이커 키를 정규화
+const BOOKMAKER_ALIASES: Record<string, string> = {
+  sbobet: 'sbobet', sbobet_com: 'sbobet', 'SBOBet': 'sbobet',
+  dafabet: 'dafabet', maxbet: 'dafabet', 'MaxBet': 'dafabet', max_bet: 'dafabet',
+  pinnacle: 'pinnacle', 'Pinnacle': 'pinnacle', pinnacle_com: 'pinnacle',
+  stake: 'stake', 'Stake': 'stake', stake_com: 'stake',
+  betman_proto: 'betman_proto', betman: 'betman_proto',
+  manual_domestic: 'manual_domestic',
+};
+
+function resolveBookmakerKey(key: string): string {
+  return BOOKMAKER_ALIASES[key] || BOOKMAKER_ALIASES[key.toLowerCase()] || key;
+}
+
 /**
- * Get bookmaker display name.
+ * Get bookmaker display name (한글).
  */
 export function getBookmakerName(key: string): string {
-  return BOOKMAKER_NAME_MAP[key] || key;
+  const resolved = resolveBookmakerKey(key);
+  return BOOKMAKER_NAME_MAP[resolved] || key;
 }
 
 /**
  * Get short bookmaker name for table display.
  */
 export function getBookmakerShort(key: string): string {
-  return BOOKMAKER_SHORT_MAP[key] || key.toUpperCase().slice(0, 4);
+  const resolved = resolveBookmakerKey(key);
+  return BOOKMAKER_SHORT_MAP[resolved] || key.toUpperCase().slice(0, 4);
 }
 
 /**
@@ -169,8 +185,9 @@ export function getBookmakerShort(key: string): string {
  */
 export function isDomesticBookmaker(key: string): boolean {
   // 북메이커 3개(pinnacle, sbobet, dafabet)만 해외, 나머지는 전부 국내
+  const resolved = resolveBookmakerKey(key);
   const INTERNATIONAL_BOOKMAKERS = ['pinnacle', 'sbobet', 'dafabet'];
-  return !INTERNATIONAL_BOOKMAKERS.includes(key);
+  return !INTERNATIONAL_BOOKMAKERS.includes(resolved);
 }
 
 /**

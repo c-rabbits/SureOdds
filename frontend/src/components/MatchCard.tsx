@@ -94,7 +94,7 @@ export default function MatchCard({ match, odds = [], hasSureBet, profitPercent 
             <tbody>
               {h2hOdds.map((o) => (
                 <tr key={o.id} className="border-t border-gray-800/60">
-                  <td className="py-2 text-gray-300 font-medium">{o.bookmaker_title || getBookmakerName(o.bookmaker)}</td>
+                  <td className="py-2 text-gray-300 font-medium">{getBookmakerName(o.bookmaker) || o.bookmaker_title}</td>
                   <td className="py-2 text-center">
                     <span className={o.outcome_1_odds === bestHome?.odds ? 'text-green-400 font-bold' : 'text-gray-300'}>
                       {formatOdds(o.outcome_1_odds)}
