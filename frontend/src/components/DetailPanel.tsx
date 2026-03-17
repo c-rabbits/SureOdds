@@ -244,7 +244,7 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
         </div>
 
         {/* Market type tabs */}
-        <div className="flex items-center gap-1 px-4 py-1.5 border-b border-gray-800 overflow-x-auto shrink-0">
+        <div className="flex items-center gap-1 px-4 py-1.5 border-b border-gray-800 overflow-x-auto shrink-0 flex-nowrap">
           {availableMarkets.map((mt) => (
             <button
               key={mt}

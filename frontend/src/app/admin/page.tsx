@@ -397,21 +397,21 @@ export default function AdminPage() {
       </div>
 
       {/* 탭 네비게이션 */}
-      <div className="flex gap-1 mb-4 border-b border-gray-800">
+      <div className="flex mb-4 border-b border-gray-800">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+            className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2 py-2.5 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap ${
               activeTab === tab.key
                 ? 'text-green-400 border-b-2 border-green-400'
                 : 'text-gray-400 hover:text-gray-300'
             }`}
           >
-            {tab.label}
+            <span>{tab.label}</span>
             {tab.count > 0 && (
               <span
-                className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full ${
+                className={`text-[10px] px-1.5 py-0.5 rounded-full leading-none ${
                   activeTab === tab.key
                     ? 'bg-green-500/20 text-green-400'
                     : tab.key === 'requests' && tab.count > 0
@@ -611,9 +611,9 @@ export default function AdminPage() {
                       {/* 좌: 토글 + 사이트명 */}
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <button onClick={() => handleToggleAvailableSite(as)}
-                          className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors flex-shrink-0 ${as.is_active ? 'bg-green-600' : 'bg-gray-600'}`}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${as.is_active ? 'bg-green-500' : 'bg-gray-600'}`}
                           title={as.is_active ? 'ON' : 'OFF'}>
-                          <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${as.is_active ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${as.is_active ? 'translate-x-[20px]' : 'translate-x-[2px]'}`} />
                         </button>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs text-white font-medium truncate">{as.site_name}</div>
