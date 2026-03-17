@@ -223,7 +223,7 @@ export default function ProfilePage() {
           </svg>
         </div>
         <h1 className="text-lg font-bold text-white">{savedName || user.username || '사용자'}</h1>
-        <span className={`mt-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+        <span className={`mt-1 text-xs px-2.5 py-0.5 rounded-full font-medium ${
           isAdmin ? 'bg-red-500/20 text-red-400 border border-red-500/30'
             : user.role.startsWith('test_') ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
             : user.role.startsWith('vip') ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -237,12 +237,12 @@ export default function ProfilePage() {
       <Section title="기본 정보" icon={<UserIcon />}>
         <InfoRow label="아이디" value={user.username || '-'} />
         <div className="flex items-center justify-between py-2.5 border-b border-gray-800/50 last:border-0">
-          <span className="text-xs text-gray-500">닉네임</span>
+          <span className="text-sm text-gray-500">닉네임</span>
           {editing ? (
             <div className="flex items-center gap-2">
               <input
                 type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={20}
-                className="bg-gray-800 border border-gray-700 rounded-md px-2 py-1 text-xs text-white w-32 focus:outline-none focus:border-green-500"
+                className="bg-gray-800 border border-gray-700 rounded-md px-2 py-1 text-sm text-white w-32 focus:outline-none focus:border-green-500"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSave();
@@ -250,17 +250,17 @@ export default function ProfilePage() {
                 }}
               />
               <button onClick={handleSave} disabled={saving}
-                className="text-[10px] px-2 py-1 bg-green-600 hover:bg-green-500 text-white rounded-md transition-colors disabled:opacity-50">
+                className="text-xs px-2.5 py-1 bg-green-600 hover:bg-green-500 text-white rounded-md transition-colors disabled:opacity-50">
                 {saving ? '...' : '저장'}
               </button>
               <button onClick={() => { setEditing(false); setNickname(savedName); }}
-                className="text-[10px] px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-md transition-colors">
+                className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-md transition-colors">
                 취소
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-white">{savedName || '-'}</span>
+              <span className="text-sm text-white">{savedName || '-'}</span>
               <button onClick={() => { setNickname(savedName); setEditing(true); }}
                 className="p-1 rounded hover:bg-gray-800 transition-colors text-gray-500 hover:text-gray-300" title="닉네임 변경">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -277,8 +277,8 @@ export default function ProfilePage() {
       {/* 계정 정보 */}
       <Section title="계정 정보" icon={<ShieldIcon />}>
         <div className="flex items-center justify-between py-2.5 border-b border-gray-800/50">
-          <span className="text-xs text-gray-500">권한 등급</span>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+          <span className="text-sm text-gray-500">권한 등급</span>
+          <span className={`text-sm font-medium px-2 py-0.5 rounded ${
             isAdmin ? 'bg-red-500/15 text-red-400'
               : user.role.startsWith('test_') ? 'bg-cyan-500/15 text-cyan-400'
               : user.role.startsWith('vip') ? 'bg-amber-500/15 text-amber-400'
@@ -288,8 +288,8 @@ export default function ProfilePage() {
           </span>
         </div>
         <div className="flex items-center justify-between py-2.5 border-b border-gray-800/50">
-          <span className="text-xs text-gray-500">계정 상태</span>
-          <span className={`text-xs font-medium flex items-center gap-1.5 ${user.is_active ? 'text-green-400' : 'text-red-400'}`}>
+          <span className="text-sm text-gray-500">계정 상태</span>
+          <span className={`text-sm font-medium flex items-center gap-1.5 ${user.is_active ? 'text-green-400' : 'text-red-400'}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-green-400' : 'bg-red-400'}`} />
             {user.is_active ? '활성' : '비활성'}
           </span>
@@ -307,37 +307,37 @@ export default function ProfilePage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
                 <path d="m22 2-7 20-4-9-9-4z" /><path d="M22 2 11 13" />
               </svg>
-              <span className="text-xs text-gray-300">Telegram</span>
+              <span className="text-sm text-gray-300">Telegram</span>
             </div>
             {tgLinked ? (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-green-500/15 text-green-400 flex items-center gap-1">
+              <span className="text-xs font-medium px-2 py-0.5 rounded bg-green-500/15 text-green-400 flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
                 연동됨
               </span>
             ) : (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-gray-700/50 text-gray-500">미연동</span>
+              <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-700/50 text-gray-500">미연동</span>
             )}
           </div>
           <div className="mt-2.5">
             {tgLinked ? (
               <button onClick={handleTelegramUnlink} disabled={tgUnlinking}
-                className="w-full py-2 rounded-lg bg-gray-800 border border-gray-700/50 text-[11px] text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-colors disabled:opacity-50">
+                className="w-full py-2 rounded-lg bg-gray-800 border border-gray-700/50 text-xs text-gray-400 hover:text-red-400 hover:border-red-500/30 transition-colors disabled:opacity-50">
                 {tgUnlinking ? '해제 중...' : '연동 해제'}
               </button>
             ) : tgLinking ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
                   <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                  <span className="text-[11px] text-blue-400">텔레그램 봇에서 시작 버튼을 눌러주세요</span>
+                  <span className="text-xs text-blue-400">텔레그램 봇에서 시작 버튼을 눌러주세요</span>
                 </div>
                 <button onClick={() => window.open(tgBotUrl, '_blank')}
-                  className="w-full py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-[11px] text-blue-400 hover:bg-blue-600/30 transition-colors">
+                  className="w-full py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors">
                   텔레그램 봇 열기
                 </button>
               </div>
             ) : (
               <button onClick={handleTelegramLink}
-                className="w-full py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-[11px] text-blue-400 hover:bg-blue-600/30 transition-colors">
+                className="w-full py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors">
                 텔레그램 연동하기
               </button>
             )}
@@ -350,20 +350,20 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BellIcon />
-                <span className="text-xs text-gray-300">Web Push</span>
+                <span className="text-sm text-gray-300">Web Push</span>
               </div>
               {pushSubscribed ? (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-green-500/15 text-green-400 flex items-center gap-1">
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-green-500/15 text-green-400 flex items-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
                   활성
                 </span>
               ) : (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-gray-700/50 text-gray-500">비활성</span>
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-700/50 text-gray-500">비활성</span>
               )}
             </div>
             <div className="mt-2.5">
               <button onClick={handlePushToggle} disabled={pushLoading}
-                className={`w-full py-2 rounded-lg border text-[11px] transition-colors disabled:opacity-50 ${
+                className={`w-full py-2 rounded-lg border text-xs transition-colors disabled:opacity-50 ${
                   pushSubscribed
                     ? 'bg-gray-800 border-gray-700/50 text-gray-400 hover:text-red-400 hover:border-red-500/30'
                     : 'bg-purple-600/20 border-purple-500/30 text-purple-400 hover:bg-purple-600/30'
@@ -379,30 +379,30 @@ export default function ProfilePage() {
       {alertConfig && (
         <Section title="알림 설정" icon={<BellIcon />}>
           <div className="flex items-center justify-between py-2.5 border-b border-gray-800/50">
-            <span className="text-xs text-gray-300">알림 활성화</span>
+            <span className="text-sm text-gray-300">알림 활성화</span>
             <input type="checkbox" checked={alertConfig.enabled}
               onChange={(e) => saveAlertConfig({ enabled: e.target.checked })}
               className="w-4 h-4 rounded bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500" />
           </div>
           <div className="flex items-center justify-between py-2.5 border-b border-gray-800/50">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-300">소리</span>
-              <button onClick={() => getAlertService().playSound('high')} className="text-[10px] text-green-400 hover:text-green-300">테스트</button>
+              <span className="text-sm text-gray-300">소리</span>
+              <button onClick={() => getAlertService().playSound('high')} className="text-xs text-green-400 hover:text-green-300">테스트</button>
             </div>
             <input type="checkbox" checked={alertConfig.soundEnabled}
               onChange={(e) => saveAlertConfig({ soundEnabled: e.target.checked })}
               className="w-4 h-4 rounded bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500" />
           </div>
           <div className="flex items-center justify-between py-2.5">
-            <span className="text-xs text-gray-300">브라우저 알림</span>
+            <span className="text-sm text-gray-300">브라우저 알림</span>
             {notifPermission === 'granted' ? (
               <input type="checkbox" checked={alertConfig.browserNotifications}
                 onChange={(e) => saveAlertConfig({ browserNotifications: e.target.checked })}
                 className="w-4 h-4 rounded bg-gray-800 border-gray-600 text-green-500 focus:ring-green-500" />
             ) : notifPermission === 'denied' ? (
-              <span className="text-[10px] text-red-400">차단됨</span>
+              <span className="text-xs text-red-400">차단됨</span>
             ) : (
-              <button onClick={requestPermission} className="text-[10px] px-2 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700">허용</button>
+              <button onClick={requestPermission} className="text-xs px-2.5 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700">허용</button>
             )}
           </div>
         </Section>
@@ -416,29 +416,29 @@ export default function ProfilePage() {
             return (
               <div key={at.type} className="bg-gray-800/40 border border-gray-700/40 rounded-lg p-2.5">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-medium text-white">{at.label}</span>
-                  <span className="text-[10px] text-gray-600">{at.desc}</span>
+                  <span className="text-sm font-medium text-white">{at.label}</span>
+                  <span className="text-xs text-gray-500">{at.desc}</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input type="checkbox" checked={pref.telegram_enabled}
                       onChange={(e) => updatePref(at.type, { telegram_enabled: e.target.checked })}
                       className="w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500" />
-                    <span className="text-[10px] text-gray-400">TG</span>
+                    <span className="text-xs text-gray-400">TG</span>
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input type="checkbox" checked={pref.push_enabled}
                       onChange={(e) => updatePref(at.type, { push_enabled: e.target.checked })}
                       className="w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500" />
-                    <span className="text-[10px] text-gray-400">Push</span>
+                    <span className="text-xs text-gray-400">Push</span>
                   </label>
                   {at.hasThreshold && (
                     <div className="flex items-center gap-1 ml-auto">
-                      <span className="text-[10px] text-gray-500">{at.thresholdLabel}</span>
+                      <span className="text-xs text-gray-500">{at.thresholdLabel}</span>
                       <input type="number" step="0.5" min="0" value={pref.min_threshold || ''}
                         onChange={(e) => updatePref(at.type, { min_threshold: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-                        className="w-14 bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-white text-[10px] font-mono text-right focus:outline-none focus:border-blue-500" />
-                      <span className="text-[10px] text-gray-500">{at.thresholdUnit}</span>
+                        className="w-16 bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-white text-xs font-mono text-right focus:outline-none focus:border-blue-500" />
+                      <span className="text-xs text-gray-500">{at.thresholdUnit}</span>
                     </div>
                   )}
                 </div>
@@ -446,7 +446,7 @@ export default function ProfilePage() {
             );
           })}
           <button onClick={savePreferences} disabled={prefSaving}
-            className="w-full mt-1 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-[11px] font-medium transition-colors disabled:opacity-50">
+            className="w-full mt-1 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-medium transition-colors disabled:opacity-50">
             {prefSaving ? '저장 중...' : '유형별 설정 저장'}
           </button>
         </div>
@@ -458,14 +458,14 @@ export default function ProfilePage() {
           <div className="py-2.5 space-y-2">
             {(['medium', 'high', 'critical'] as const).map((level) => (
               <div key={level} className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">
+                <span className="text-sm text-gray-500">
                   {level === 'medium' ? '보통' : level === 'high' ? '높음' : '매우높음'}
                 </span>
                 <div className="flex items-center gap-1">
                   <input type="number" step="0.5" min="0" value={alertConfig.thresholds[level] || ''}
                     onChange={(e) => saveAlertConfig({ thresholds: { ...alertConfig.thresholds, [level]: e.target.value === '' ? 0 : parseFloat(e.target.value) } })}
-                    className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs font-mono text-right focus:outline-none focus:border-green-500" />
-                  <span className="text-[10px] text-gray-500">%</span>
+                    className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm font-mono text-right focus:outline-none focus:border-green-500" />
+                  <span className="text-xs text-gray-500">%</span>
                 </div>
               </div>
             ))}
@@ -484,7 +484,7 @@ export default function ProfilePage() {
         로그아웃
       </button>
 
-      <p className="text-center text-[10px] text-gray-700 mt-4">SureOdds v2.0</p>
+      <p className="text-center text-xs text-gray-700 mt-4">SureOdds v2.0</p>
     </div>
   );
 }
@@ -498,7 +498,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
     <div className="mb-4">
       <div className="flex items-center gap-2 mb-2 px-1">
         <span className="text-gray-500">{icon}</span>
-        <h2 className="text-xs font-semibold text-gray-400">{title}</h2>
+        <h2 className="text-sm font-semibold text-gray-400">{title}</h2>
       </div>
       <div className="bg-gray-900/60 border border-gray-800/60 rounded-xl px-4">
         {children}
@@ -510,8 +510,8 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between py-2.5 border-b border-gray-800/50 last:border-0">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-xs text-white">{value}</span>
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-sm text-white">{value}</span>
     </div>
   );
 }

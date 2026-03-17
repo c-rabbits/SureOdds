@@ -11,7 +11,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import Toolbar from '@/components/Toolbar';
 import MatchTable from '@/components/MatchTable';
 import DetailPanel from '@/components/DetailPanel';
-import AlertSettings from '@/components/AlertSettings';
 import { DashboardSkeleton } from '@/components/Skeleton';
 
 export default function HomePage() {
@@ -22,7 +21,6 @@ export default function HomePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null);
-  const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const autoSelectedRef = useRef(false);
 
@@ -166,7 +164,7 @@ export default function HomePage() {
         onRefresh={handleRefresh}
         quota={quota}
         isAdmin={isAdmin}
-        onOpenAlertSettings={() => setAlertSettingsOpen(true)}
+
       />
 
       {/* Main content: table */}
@@ -189,11 +187,6 @@ export default function HomePage() {
         />
       )}
 
-      {/* Alert settings modal */}
-      <AlertSettings
-        isOpen={alertSettingsOpen}
-        onClose={() => setAlertSettingsOpen(false)}
-      />
     </div>
   );
 }
