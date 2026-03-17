@@ -22,7 +22,7 @@ export default function AiSubNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-gray-700 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800/60'

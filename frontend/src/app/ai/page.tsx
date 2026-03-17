@@ -125,14 +125,14 @@ export default function AiOverviewPage() {
       {valueBets.length > 0 && sportFilter === 'all' && (
         <div className="mb-3">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <h2 className="text-xs font-semibold text-green-400">오늘의 밸류 베팅</h2>
-            <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold">
+            <h2 className="text-sm font-semibold text-green-400">오늘의 밸류 베팅</h2>
+            <span className="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold">
               TOP {Math.min(5, valueBets.length)}
             </span>
           </div>
           <div className="bg-green-900/10 border border-green-800/30 rounded-lg divide-y divide-green-800/20">
             {valueBets.slice(0, 5).map((vb) => (
-              <div key={vb.match_id} className="flex items-center justify-between gap-2 text-xs px-3 py-2">
+              <div key={vb.match_id} className="flex items-center justify-between gap-2 text-sm px-3 py-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <span className="shrink-0">{getSportEmoji(vb.sport)}</span>
                   <span className="text-white truncate">
@@ -157,7 +157,7 @@ export default function AiOverviewPage() {
       {filteredMatches.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg mb-2">📭</p>
-          <p className="text-xs">오늘 예정된 경기가 없습니다.</p>
+          <p className="text-sm">오늘 예정된 경기가 없습니다.</p>
         </div>
       ) : (
         <div className="grid gap-2 md:grid-cols-2">
@@ -178,9 +178,9 @@ function WidgetCard({ label, value, sub, accent }: {
 }) {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2">
-      <div className="text-[10px] text-gray-500 mb-0.5">{label}</div>
+      <div className="text-xs text-gray-500 mb-0.5">{label}</div>
       <div className={`text-base font-bold font-mono ${accent}`}>{value}</div>
-      <div className="text-[10px] text-gray-600">{sub}</div>
+      <div className="text-xs text-gray-600">{sub}</div>
     </div>
   );
 }

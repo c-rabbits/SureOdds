@@ -103,7 +103,7 @@ export default function TeamsPage() {
       {/* Header */}
       <div className="mb-4">
         <h1 className="text-lg font-bold text-white">📊 팀 분석</h1>
-        <p className="text-xs text-gray-500 mt-0.5">5대 리그 {teams.length}팀 통계 · ELO 레이팅 · 공격력/수비력</p>
+        <p className="text-sm text-gray-500 mt-0.5">5대 리그 {teams.length}팀 통계 · ELO 레이팅 · 공격력/수비력</p>
       </div>
 
       {/* League Filter */}
@@ -137,19 +137,19 @@ export default function TeamsPage() {
       {leagueStats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           <div className="bg-gray-800/60 rounded-lg p-2.5 text-center">
-            <div className="text-[10px] text-gray-500">평균 ELO</div>
+            <div className="text-xs text-gray-500">평균 ELO</div>
             <div className="text-base font-bold text-white">{leagueStats.avgElo}</div>
           </div>
           <div className="bg-gray-800/60 rounded-lg p-2.5 text-center">
-            <div className="text-[10px] text-gray-500">평균 공격력</div>
+            <div className="text-xs text-gray-500">평균 공격력</div>
             <div className="text-base font-bold text-blue-400">{leagueStats.avgAtk}</div>
           </div>
           <div className="bg-gray-800/60 rounded-lg p-2.5 text-center">
-            <div className="text-[10px] text-gray-500">평균 수비력</div>
+            <div className="text-xs text-gray-500">평균 수비력</div>
             <div className="text-base font-bold text-red-400">{leagueStats.avgDef}</div>
           </div>
           <div className="bg-gray-800/60 rounded-lg p-2.5 text-center">
-            <div className="text-[10px] text-gray-500">평균 득점</div>
+            <div className="text-xs text-gray-500">평균 득점</div>
             <div className="text-base font-bold text-green-400">{leagueStats.avgGoals}</div>
           </div>
         </div>
@@ -159,7 +159,7 @@ export default function TeamsPage() {
       <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
         {/* Sort Buttons */}
         <div className="flex items-center gap-1 px-3 py-2 bg-gray-800/80 overflow-x-auto scrollbar-hide">
-          <span className="text-[10px] text-gray-500 mr-1 shrink-0">정렬:</span>
+          <span className="text-xs text-gray-500 mr-1 shrink-0">정렬:</span>
           {([
             { field: 'elo_rating' as SortField, label: 'ELO' },
             { field: 'attack_rating' as SortField, label: '공격' },
@@ -169,7 +169,7 @@ export default function TeamsPage() {
             <button
               key={field}
               onClick={() => handleSort(field)}
-              className={`text-[10px] px-2 py-1 rounded whitespace-nowrap ${
+              className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
                 sortField === field
                   ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
                   : 'text-gray-500 hover:text-gray-300 bg-gray-700/50'
@@ -190,26 +190,26 @@ export default function TeamsPage() {
             <div className="flex items-center gap-2.5 mb-1.5">
               {/* 공격력 */}
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-gray-500">공</span>
+                <span className="text-xs text-gray-500">공</span>
                 <div className="w-10 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-500 rounded-full"
                     style={{ width: `${ratingPct(team.attack_rating)}%` }}
                   />
                 </div>
-                <span className="text-[10px] font-mono text-blue-400">{team.attack_rating?.toFixed(2)}</span>
+                <span className="text-xs font-mono text-blue-400">{team.attack_rating?.toFixed(2)}</span>
               </div>
 
               {/* 수비력 */}
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-gray-500">수</span>
+                <span className="text-xs text-gray-500">수</span>
                 <div className="w-10 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-red-500 rounded-full"
                     style={{ width: `${ratingPct(2 - team.defense_rating)}%` }}
                   />
                 </div>
-                <span className="text-[10px] font-mono text-red-400">{team.defense_rating?.toFixed(2)}</span>
+                <span className="text-xs font-mono text-red-400">{team.defense_rating?.toFixed(2)}</span>
               </div>
 
               {/* 폼 */}
@@ -217,7 +217,7 @@ export default function TeamsPage() {
                 {(team.form_last5 || '').split('').map((ch, i) => (
                   <span
                     key={i}
-                    className={`w-3.5 h-3.5 rounded-sm flex items-center justify-center text-[8px] font-bold text-white ${formColor(ch)}`}
+                    className={`w-4 h-4 rounded-sm flex items-center justify-center text-[9px] font-bold text-white ${formColor(ch)}`}
                   >
                     {ch}
                   </span>
@@ -225,7 +225,7 @@ export default function TeamsPage() {
               </div>
 
               {/* 득/실 */}
-              <div className="text-[10px] font-mono shrink-0">
+              <div className="text-xs font-mono shrink-0">
                 <span className="text-green-400">{team.avg_goals_scored?.toFixed(1)}</span>
                 <span className="text-gray-600">/</span>
                 <span className="text-red-400">{team.avg_goals_conceded?.toFixed(1)}</span>
@@ -235,13 +235,13 @@ export default function TeamsPage() {
             {/* 2행: 순위 + 팀명 + ELO */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <span className="text-xs text-gray-500 font-mono w-5 shrink-0">{idx + 1}</span>
+                <span className="text-sm text-gray-500 font-mono w-5 shrink-0">{idx + 1}</span>
                 <div className="min-w-0">
                   <span className="text-sm font-medium text-white truncate block">
                     {getKoreanTeamName(team.team_name)}
                   </span>
                   {selectedLeague === 'all' && (
-                    <span className="text-[10px] text-gray-500">{team.league}</span>
+                    <span className="text-xs text-gray-500">{team.league}</span>
                   )}
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function TeamsPage() {
       </div>
 
       {/* Legend */}
-      <div className="mt-3 flex flex-wrap gap-4 text-[10px] text-gray-500">
+      <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
         <span>공격력: 리그 평균 대비 득점력 (1.0 = 평균, &gt;1 = 강함)</span>
         <span>수비력: 리그 평균 대비 실점률 (&lt;1 = 강함)</span>
         <span className="flex items-center gap-1">

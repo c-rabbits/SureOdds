@@ -10,7 +10,7 @@ interface Props {
 export default function ValueAnalysis({ valueBets }: Props) {
   if (!valueBets || valueBets.length === 0) {
     return (
-      <div className="text-center py-4 text-gray-500 text-xs">
+      <div className="text-center py-4 text-gray-500 text-sm">
         현재 밸류 베팅 기회가 없습니다.
       </div>
     );
@@ -18,7 +18,7 @@ export default function ValueAnalysis({ valueBets }: Props) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-xs">
+      <table className="w-full text-sm">
         <thead>
           <tr className="text-gray-500 border-b border-gray-800">
             <th className="text-left py-2 px-2">결과</th>

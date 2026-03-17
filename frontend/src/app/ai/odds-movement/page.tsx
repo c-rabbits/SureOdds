@@ -37,7 +37,7 @@ export default function OddsMovementPage() {
               <button
                 key={h}
                 onClick={() => setHours(h)}
-                className={`text-[10px] px-2 py-1 rounded ${
+                className={`text-xs px-2 py-1 rounded ${
                   hours === h
                     ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
                     : 'text-gray-500 hover:text-gray-300 bg-gray-800/50'
@@ -48,7 +48,7 @@ export default function OddsMovementPage() {
             ))}
           </div>
         </div>
-        <p className="text-xs text-gray-500">배당이 크게 변동한 경기를 추적합니다</p>
+        <p className="text-sm text-gray-500">배당이 크게 변동한 경기를 추적합니다</p>
       </div>
 
       {loading ? (
@@ -61,7 +61,7 @@ export default function OddsMovementPage() {
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg mb-2">📭</p>
           <p>최근 {hours}시간 내 배당 변동 데이터가 없습니다.</p>
-          <p className="text-xs mt-1">데이터가 축적되면 자동으로 표시됩니다.</p>
+          <p className="text-sm mt-1">데이터가 축적되면 자동으로 표시됩니다.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -84,11 +84,11 @@ export default function OddsMovementPage() {
                     </span>
                   </div>
                   {/* 2행: 리그 + 배당 변동 상세 */}
-                  <div className="flex items-center justify-between text-[10px]">
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500 truncate mr-2">
                       {m.league} · {formatShortTime(m.start_time)}
                     </span>
-                    <div className="flex items-center gap-1 shrink-0 text-xs">
+                    <div className="flex items-center gap-1 shrink-0 text-sm">
                       <span className="text-gray-500">{m.outcome === 'home' ? '홈' : '원정'}</span>
                       <span className="text-gray-400 font-mono">{m.old_odds.toFixed(2)}</span>
                       <span className="text-gray-600">→</span>

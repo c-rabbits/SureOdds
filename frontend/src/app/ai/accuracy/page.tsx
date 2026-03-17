@@ -42,7 +42,7 @@ export default function AccuracyPage() {
       {/* 헤더 */}
       <div className="mb-4">
         <h1 className="text-lg font-bold text-white">📊 예측 정확도</h1>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className="text-sm text-gray-500 mt-0.5">
           AI 모델의 예측 성과를 추적합니다
         </p>
       </div>
@@ -51,7 +51,7 @@ export default function AccuracyPage() {
         <div className="text-center py-16">
           <p className="text-3xl mb-3">📭</p>
           <p className="text-gray-400 mb-1">아직 정확도 데이터가 없습니다</p>
-          <p className="text-xs text-gray-600">
+          <p className="text-sm text-gray-600">
             경기가 완료되면 AI 예측과 실제 결과를 비교하여 자동으로 기록됩니다.
           </p>
         </div>
@@ -91,9 +91,9 @@ export default function AccuracyPage() {
               <h2 className="text-sm font-semibold text-white mb-3">🔬 모델별 비교</h2>
               <div className="space-y-2">
                 {summary.byModel.map((m) => (
-                  <div key={m.model} className="flex items-center justify-between text-xs">
+                  <div key={m.model} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         m.model.includes('hybrid') ? 'bg-cyan-500/20 text-cyan-400' : 'bg-gray-700 text-gray-400'
                       }`}>
                         {m.model.includes('hybrid') ? '하이브리드' : '시장분석'}
@@ -134,7 +134,7 @@ export default function AccuracyPage() {
                     </span>
                   </div>
                   {/* 2행: 예측 vs 실제 */}
-                  <div className="flex items-center justify-between text-[10px] text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
                     <div className="flex items-center gap-3">
                       <span>
                         예측: <span className="text-gray-300">{outcomeLabel(r.predicted_outcome)}</span>
@@ -171,9 +171,9 @@ function StatCard({ label, value, sub, color }: {
 }) {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
-      <div className="text-[10px] text-gray-500 mb-1">{label}</div>
+      <div className="text-xs text-gray-500 mb-1">{label}</div>
       <div className={`text-lg font-bold font-mono ${color}`}>{value}</div>
-      <div className="text-[10px] text-gray-600 mt-0.5">{sub}</div>
+      <div className="text-xs text-gray-600 mt-0.5">{sub}</div>
     </div>
   );
 }
