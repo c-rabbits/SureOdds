@@ -7,7 +7,7 @@ import NotificationBadge from './NotificationBadge';
 
 const baseLinks = [
   { href: '/', label: '대시보드' },
-  { href: '/domestic', label: '국내' },
+  { href: '/domestic', label: '국내 사이트' },
   { href: '/calculator', label: '계산기' },
 ];
 
@@ -16,7 +16,7 @@ const adminLinks = [
 ];
 
 const AI_ALLOWED_EMAIL = 'qmirrorp@gmail.com';
-const aiLink = { href: '/ai', label: 'AI' };
+const aiLink = { href: '/ai', label: 'AI 예측' };
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -45,7 +45,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`px-2 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold transition-colors whitespace-nowrap ${
+                className={`px-2 sm:px-3 py-1.5 rounded-md text-sm sm:text-sm font-semibold transition-colors whitespace-nowrap ${
                   (link.href === '/' ? pathname === '/' : pathname.startsWith(link.href))
                     ? 'bg-gray-700 text-white'
                     : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
