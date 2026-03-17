@@ -111,6 +111,34 @@ router.get('/me', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/auth/logout - 로그아웃 + 세션 무효화
+router.post('/logout', requireAuth, async (req, res) => {
+  try {
+    const supabase = require('../config/supabase');
+    const userId = req.user.id;
+    const sessionToken = req.headers.authorization?.split(' ')[1] || '';
+    const tokenPrefix = sessionToken.substring(0, 50);
+
+    // 현재 세션 무효화
+    await supabase
+      .from('active_sessions')
+      .update({ is_valid: false })
+      .eq('user_id', userId)
+      .eq('session_token', tokenPrefix);
+
+    log.info('Session invalidated on logout', { userId });
+    res.json({ success: true });
+  } catch (err) {
+    log.error('Logout session error', { error: err.message });
+    res.json({ success: true }); // 실패해도 로그아웃은 성공
+  }
+});
+
+// GET /api/auth/session-check - 세션 유효성 체크 (폴링용)
+router.get('/session-check', requireAuth, async (req, res) => {
+  res.json({ success: true, valid: true });
+});
+
 // PATCH /api/auth/me - 닉네임 변경
 router.patch('/me', requireAuth, async (req, res) => {
   try {

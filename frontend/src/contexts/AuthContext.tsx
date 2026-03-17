@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   useCallback,
   ReactNode,
@@ -105,6 +106,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
+  // 주기적 세션 유효성 체크 (30초마다)
+  const sessionCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (sessionCheckRef.current) clearInterval(sessionCheckRef.current);
+
+    if (!session?.access_token || !user) return;
+
+    sessionCheckRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/session-check`,
+          { headers: { Authorization: `Bearer ${session.access_token}` } }
+        );
+        if (res.status === 401) {
+          const json = await res.json().catch(() => ({}));
+          if (json.code === 'SESSION_EXPIRED') {
+            clearInterval(sessionCheckRef.current!);
+            await supabase.auth.signOut();
+            setUser(null);
+            setSession(null);
+            alert('다른 기기에서 로그인되어 현재 세션이 종료되었습니다.');
+            window.location.href = '/login';
+          }
+        }
+      } catch { /* network error → skip */ }
+    }, 30000);
+
+    return () => {
+      if (sessionCheckRef.current) clearInterval(sessionCheckRef.current);
+    };
+  }, [session?.access_token, user]);
+
   const signIn = useCallback(async (identifier: string, password: string) => {
     // 아이디(@없음) → 내부 이메일로 변환, 이메일(@포함) → 그대로 사용
     const email = identifier.includes('@') ? identifier : `${identifier}@sureodds.local`;
@@ -137,6 +170,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // 백엔드 세션 무효화
+    const currentSession = await supabase.auth.getSession();
+    const token = currentSession.data.session?.access_token;
+    if (token) {
+      try {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auth/logout`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      } catch { /* ignore */ }
+    }
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
