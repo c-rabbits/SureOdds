@@ -42,11 +42,16 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center px-6">
         <div className="text-center max-w-sm">
-          <div className="text-4xl mb-4">
-            <svg className="w-16 h-16 mx-auto text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M11.42 15.17l-1.42-.77a1 1 0 00-.26-.09 1 1 0 00-.95.42l-.03.04a1 1 0 01-.86.49H6a1 1 0 01-1-1v-1.9a1 1 0 00-.11-.45L3.38 8.57a1 1 0 01.09-1.02l1.1-1.47a1 1 0 011.23-.35l.12.06a1 1 0 001.07-.1l.94-.76a1 1 0 00.36-.83V3a1 1 0 011-1h1.42a1 1 0 01.98.8l.12.62a1 1 0 00.68.71l.22.07a1 1 0 001-.22l.44-.44a1 1 0 011.41 0l1.01 1.01a1 1 0 010 1.41l-.44.44a1 1 0 00-.22 1l.07.22a1 1 0 00.71.68l.62.12a1 1 0 01.8.98V9a1 1 0 01-1 1h-1.1a1 1 0 00-.83.36l-.76.94a1 1 0 00-.1 1.07l.06.12a1 1 0 01-.35 1.23l-1.47 1.1a1 1 0 01-1.02.09z" />
-              <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
+          <div className="mb-6">
+            <svg className="w-14 h-14 mx-auto text-yellow-500 animate-[spin_8s_linear_infinite]" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+                stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+              />
+              <path
+                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"
+                stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+              />
             </svg>
           </div>
           <h1 className="text-xl font-bold text-white mb-2">유지보수 중</h1>
