@@ -117,30 +117,104 @@ function transformOddsData(rawData) {
 }
 
 /**
+ * Normalize team name for fuzzy matching.
+ * Strips common suffixes (FC, SC, etc.), lowercases, trims.
+ */
+function normalizeTeam(name) {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/\s+(fc|sc|cf|ac|bc|afc|sfc|bk|fk|sk|if|ff|sv|se)$/i, '')
+    .replace(/^(fc|sc|cf|ac|bc|afc|sfc|bk|fk|sk|if|ff|sv|se)\s+/i, '')
+    .trim();
+}
+
+/**
  * Upsert matches and odds into Supabase (v2 schema).
+ * Cross-source match linking: link The Odds API matches to existing Odds-API.io/Stake matches
+ * by team name + start time proximity, so odds from different sources share the same match_id.
  */
 async function saveToDatabase(matches, oddsRows) {
-  // Upsert matches
-  const { error: matchError } = await supabase.from('matches').upsert(matches, { onConflict: 'external_id' });
-  if (matchError) {
-    log.error('Error upserting matches', { error: matchError.message });
-    return [];
+  // ── Cross-source match linking ──
+  // Find existing matches that might be the same game from a different API source
+  const linkedExtIds = {}; // this source's external_id → existing match DB id
+
+  if (matches.length > 0) {
+    // Get time range of incoming matches
+    const startTimes = matches.map(m => new Date(m.start_time).getTime()).filter(t => !isNaN(t));
+    if (startTimes.length > 0) {
+      const minTime = new Date(Math.min(...startTimes) - 2 * 60 * 60 * 1000).toISOString();
+      const maxTime = new Date(Math.max(...startTimes) + 2 * 60 * 60 * 1000).toISOString();
+
+      // Fetch existing matches in the same time window
+      const { data: existingMatches } = await supabase
+        .from('matches')
+        .select('id, external_id, home_team, away_team, start_time')
+        .gte('start_time', minTime)
+        .lte('start_time', maxTime);
+
+      if (existingMatches && existingMatches.length > 0) {
+        // Build lookup: normalized "home|away|hour" → existing match
+        const existingLookup = {};
+        for (const em of existingMatches) {
+          const h = normalizeTeam(em.home_team);
+          const a = normalizeTeam(em.away_team);
+          const t = new Date(em.start_time).toISOString().slice(0, 13); // YYYY-MM-DDTHH
+          const key = `${h}|${a}|${t}`;
+          if (!existingLookup[key]) existingLookup[key] = em;
+        }
+
+        for (const m of matches) {
+          const h = normalizeTeam(m.home_team);
+          const a = normalizeTeam(m.away_team);
+          const t = new Date(m.start_time).toISOString().slice(0, 13);
+          const key = `${h}|${a}|${t}`;
+          const existing = existingLookup[key];
+
+          if (existing && existing.external_id !== m.external_id) {
+            // Same match from different source — link odds to existing match
+            linkedExtIds[m.external_id] = existing.id;
+          }
+        }
+
+        if (Object.keys(linkedExtIds).length > 0) {
+          log.info(`[CrossLink] Linked ${Object.keys(linkedExtIds).length}/${matches.length} matches to existing records`);
+        }
+      }
+    }
   }
 
-  // Fetch match IDs
-  const externalIds = matches.map((m) => m.external_id);
-  const { data: savedMatches, error: fetchError } = await supabase
-    .from('matches')
-    .select('id, external_id')
-    .in('external_id', externalIds);
+  // Only insert matches that aren't already linked to existing ones
+  const newMatches = matches.filter(m => !linkedExtIds[m.external_id]);
 
-  if (fetchError) {
-    log.error('Error fetching match IDs', { error: fetchError.message });
-    return [];
+  // Upsert new matches
+  if (newMatches.length > 0) {
+    const { error: matchError } = await supabase.from('matches').upsert(newMatches, { onConflict: 'external_id' });
+    if (matchError) {
+      log.error('Error upserting matches', { error: matchError.message });
+      return [];
+    }
   }
 
-  const idMap = {};
-  for (const m of savedMatches) idMap[m.external_id] = m.id;
+  // Fetch match IDs for newly upserted matches
+  const newExternalIds = newMatches.map((m) => m.external_id);
+  const idMap = { ...linkedExtIds }; // Start with cross-linked ones
+
+  if (newExternalIds.length > 0) {
+    const { data: savedMatches, error: fetchError } = await supabase
+      .from('matches')
+      .select('id, external_id')
+      .in('external_id', newExternalIds);
+
+    if (fetchError) {
+      log.error('Error fetching match IDs', { error: fetchError.message });
+      return [];
+    }
+    for (const m of savedMatches) idMap[m.external_id] = m.id;
+  }
+
+  // Build savedMatches array for return (all matches with IDs)
+  const savedMatches = Object.entries(idMap).map(([ext, id]) => ({ id, external_id: ext }));
 
   // Map external IDs to DB IDs and normalize handicap_point (NULL → 0)
   const oddsWithIds = oddsRows
