@@ -16,6 +16,9 @@ const DEFAULT_SPORTS = [
   'soccer_italy_serie_a',
   'soccer_france_ligue_one',
   'soccer_uefa_champs_league',
+  'basketball_nba',
+  'baseball_mlb',
+  'icehockey_nhl',
 ];
 
 const EXTRA_SPORTS = [
