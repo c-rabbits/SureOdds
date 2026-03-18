@@ -5,6 +5,7 @@ import type { MatchWithPrediction } from '@/types/ai';
 import { getKoreanTeamName } from '@/lib/teamNames';
 import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getSportEmoji, formatShortTime } from '@/lib/utils';
+import TeamLogo from '@/components/TeamLogo';
 
 interface Props {
   match: MatchWithPrediction;
@@ -36,12 +37,14 @@ export default function PredictionCard({ match }: Props) {
 
         {/* 팀 이름 */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-white font-medium truncate max-w-[42%]" title={match.home_team}>
+          <span className="flex items-center gap-1.5 text-sm text-white font-medium truncate max-w-[42%]" title={match.home_team}>
+            <TeamLogo teamName={match.home_team} size={20} />
             {getKoreanTeamName(match.home_team)}
           </span>
           <span className="text-xs text-gray-600 mx-2">vs</span>
-          <span className="text-sm text-white font-medium truncate max-w-[42%] text-right" title={match.away_team}>
+          <span className="flex items-center gap-1.5 text-sm text-white font-medium truncate max-w-[42%] justify-end" title={match.away_team}>
             {getKoreanTeamName(match.away_team)}
+            <TeamLogo teamName={match.away_team} size={20} />
           </span>
         </div>
 

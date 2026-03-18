@@ -372,6 +372,45 @@ export async function getUserStats(id: string) {
 }
 
 // ============================================================
+// Team Logos
+// ============================================================
+const logoCache: Record<string, string | null> = {};
+const pendingLogos: Set<string> = new Set();
+let logoFetchTimer: ReturnType<typeof setTimeout> | null = null;
+const logoCallbacks: Array<() => void> = [];
+
+export function getTeamLogoUrl(teamName: string): string | null {
+  return logoCache[teamName] ?? null;
+}
+
+export function requestTeamLogos(teams: string[], onLoaded?: () => void) {
+  const missing = teams.filter(t => t && logoCache[t] === undefined);
+  if (missing.length === 0) {
+    onLoaded?.();
+    return;
+  }
+  for (const t of missing) pendingLogos.add(t);
+  if (onLoaded) logoCallbacks.push(onLoaded);
+
+  // Debounce: batch requests
+  if (logoFetchTimer) clearTimeout(logoFetchTimer);
+  logoFetchTimer = setTimeout(async () => {
+    const batch = Array.from(pendingLogos).slice(0, 50);
+    pendingLogos.clear();
+    try {
+      const { data } = await api.post('/api/logos/batch', { teams: batch });
+      if (data.logos) {
+        for (const [name, url] of Object.entries(data.logos)) {
+          logoCache[name] = url as string | null;
+        }
+      }
+    } catch { /* ignore */ }
+    const cbs = logoCallbacks.splice(0);
+    cbs.forEach(cb => cb());
+  }, 200);
+}
+
+// ============================================================
 // Available Sites (마스터 사이트 목록 - 드롭다운용)
 // ============================================================
 export async function getAvailableSites(): Promise<AvailableSite[]> {

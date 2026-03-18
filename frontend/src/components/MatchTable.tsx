@@ -15,6 +15,7 @@ import {
 } from '@/lib/utils';
 import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getKoreanTeamName } from '@/lib/teamNames';
+import TeamLogo from '@/components/TeamLogo';
 
 interface Props {
   rows: TableRow[];
@@ -154,9 +155,15 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
 
               {/* 중간: 팀 이름 */}
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[13px] text-white font-medium truncate max-w-[45%]" title={row.homeTeam}>{getKoreanTeamName(row.homeTeam)}</span>
+                <span className="flex items-center gap-1 text-[13px] text-white font-medium truncate max-w-[45%]" title={row.homeTeam}>
+                  <TeamLogo teamName={row.homeTeam} size={18} />
+                  {getKoreanTeamName(row.homeTeam)}
+                </span>
                 <span className="text-xs text-gray-600 mx-1">vs</span>
-                <span className="text-[13px] text-white font-medium truncate max-w-[45%] text-right" title={row.awayTeam}>{getKoreanTeamName(row.awayTeam)}</span>
+                <span className="flex items-center gap-1 text-[13px] text-white font-medium truncate max-w-[45%] justify-end" title={row.awayTeam}>
+                  {getKoreanTeamName(row.awayTeam)}
+                  <TeamLogo teamName={row.awayTeam} size={18} />
+                </span>
               </div>
 
               {/* 하단: 배당 정보 */}
@@ -247,8 +254,12 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
                 <td className="text-center">{getSportEmoji(row.sport)}</td>
                 <td className="text-gray-400">{formatShortTime(row.startTime)}</td>
                 <td className="text-gray-300 max-w-[120px] truncate" title={getKoreanLeagueName(row.league)}>{getKoreanLeagueName(row.league)}</td>
-                <td className="text-white font-medium max-w-[140px] truncate" title={row.homeTeam}>{getKoreanTeamName(row.homeTeam)}</td>
-                <td className="text-white font-medium max-w-[140px] truncate" title={row.awayTeam}>{getKoreanTeamName(row.awayTeam)}</td>
+                <td className="text-white font-medium max-w-[140px] truncate" title={row.homeTeam}>
+                  <span className="inline-flex items-center gap-1"><TeamLogo teamName={row.homeTeam} size={16} />{getKoreanTeamName(row.homeTeam)}</span>
+                </td>
+                <td className="text-white font-medium max-w-[140px] truncate" title={row.awayTeam}>
+                  <span className="inline-flex items-center gap-1"><TeamLogo teamName={row.awayTeam} size={16} />{getKoreanTeamName(row.awayTeam)}</span>
+                </td>
                 <td>
                   <MarketBadge marketType={row.marketType} handicapPoint={row.handicapPoint} />
                 </td>

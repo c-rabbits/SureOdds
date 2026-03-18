@@ -20,6 +20,7 @@ const { startSessionMonitor } = require('./services/sessionMonitor');
 const { startScheduler: startDailyDigestScheduler } = require('./services/dailyDigestService');
 const pushRouter = require('./routes/push');
 const notificationsRouter = require('./routes/notifications');
+const logosRouter = require('./routes/logos');
 const webPushService = require('./services/webPushService');
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/collector', requireAuth, collectorRouter);
 app.use('/api/domestic', requireAuth, domesticRouter);
 app.use('/api/ai', requireAuth, aiRouter);
 app.use('/api/notifications', requireAuth, notificationsRouter);
+app.use('/api/logos', requireAuth, logosRouter);
 
 // 404 handler
 app.use((req, res) => {
