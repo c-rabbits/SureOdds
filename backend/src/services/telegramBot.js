@@ -79,7 +79,9 @@ async function sendArbitrageAlert(opportunity, match) {
     chatIds.push({ chatId: adminChatId, userId: null, isAdmin: true });
   }
 
-  // 2) 연동된 유저들 조회
+  // 2) 연동된 유저들 조회 + 유형별 알림 설정 체크
+  const profitPercent = opportunity?.profit_percent ?? 0;
+
   try {
     const supabase = require('../config/supabase');
     const { data: users, error } = await supabase
@@ -89,9 +91,32 @@ async function sendArbitrageAlert(opportunity, match) {
       .eq('is_active', true);
 
     if (!error && users) {
+      // 유저별 알림 설정 조회
+      const userIds = users.map((u) => u.id);
+      const { data: prefs } = await supabase
+        .from('alert_preferences')
+        .select('user_id, telegram_enabled, min_threshold')
+        .eq('alert_type', 'arbitrage')
+        .in('user_id', userIds);
+
+      const prefMap = {};
+      if (prefs) {
+        for (const p of prefs) {
+          prefMap[p.user_id] = p;
+        }
+      }
+
       for (const user of users) {
         // 관리자 채널과 중복 방지
         if (user.telegram_chat_id !== adminChatId) {
+          const pref = prefMap[user.id];
+
+          // 텔레그램 비활성화한 유저 스킵
+          if (pref && pref.telegram_enabled === false) continue;
+
+          // min_threshold 체크: 설정된 값보다 수익률이 낮으면 스킵
+          if (pref && pref.min_threshold > 0 && profitPercent < pref.min_threshold) continue;
+
           chatIds.push({ chatId: user.telegram_chat_id, userId: user.id, isAdmin: false });
         }
       }
