@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import type { MatchPredictionDetail, OddsHistoryPoint, TeamStatsInfo } from '@/types/ai';
 import { getAiPrediction, getOddsHistory } from '@/lib/aiApi';
 import { getKoreanTeamName } from '@/lib/teamNames';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getSportEmoji, formatMatchTime, getBookmakerName, formatOdds, isDomesticBookmaker } from '@/lib/utils';
 import OddsChart from '@/components/ai/OddsChart';
 import ValueAnalysis from '@/components/ai/ValueAnalysis';
@@ -227,7 +228,7 @@ export default function MatchDetailPage() {
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">
         <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
           <span>{getSportEmoji(match.sport)}</span>
-          <span>{match.league}</span>
+          <span>{getKoreanLeagueName(match.league)}</span>
           <span>·</span>
           <span>{formatMatchTime(match.start_time)}</span>
         </div>

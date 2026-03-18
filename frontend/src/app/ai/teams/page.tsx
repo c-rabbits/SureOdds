@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { getTeamStats, getLeagues, type TeamStats, type LeagueInfo } from '@/lib/aiApi';
 import { getKoreanTeamName } from '@/lib/teamNames';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 
 // Form letter colors
 function formColor(ch: string) {
@@ -128,7 +129,7 @@ export default function TeamsPage() {
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
             }`}
           >
-            {l.league} ({l.teamCount})
+            {getKoreanLeagueName(l.league)} ({l.teamCount})
           </button>
         ))}
       </div>
@@ -195,7 +196,7 @@ export default function TeamsPage() {
                     {getKoreanTeamName(team.team_name)}
                   </span>
                   {selectedLeague === 'all' && (
-                    <span className="text-xs text-gray-500">{team.league}</span>
+                    <span className="text-xs text-gray-500">{getKoreanLeagueName(team.league)}</span>
                   )}
                 </div>
               </div>

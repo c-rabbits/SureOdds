@@ -13,6 +13,7 @@ import {
   getSportCategory,
   isDomesticBookmaker,
 } from '@/lib/utils';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getKoreanTeamName } from '@/lib/teamNames';
 
 interface Props {
@@ -146,7 +147,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                   <span>{getSportEmoji(row.sport)}</span>
-                  <span className="truncate max-w-[140px]">{row.league}</span>
+                  <span className="truncate max-w-[140px]">{getKoreanLeagueName(row.league)}</span>
                 </div>
                 <span className="text-[10px] text-gray-500">{formatShortTime(row.startTime)}</span>
               </div>
@@ -245,7 +246,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
               >
                 <td className="text-center">{getSportEmoji(row.sport)}</td>
                 <td className="text-gray-400">{formatShortTime(row.startTime)}</td>
-                <td className="text-gray-300 max-w-[120px] truncate" title={row.league}>{row.league}</td>
+                <td className="text-gray-300 max-w-[120px] truncate" title={getKoreanLeagueName(row.league)}>{getKoreanLeagueName(row.league)}</td>
                 <td className="text-white font-medium max-w-[140px] truncate" title={row.homeTeam}>{getKoreanTeamName(row.homeTeam)}</td>
                 <td className="text-white font-medium max-w-[140px] truncate" title={row.awayTeam}>{getKoreanTeamName(row.awayTeam)}</td>
                 <td>

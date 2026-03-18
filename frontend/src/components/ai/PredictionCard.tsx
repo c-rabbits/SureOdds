@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { MatchWithPrediction } from '@/types/ai';
 import { getKoreanTeamName } from '@/lib/teamNames';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getSportEmoji, formatShortTime } from '@/lib/utils';
 
 interface Props {
@@ -21,7 +22,7 @@ export default function PredictionCard({ match }: Props) {
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-1.5 text-xs text-gray-500 min-w-0 flex-1">
             <span className="shrink-0">{getSportEmoji(match.sport)}</span>
-            <span className="truncate">{match.league}</span>
+            <span className="truncate">{getKoreanLeagueName(match.league)}</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {valueBetCount > 0 && (

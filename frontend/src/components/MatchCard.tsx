@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Match, Odds } from '@/types';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { formatMatchTime, getSportEmoji, getBookmakerName, formatOdds } from '@/lib/utils';
 
 interface Props {
@@ -37,7 +38,7 @@ export default function MatchCard({ match, odds = [], hasSureBet, profitPercent 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
             <span>{getSportEmoji(match.sport)}</span>
-            <span>{match.league}</span>
+            <span>{getKoreanLeagueName(match.league)}</span>
             <span>&bull;</span>
             <span>{formatMatchTime(match.start_time)}</span>
           </div>

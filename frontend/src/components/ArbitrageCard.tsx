@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArbitrageOpportunity } from '@/types';
 import { formatMatchTime, getSportEmoji, getBookmakerName, formatOdds, getProfitColorClass } from '@/lib/utils';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 
 interface Props {
   opportunity: ArbitrageOpportunity;
@@ -19,7 +20,7 @@ export default function ArbitrageCard({ opportunity }: Props) {
       {match && (
         <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
           <span>{getSportEmoji(match.sport)}</span>
-          <span>{match.league}</span>
+          <span>{getKoreanLeagueName(match.league)}</span>
           <span>&bull;</span>
           <span>{formatMatchTime(match.start_time)}</span>
         </div>

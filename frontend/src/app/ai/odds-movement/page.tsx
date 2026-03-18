@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { OddsMovementItem } from '@/types/ai';
 import { getOddsMovement } from '@/lib/aiApi';
 import { getKoreanTeamName } from '@/lib/teamNames';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getSportEmoji, getBookmakerShort, formatShortTime } from '@/lib/utils';
 
 type SortField = 'change' | 'time';
@@ -134,7 +135,7 @@ export default function OddsMovementPage() {
                 <div className="flex items-center justify-between px-4 pt-3 pb-1.5">
                   <div className="flex items-center gap-1.5 text-xs text-gray-500 min-w-0 flex-1">
                     <span className="shrink-0">{getSportEmoji(m.sport)}</span>
-                    <span className="truncate">{m.league}</span>
+                    <span className="truncate">{getKoreanLeagueName(m.league)}</span>
                   </div>
                   <span className="text-xs text-gray-600 shrink-0 ml-2">
                     {formatShortTime(m.start_time)}

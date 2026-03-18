@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { MatchWithOdds, Odds, MarketType, StakeCalculation } from '@/types';
 import { calculateStakes } from '@/lib/api';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 import {
   formatMatchTime,
   getSportEmoji,
@@ -229,7 +230,7 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
                 {getKoreanTeamName(match.home_team)} <span className="text-gray-500">vs</span> {getKoreanTeamName(match.away_team)}
               </h3>
               <p className="text-xs text-gray-500 truncate">
-                {match.league} &bull; {formatMatchTime(match.start_time)}
+                {getKoreanLeagueName(match.league)} &bull; {formatMatchTime(match.start_time)}
               </p>
             </div>
             {isArb && profitPercent !== null && (
