@@ -343,7 +343,11 @@ export async function createUser(payload: {
 
 export async function updateUser(
   id: string,
-  payload: { role?: string; is_active?: boolean; display_name?: string }
+  payload: {
+    role?: string; is_active?: boolean; display_name?: string;
+    vip_expires_at?: string | null; admin_memo?: string | null;
+    suspended_until?: string | null; suspended_reason?: string | null;
+  }
 ): Promise<UserProfile> {
   const { data } = await api.patch(`/api/admin/users/${id}`, payload);
   return data.data;
@@ -355,6 +359,16 @@ export async function deleteUser(id: string): Promise<void> {
 
 export async function changeUserPassword(id: string, password: string): Promise<void> {
   await api.patch(`/api/admin/users/${id}/password`, { password });
+}
+
+export async function getUserActivity(id: string, params?: { limit?: number; offset?: number; action?: string }) {
+  const { data } = await api.get(`/api/admin/users/${id}/activity`, { params });
+  return data.data;
+}
+
+export async function getUserStats(id: string) {
+  const { data } = await api.get(`/api/admin/users/${id}/stats`);
+  return data.data;
 }
 
 // ============================================================

@@ -5,6 +5,7 @@
 require('dotenv').config();
 const { createServiceLogger } = require('../config/logger');
 
+const { logActivity, getRequestInfo } = require('../services/activityLogger');
 const log = createServiceLogger('Auth');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -159,6 +160,14 @@ async function requireAuth(req, res, next) {
       } catch {
         // app_settings 테이블 없거나 조회 실패 시 통과
       }
+    }
+
+    // 활동 로그 (fire-and-forget) — 빈번한 폴링 경로 제외
+    const skipPaths = ['/api/auth/', '/api/notifications/unread-count', '/api/admin/settings'];
+    const shouldLog = !skipPaths.some(p => req.originalUrl.startsWith(p));
+    if (shouldLog) {
+      const { ip, userAgent } = getRequestInfo(req);
+      logActivity(user.id, 'page_view', { path: req.originalUrl, method: req.method }, ip, userAgent);
     }
 
     next();

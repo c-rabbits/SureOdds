@@ -9,6 +9,7 @@ const supabase = require('../config/supabase');
 const { requireAuth } = require('../middleware/auth');
 const { getBot } = require('../services/telegramBot');
 const { createServiceLogger } = require('../config/logger');
+const { logActivity, getRequestInfo } = require('../services/activityLogger');
 
 const log = createServiceLogger('Telegram');
 
@@ -75,6 +76,7 @@ router.post(`/webhook/${WEBHOOK_SECRET}`, async (req, res) => {
       const name = profile.display_name || '회원';
       await sendBotMessage(chatId, `✅ ${name}님, SureOdds 텔레그램 연동이 완료되었습니다!\n\n양방 기회가 감지되면 이 채팅으로 알림을 보내드립니다.`);
       log.info(`Telegram linked: user=${profile.id}, chatId=${chatId}`);
+      logActivity(profile.id, 'telegram_link', { chatId });
 
     } else if (text === '/start') {
       await sendBotMessage(chatId, '👋 SureOdds 알림봇입니다.\n\nSureOdds 웹사이트에서 "텔레그램 연동" 버튼을 클릭하세요.');
@@ -94,6 +96,7 @@ router.post(`/webhook/${WEBHOOK_SECRET}`, async (req, res) => {
       if (data) {
         await sendBotMessage(chatId, '🔓 텔레그램 연동이 해제되었습니다. 더 이상 알림을 받지 않습니다.');
         log.info(`Telegram unlinked via bot: chatId=${chatId}`);
+        logActivity(data.id, 'telegram_unlink', { chatId, via: 'bot' });
       } else {
         await sendBotMessage(chatId, '연동된 계정을 찾을 수 없습니다.');
       }
@@ -172,6 +175,9 @@ router.delete('/link', requireAuth, async (req, res) => {
     if (error) {
       return res.status(500).json({ success: false, error: '연동 해제 실패' });
     }
+
+    const { ip, userAgent } = getRequestInfo(req);
+    logActivity(userId, 'telegram_unlink', { via: 'web' }, ip, userAgent);
 
     res.json({ success: true });
   } catch (err) {

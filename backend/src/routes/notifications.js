@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { createServiceLogger } = require('../config/logger');
+const { logActivity, getRequestInfo } = require('../services/activityLogger');
 
 const log = createServiceLogger('NotifRoute');
 
@@ -145,6 +146,9 @@ router.put('/preferences', async (req, res) => {
       .upsert(rows, { onConflict: 'user_id,alert_type' });
 
     if (error) throw error;
+
+    const { ip, userAgent } = getRequestInfo(req);
+    logActivity(userId, 'setting_change', { type: 'alert_preferences', count: rows.length }, ip, userAgent);
 
     res.json({ success: true });
   } catch (err) {

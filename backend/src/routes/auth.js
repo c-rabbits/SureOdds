@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { createServiceLogger } = require('../config/logger');
+const { logActivity, getRequestInfo } = require('../services/activityLogger');
 
 const log = createServiceLogger('Auth');
 
@@ -78,6 +79,9 @@ router.post('/login', requireAuth, async (req, res) => {
 
     log.info('Session registered', { userId, ip: ipAddress });
 
+    // 활동 로그
+    logActivity(userId, 'login', { device: deviceInfo.substring(0, 100) }, typeof ipAddress === 'string' ? ipAddress.split(',')[0].trim() : '', deviceInfo);
+
     res.json({
       success: true,
       data: {
@@ -127,6 +131,11 @@ router.post('/logout', requireAuth, async (req, res) => {
       .eq('session_token', tokenPrefix);
 
     log.info('Session invalidated on logout', { userId });
+
+    // 활동 로그
+    const { ip, userAgent } = getRequestInfo(req);
+    logActivity(userId, 'logout', {}, ip, userAgent);
+
     res.json({ success: true });
   } catch (err) {
     log.error('Logout session error', { error: err.message });

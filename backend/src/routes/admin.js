@@ -150,7 +150,7 @@ router.post('/users', async (req, res) => {
 // ============================================================
 router.patch('/users/:id', async (req, res) => {
   try {
-    const { role, is_active, display_name } = req.body;
+    const { role, is_active, display_name, vip_expires_at, admin_memo, suspended_until, suspended_reason } = req.body;
     const updates = {};
 
     const VALID_ROLES = ['admin', 'vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'test_vip1', 'test_vip2', 'test_vip3', 'test_vip4', 'test_vip5'];
@@ -162,6 +162,10 @@ router.patch('/users/:id', async (req, res) => {
     }
     if (is_active !== undefined) updates.is_active = is_active;
     if (display_name !== undefined) updates.display_name = display_name;
+    if (vip_expires_at !== undefined) updates.vip_expires_at = vip_expires_at;
+    if (admin_memo !== undefined) updates.admin_memo = admin_memo;
+    if (suspended_until !== undefined) updates.suspended_until = suspended_until;
+    if (suspended_reason !== undefined) updates.suspended_reason = suspended_reason;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
@@ -203,6 +207,97 @@ router.patch('/users/:id/password', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     log.error('Change password error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
+// GET /api/admin/users/:id/activity - 사용자 활동 로그 조회
+// ============================================================
+router.get('/users/:id/activity', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = Math.min(parseInt(req.query.limit) || 30, 100);
+    const offset = parseInt(req.query.offset) || 0;
+    const action = req.query.action; // optional filter
+
+    let query = supabase
+      .from('user_activity_logs')
+      .select('*')
+      .eq('user_id', id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (action) {
+      query = query.eq('action', action);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    log.error('Get user activity error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
+// GET /api/admin/users/:id/stats - 사용자 접속 통계
+// ============================================================
+router.get('/users/:id/stats', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 최근 30일 로그인 수
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: loginLogs, error } = await supabase
+      .from('user_activity_logs')
+      .select('created_at')
+      .eq('user_id', id)
+      .eq('action', 'login')
+      .gte('created_at', thirtyDaysAgo)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // 일별 접속 횟수 계산 (최근 7일)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const dailyCounts = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const key = d.toISOString().split('T')[0];
+      dailyCounts[key] = 0;
+    }
+
+    if (loginLogs) {
+      for (const log of loginLogs) {
+        const key = new Date(log.created_at).toISOString().split('T')[0];
+        if (dailyCounts[key] !== undefined) {
+          dailyCounts[key]++;
+        }
+      }
+    }
+
+    // 마지막 활동 시간
+    const { data: lastActivity } = await supabase
+      .from('user_activity_logs')
+      .select('created_at, action')
+      .eq('user_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    res.json({
+      success: true,
+      data: {
+        totalLogins30d: loginLogs?.length || 0,
+        dailyLogins7d: dailyCounts,
+        lastActivity: lastActivity || null,
+      },
+    });
+  } catch (err) {
+    log.error('Get user stats error', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
 });

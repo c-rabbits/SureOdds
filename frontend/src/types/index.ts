@@ -121,6 +121,26 @@ export interface UserProfile {
   email_confirmed_at?: string | null;
   telegram_chat_id?: string | null;
   telegram_linked_at?: string | null;
+  vip_expires_at?: string | null;
+  admin_memo?: string | null;
+  suspended_until?: string | null;
+  suspended_reason?: string | null;
+}
+
+export interface UserActivityLog {
+  id: string;
+  user_id: string;
+  action: string;
+  detail: Record<string, unknown>;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export interface UserStats {
+  totalLogins30d: number;
+  dailyLogins7d: Record<string, number>;
+  lastActivity: { created_at: string; action: string } | null;
 }
 
 // ============================================================

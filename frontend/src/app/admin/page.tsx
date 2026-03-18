@@ -21,6 +21,7 @@ import {
   updateAdminSetting,
 } from '@/lib/api';
 import { UserProfile, UserRole, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
+import UserDetailPanel from '@/components/admin/UserDetailPanel';
 
 type AdminTab = 'users' | 'sites' | 'requests' | 'settings';
 
@@ -72,6 +73,7 @@ export default function AdminPage() {
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
   // 비밀번호 변경
+  const [detailUser, setDetailUser] = useState<UserProfile | null>(null);
   const [pwUserId, setPwUserId] = useState<string | null>(null);
   const [pwValue, setPwValue] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
@@ -588,9 +590,13 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {users.map((u) => (
-                      <tr key={u.id} className={!u.is_active ? 'opacity-50' : ''}>
+                      <tr key={u.id} className={`${!u.is_active ? 'opacity-50' : ''} cursor-pointer hover:bg-gray-800/50`}
+                        onClick={() => setDetailUser(u)}>
                         <td className="pl-4">
-                          <span className="text-white">{u.role === 'admin' ? u.email : (u.username || u.email)}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-white">{u.role === 'admin' ? u.email : (u.username || u.email)}</span>
+                            {u.admin_memo && <span title={u.admin_memo} className="text-yellow-400 text-[10px]">📝</span>}
+                          </div>
                           {u.id === user?.id && (
                             <span className="ml-1.5 text-[10px] text-green-400 font-medium">(나)</span>
                           )}
@@ -609,6 +615,7 @@ export default function AdminPage() {
                           ) : (
                             <select
                               value={u.role}
+                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
                               className={`text-[10px] font-semibold rounded px-1.5 py-0.5 border cursor-pointer focus:outline-none ${getRoleStyle(u.role).color} bg-transparent`}
                             >
@@ -626,7 +633,7 @@ export default function AdminPage() {
                         </td>
                         <td className="text-gray-500">{formatDate(u.created_at)}</td>
                         <td className="text-gray-500">{formatDate(u.last_sign_in_at)}</td>
-                        <td className="pr-4">
+                        <td className="pr-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
                             {u.id !== user?.id && (
                               <>
@@ -1140,6 +1147,17 @@ export default function AdminPage() {
             </div>
           )}
         </>
+      )}
+      {/* 유저 상세 패널 */}
+      {detailUser && (
+        <UserDetailPanel
+          targetUser={detailUser}
+          onClose={() => setDetailUser(null)}
+          onUserUpdated={(updated) => {
+            setUsers((prev) => prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)));
+            setDetailUser(null);
+          }}
+        />
       )}
     </div>
   );
