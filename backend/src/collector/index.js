@@ -641,6 +641,43 @@ async function collect(sports, markets) {
         const linkedCount = Object.keys(stakeIdToExistingMatch).length;
         log.info(`[Stake] Linked ${linkedCount}/${stakeData.matches.length} matches to existing international matches`);
 
+        // Fallback: team name + time matching for unlinked Stake matches (links to Betman/other domestic)
+        const unlinkedStake = stakeData.matches.filter((m) => !stakeIdToExistingMatch[m.external_id]);
+        if (unlinkedStake.length > 0) {
+          const stTimes = unlinkedStake.map(m => new Date(m.start_time).getTime()).filter(t => !isNaN(t));
+          if (stTimes.length > 0) {
+            const stMin = new Date(Math.min(...stTimes) - 2 * 60 * 60 * 1000).toISOString();
+            const stMax = new Date(Math.max(...stTimes) + 2 * 60 * 60 * 1000).toISOString();
+            const { data: existingForStake } = await supabase
+              .from('matches')
+              .select('id, external_id, home_team, away_team, start_time')
+              .gte('start_time', stMin)
+              .lte('start_time', stMax);
+
+            if (existingForStake && existingForStake.length > 0) {
+              const stLookup = {};
+              for (const em of existingForStake) {
+                const h = normalizeTeam(em.home_team);
+                const a = normalizeTeam(em.away_team);
+                const t = new Date(em.start_time).toISOString().slice(0, 13);
+                stLookup[`${h}|${a}|${t}`] = em;
+              }
+              let stLinked = 0;
+              for (const m of unlinkedStake) {
+                const h = normalizeTeam(m.home_team);
+                const a = normalizeTeam(m.away_team);
+                const t = new Date(m.start_time).toISOString().slice(0, 13);
+                const existing = stLookup[`${h}|${a}|${t}`];
+                if (existing && existing.external_id !== m.external_id) {
+                  stakeIdToExistingMatch[m.external_id] = existing.id;
+                  stLinked++;
+                }
+              }
+              if (stLinked > 0) log.info(`[Stake] Cross-linked ${stLinked} additional matches by team+time`);
+            }
+          }
+        }
+
         // Only insert unmatched Stake matches
         const newStakeMatches = stakeData.matches.filter((m) => !stakeIdToExistingMatch[m.external_id]);
         if (newStakeMatches.length > 0) {

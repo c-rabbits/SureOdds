@@ -399,6 +399,121 @@ const TEAM_NAME_MAP = {
   'LA갤럭시': 'LA Galaxy',
   'LAFC': 'Los Angeles FC',
   '스포캔자': 'Sporting Kansas City',
+
+  // ─── Betman abbreviated names (베트맨 약칭) ───
+  // EPL
+  '울버햄프': 'Wolverhampton Wanderers',
+  '브렌트퍼': 'Brentford',
+  '더비카운': 'Derby County',
+  '포츠머스': 'Portsmouth',
+
+  // La Liga
+  '라요': 'Rayo Vallecano',
+  '레반테': 'Levante',
+
+  // NBA
+  '밀워벅스': 'Milwaukee Bucks',
+  '클리캐벌': 'Cleveland Cavaliers',
+  '미네울브': 'Minnesota Timberwolves',
+  '피닉선즈': 'Phoenix Suns',
+  '뉴올펠리': 'New Orleans Pelicans',
+  '뉴욕닉스': 'New York Knicks',
+  '댈러매버': 'Dallas Mavericks',
+  '덴버너게': 'Denver Nuggets',
+  '디트피스': 'Detroit Pistons',
+  '마이히트': 'Miami Heat',
+  '새크킹스': 'Sacramento Kings',
+  '샌안스퍼': 'San Antonio Spurs',
+  '샬럿호네': 'Charlotte Hornets',
+  '오클썬더': 'Oklahoma City Thunder',
+  '올랜매직': 'Orlando Magic',
+  '워싱위저': 'Washington Wizards',
+  '인디페이': 'Indiana Pacers',
+  '필라76s': 'Philadelphia 76ers',
+  'LA클리퍼': 'Los Angeles Clippers',
+
+  // NHL / Hockey
+  '내슈빌P': 'Nashville Predators',
+
+  // KOVO (Volleyball)
+  '현대캐피': 'Hyundai Capital',
+  '우리카드': 'Woori Card',
+  '삼성화재': 'Samsung Fire & Marine',
+  'IBK기업': 'IBK Altos',
+  '대한항공': 'Korean Air',
+  '도로공사': 'Korea Expressway',
+  '흥국생명': 'Heungkuk Life',
+  '대전정관': 'Daejeon JungKwanJang',
+
+  // KBL (Basketball)
+  '울산모비': 'Ulsan Hyundai Mobis Phoebus',
+  '고양소노': 'Goyang Carrot Jumpers',
+  'KT소닉붐': 'Suwon KT Sonicboom',
+
+  // K League
+  '광주FC': 'Gwangju FC',
+  '김천상무': 'Gimcheon Sangmu',
+  '경남FC': 'Gyeongnam FC',
+  '수원삼성': 'Suwon Samsung Bluewings',
+  '서울이랜': 'Seoul E-Land',
+  '파주프런': 'Paju Frontier',
+
+  // J League
+  '가시와': 'Kashiwa Reysol',
+  '센다이': 'Vegalta Sendai',
+  '쇼난': 'Shonan Bellmare',
+  '이와키': 'Iwaki FC',
+  '이와타': 'Jubilo Iwata',
+  '요코마리': 'Yokohama F. Marinos',
+  '후지에다': 'Fujieda MYFC',
+  '제프유나': 'JEF United Chiba',
+  'FC도쿄': 'FC Tokyo',
+  'RB오미야': 'Omiya Ardija',
+
+  // International
+  '미국': 'United States',
+  '미국W': 'United States W',
+  '일본': 'Japan',
+  '체코': 'Czech Republic',
+  '체코W': 'Czech Republic W',
+  '독일W': 'Germany W',
+  '브라질': 'Brazil',
+  '브라질W': 'Brazil W',
+  '한국W': 'South Korea W',
+  '호주W': 'Australia W',
+  '중국W': 'China W',
+  '캐나다': 'Canada',
+  '캐나다W': 'Canada W',
+  '이탈리아': 'Italy',
+  '이탈리W': 'Italy W',
+  '스페인W': 'Spain W',
+  '벨기에W': 'Belgium W',
+  '나이지W': 'Nigeria W',
+  '프랑스W': 'France W',
+  '튀르키W': 'Turkey W',
+  '네덜란드': 'Netherlands',
+  '이스라엘': 'Israel',
+  '영국': 'United Kingdom',
+  '멕시코': 'Mexico',
+  '콜롬비아': 'Colombia',
+  '베네수엘': 'Venezuela',
+  '파나마': 'Panama',
+  '도미니공': 'Dominican Republic',
+  '푸에르토': 'Puerto Rico',
+  '니카라과': 'Nicaragua',
+  '쿠바': 'Cuba',
+  '볼리비아': 'Bolivia',
+  '대만': 'Chinese Taipei',
+  '트리니다': 'Trinidad and Tobago',
+
+  // ACL / Asian
+  '멜버시티': 'Melbourne City FC',
+  '크루스아': 'Cruz Azul',
+  '몬테레이': 'CF Monterrey',
+  '알라후엘': 'LD Alajuelense',
+  '부리람U': 'Buriram United',
+  '스포르CP': 'Sporting CP',
+  '보되글림': 'Bodø/Glimt',
 };
 
 /**
