@@ -16,6 +16,7 @@ require('dotenv').config();
 const log = createServiceLogger('Collector');
 
 const INTERVAL_SECONDS = parseInt(process.env.COLLECTOR_INTERVAL || '300', 10);
+const ODDS_API_INTERVAL_MIN = parseInt(process.env.ODDS_API_INTERVAL || '240', 10); // The Odds API: default 4 hours
 const ODDS_API_IO_INTERVAL_MIN = parseInt(process.env.ODDS_API_IO_INTERVAL || '10', 10);
 const BATCH_SIZE = 100;
 
@@ -383,19 +384,19 @@ async function trackApiUsage(creditsUsed, note) {
 }
 
 /**
- * Main collection cycle.
+ * Collect from The Odds API (Pinnacle) — runs on separate long interval (default 4h).
  */
-async function collect(sports, markets) {
+async function collectTheOddsApi(sports, markets) {
   const startTime = Date.now();
-  log.info('Starting odds collection...');
+  log.info('[TheOddsAPI] Starting collection...');
 
   try {
     const { data: rawData, creditsUsed } = await fetchAllOdds(sports, markets);
-    log.info(`Fetched ${rawData.length} events`, { creditsUsed });
+    log.info(`[TheOddsAPI] Fetched ${rawData.length} events`, { creditsUsed });
 
     const { matches, oddsRows } = transformOddsData(rawData);
     const savedMatches = await saveToDatabase(matches, oddsRows);
-    log.info(`Saved ${savedMatches.length} matches, ${oddsRows.length} odds rows`);
+    log.info(`[TheOddsAPI] Saved ${savedMatches.length} matches, ${oddsRows.length} odds rows`);
 
     // 배당 히스토리 스냅샷 저장
     try {
@@ -411,8 +412,32 @@ async function collect(sports, markets) {
         }));
       await saveOddsSnapshot(snapshotRows);
     } catch (snapErr) {
-      log.warn('Odds snapshot error (non-fatal)', { error: snapErr.message });
+      log.warn('[TheOddsAPI] Snapshot error (non-fatal)', { error: snapErr.message });
     }
+
+    // 양방 탐지
+    const newOpps = await runArbitrageDetection(savedMatches);
+    await trackApiUsage(creditsUsed, `[TheOddsAPI] ${matches.length} matches, ${oddsRows.length} odds, ${newOpps.length} arbs`);
+
+    const duration = Date.now() - startTime;
+    log.info(`[TheOddsAPI] Complete: ${matches.length} matches, ${oddsRows.length} odds, ${newOpps.length} arbs (${duration}ms)`);
+    return { matches: savedMatches, creditsUsed };
+  } catch (err) {
+    log.error('[TheOddsAPI] Collection error', { error: err.message });
+    return { matches: [], creditsUsed: 0 };
+  }
+}
+
+/**
+ * Main collection cycle (Pinnacle Direct + Betman + Stake).
+ * The Odds API runs on a separate longer interval.
+ */
+async function collect(sports, markets) {
+  const startTime = Date.now();
+  log.info('Starting odds collection (Betman + Stake + Pinnacle Direct)...');
+
+  try {
+    let savedMatches = [];
 
     // ─── Pinnacle direct API ───
     let pinnacleMatchCount = 0;
@@ -685,17 +710,12 @@ async function collect(sports, markets) {
       log.warn('AI prediction error (non-fatal)', { error: predErr.message });
     }
 
-    await trackApiUsage(creditsUsed, `Collected ${matches.length} intl + ${pinnacleMatchCount} pinnacle + ${betmanMatchCount} domestic + ${stakeMatchCount} stake matches`);
-
     lastCollectionResult = {
       success: true,
       timestamp: new Date().toISOString(),
       duration: Date.now() - startTime,
       matchesUpdated: savedMatches.length,
-      oddsRows: oddsRows.length,
       arbitrageFound: newOpps.length,
-      creditsUsed,
-      quota: getQuotaInfo(),
       pinnacle: { matches: pinnacleMatchCount, oddsRows: pinnacleOddsCount },
       domestic: { matches: betmanMatchCount, oddsRows: betmanOddsCount },
       stake: { matches: stakeMatchCount, oddsRows: stakeOddsCount },
@@ -854,8 +874,9 @@ function startOddsApiIoScheduler() {
 if (require.main === module) {
   // Run immediately on start
   collect();
+  collectTheOddsApi(); // Initial The Odds API fetch
 
-  // Schedule recurring collection (main: The Odds API + Pinnacle + Betman)
+  // Schedule recurring collection (Pinnacle Direct + Betman + Stake)
   if (INTERVAL_SECONDS >= 60) {
     const minutes = Math.floor(INTERVAL_SECONDS / 60);
     const cronExpression = `*/${minutes} * * * *`;
@@ -867,12 +888,22 @@ if (require.main === module) {
     log.info(`Main collector started. Running every ${INTERVAL_SECONDS} seconds.`);
   }
 
+  // The Odds API on separate long interval (default 4 hours)
+  if (ODDS_API_INTERVAL_MIN > 0) {
+    const oaCron = ODDS_API_INTERVAL_MIN >= 60
+      ? `0 */${Math.floor(ODDS_API_INTERVAL_MIN / 60)} * * *`   // hourly+ → "0 */4 * * *"
+      : `*/${ODDS_API_INTERVAL_MIN} * * * *`;                     // < 1h → "*/30 * * * *"
+    cron.schedule(oaCron, () => collectTheOddsApi());
+    log.info(`[TheOddsAPI] Scheduler started. Running every ${ODDS_API_INTERVAL_MIN} minutes.`);
+  }
+
   // Start Odds-API.io on separate schedule
   startOddsApiIoScheduler();
 }
 
 module.exports = {
   collect,
+  collectTheOddsApi,
   getLastResult,
   transformOddsData,
   collectOddsApiIoAndSave,
