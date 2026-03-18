@@ -123,19 +123,56 @@ async function getTeamLogos(teamNames) {
       // Column might not exist
     }
 
-    // Fetch remaining from API (with rate limiting)
+    // Fetch remaining from API in background (don't block response)
     const stillMissing = uncached.filter((n) => result[n] === undefined);
-    for (const name of stillMissing) {
-      const logo = await getTeamLogo(name);
-      result[name] = logo;
-      // Small delay to be nice to TheSportsDB
-      if (stillMissing.indexOf(name) < stillMissing.length - 1) {
-        await new Promise((r) => setTimeout(r, 300));
+    if (stillMissing.length > 0) {
+      // Return null for now, fetch in background for next request
+      for (const name of stillMissing) {
+        result[name] = null;
       }
+      // Background fetch (fire-and-forget)
+      fetchLogosInBackground(stillMissing);
     }
   }
 
   return result;
+}
+
+/**
+ * Fetch logos in background without blocking the response.
+ * Results are cached for subsequent requests.
+ */
+let bgFetchRunning = false;
+const bgQueue = [];
+
+async function fetchLogosInBackground(teams) {
+  bgQueue.push(...teams);
+  if (bgFetchRunning) return;
+  bgFetchRunning = true;
+
+  while (bgQueue.length > 0) {
+    const name = bgQueue.shift();
+    if (!name || logoCache[name] !== undefined) continue;
+
+    try {
+      const { data: response } = await http.get(`${BASE_URL}/searchteams.php`, {
+        params: { t: name },
+      });
+      const logo = response?.teams?.[0]?.strBadge || null;
+      logoCache[name] = logo;
+
+      if (logo) {
+        supabase.from('team_stats').update({ logo_url: logo }).eq('team_name', name).then(() => {}).catch(() => {});
+      }
+    } catch {
+      logoCache[name] = null;
+    }
+
+    // Rate limit: 500ms between API calls
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  bgFetchRunning = false;
 }
 
 module.exports = { getTeamLogo, getTeamLogos };
