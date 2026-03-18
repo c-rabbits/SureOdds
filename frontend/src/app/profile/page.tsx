@@ -213,26 +213,7 @@ export default function ProfilePage() {
   const roleLabel = ROLE_LABELS[user.role] || user.role;
 
   return (
-    <div className="p-4 pb-8 max-w-lg mx-auto">
-      {/* 프로필 헤더 */}
-      <div className="flex flex-col items-center mb-6 pt-4">
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-emerald-700 flex items-center justify-center mb-3 shadow-lg shadow-green-900/30">
-          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </div>
-        <h1 className="text-lg font-bold text-white">{savedName || user.username || '사용자'}</h1>
-        <span className={`mt-1 text-xs px-2.5 py-0.5 rounded-full font-medium ${
-          isAdmin ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-            : user.role.startsWith('test_') ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-            : user.role.startsWith('vip') ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-            : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-        }`}>
-          {roleLabel}
-        </span>
-      </div>
-
+    <div className="p-4 pb-8 max-w-lg mx-auto pt-6">
       {/* 기본 정보 */}
       <Section title="기본 정보" icon={<UserIcon />}>
         <InfoRow label="아이디" value={user.username || '-'} />
