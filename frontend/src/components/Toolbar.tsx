@@ -283,28 +283,45 @@ export default function Toolbar({
       </div>
       </div>
 
-      {/* Row 3: 리그 필터 */}
-      {availableLeagues.length > 0 && (
-        <div className="px-3 py-1.5 flex items-center gap-1 overflow-x-auto whitespace-nowrap border-t border-gray-800/50">
-          <span className="text-gray-500 shrink-0">리그:</span>
-          <button
-            onClick={() => onToggleLeague('all')}
-            className={`filter-pill ${filters.leagues.length === 0 ? 'filter-pill-active' : 'filter-pill-inactive'}`}
-          >
-            전체
-          </button>
-          {availableLeagues.map((league) => (
+      {/* Row 3: 리그 필터 (한글명 기준 그룹화) */}
+      {availableLeagues.length > 0 && (() => {
+        // 한글명 → 원본 리그명 배열로 그룹화
+        const leagueGroups: Record<string, string[]> = {};
+        for (const league of availableLeagues) {
+          const kr = getKoreanLeagueName(league);
+          if (!leagueGroups[kr]) leagueGroups[kr] = [];
+          leagueGroups[kr].push(league);
+        }
+        const groupEntries = Object.entries(leagueGroups).sort(([a], [b]) => a.localeCompare(b));
+
+        return (
+          <div className="px-3 py-1.5 flex items-center gap-1 overflow-x-auto whitespace-nowrap border-t border-gray-800/50">
+            <span className="text-gray-500 shrink-0">리그:</span>
             <button
-              key={league}
-              onClick={() => onToggleLeague(league)}
-              className={`filter-pill ${filters.leagues.includes(league) ? 'filter-pill-active' : 'filter-pill-inactive'}`}
-              title={league}
+              onClick={() => onToggleLeague('all')}
+              className={`filter-pill ${filters.leagues.length === 0 ? 'filter-pill-active' : 'filter-pill-inactive'}`}
             >
-              {getKoreanLeagueName(league)}
+              전체
             </button>
-          ))}
-        </div>
-      )}
+            {groupEntries.map(([krName, originals]) => {
+              const isActive = originals.some((l) => filters.leagues.includes(l));
+              return (
+                <button
+                  key={krName}
+                  onClick={() => {
+                    // 그룹 내 모든 원본 리그를 한번에 토글
+                    for (const l of originals) onToggleLeague(l);
+                  }}
+                  className={`filter-pill ${isActive ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+                  title={originals.join(', ')}
+                >
+                  {krName}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
