@@ -213,7 +213,7 @@ export default function ProfilePage() {
   const roleLabel = ROLE_LABELS[user.role] || user.role;
 
   return (
-    <div className="p-4 pb-8 max-w-lg mx-auto pt-6">
+    <div className="p-4 pb-8 max-w-2xl mx-auto pt-6">
       {/* 기본 정보 */}
       <Section title="기본 정보" icon={<UserIcon />}>
         <InfoRow label="아이디" value={user.username || '-'} />
