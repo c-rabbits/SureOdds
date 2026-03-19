@@ -9,6 +9,7 @@ import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getSportEmoji, formatMatchTime, getBookmakerName, formatOdds, isDomesticBookmaker } from '@/lib/utils';
 import OddsChart from '@/components/ai/OddsChart';
 import ValueAnalysis from '@/components/ai/ValueAnalysis';
+import TeamLogo from '@/components/TeamLogo';
 
 // --- 팀 대결 비교 카드 ---
 
@@ -90,9 +91,15 @@ function TeamMatchupCard({ homeStats, awayStats, homeName, awayName, prediction 
 
       {/* 팀 이름 헤더 */}
       <div className="flex justify-between items-center mb-3 text-sm">
-        <span className="text-blue-400 font-semibold">{getKoreanTeamName(homeName)}</span>
+        <span className="text-blue-400 font-semibold flex items-center gap-1.5">
+          <TeamLogo teamName={homeName} size={22} />
+          {getKoreanTeamName(homeName)}
+        </span>
         <span className="text-gray-600">vs</span>
-        <span className="text-red-400 font-semibold">{getKoreanTeamName(awayName)}</span>
+        <span className="text-red-400 font-semibold flex items-center gap-1.5">
+          {getKoreanTeamName(awayName)}
+          <TeamLogo teamName={awayName} size={22} />
+        </span>
       </div>
 
       {/* ELO 비교 */}
@@ -232,13 +239,15 @@ export default function MatchDetailPage() {
           <span>·</span>
           <span>{formatMatchTime(match.start_time)}</span>
         </div>
-        <div className="flex items-center justify-center gap-3">
-          <span className="text-base font-bold text-white" title={match.home_team}>
+        <div className="flex items-center justify-center gap-4">
+          <span className="flex items-center gap-2 text-base font-bold text-white" title={match.home_team}>
+            <TeamLogo teamName={match.home_team} size={28} />
             {getKoreanTeamName(match.home_team)}
           </span>
           <span className="text-sm text-gray-600">vs</span>
-          <span className="text-base font-bold text-white" title={match.away_team}>
+          <span className="flex items-center gap-2 text-base font-bold text-white" title={match.away_team}>
             {getKoreanTeamName(match.away_team)}
+            <TeamLogo teamName={match.away_team} size={28} />
           </span>
         </div>
       </div>
