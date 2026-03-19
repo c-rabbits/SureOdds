@@ -15,6 +15,7 @@ interface Props {
   onToggleLeague: (league: string | string[]) => void;
   onSetTimeFilter: (tf: TimeFilter) => void;
   onSetRequiredBookmaker: (bm: string) => void;
+  onToggleArbOnly: () => void;
   availableBookmakers: string[];
   availableLeagues: string[];
   matchCount: number;
@@ -54,6 +55,7 @@ export default function Toolbar({
   onToggleLeague,
   onSetTimeFilter,
   onSetRequiredBookmaker,
+  onToggleArbOnly,
   availableBookmakers,
   availableLeagues,
   matchCount,
@@ -187,6 +189,16 @@ export default function Toolbar({
           </button>
         ))}
       </div>
+
+      <div className="h-4 w-px bg-gray-700 shrink-0" />
+
+      {/* 양방만 */}
+      <button
+        onClick={onToggleArbOnly}
+        className={`filter-pill ${filters.arbOnly ? 'bg-amber-500/20 text-amber-300 border-amber-500/50' : 'filter-pill-inactive'}`}
+      >
+        양방만
+      </button>
 
       <div className="h-4 w-px bg-gray-700 shrink-0" />
 

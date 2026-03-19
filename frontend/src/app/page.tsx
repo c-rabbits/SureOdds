@@ -39,7 +39,7 @@ export default function HomePage() {
     });
   }, []);
 
-  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker, toggleLeague, setTimeFilter, setRequiredBookmaker } = useFilters();
+  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker, toggleLeague, setTimeFilter, setRequiredBookmaker, toggleArbOnly } = useFilters();
 
   // 이전 배당 캐시 (배당 변동 표시용)
   const prevOddsRef = useRef<Map<string, { o1: number | null; o2: number | null; draw: number | null }>>(new Map());
@@ -203,6 +203,7 @@ export default function HomePage() {
         onToggleLeague={toggleLeague}
         onSetTimeFilter={setTimeFilter}
         onSetRequiredBookmaker={setRequiredBookmaker}
+        onToggleArbOnly={toggleArbOnly}
         availableLeagues={availableLeagues}
         availableBookmakers={availableBookmakers}
         matchCount={uniqueMatches}

@@ -162,6 +162,11 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
       return 0;
     });
 
+    // 양방만 필터
+    if (filters.arbOnly) {
+      result = result.filter((r) => r.isArbitrage);
+    }
+
     return result;
   }, [rows, filters]);
 

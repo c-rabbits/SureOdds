@@ -16,6 +16,7 @@ const DEFAULT_FILTERS: FilterState = {
   leagues: [],
   timeFilter: 'all',
   requiredBookmaker: '',
+  arbOnly: false,
 };
 
 export function useFilters() {
@@ -130,6 +131,10 @@ export function useFilters() {
     setFilters((prev) => ({ ...prev, requiredBookmaker }));
   }, []);
 
+  const toggleArbOnly = useCallback(() => {
+    setFilters((prev) => ({ ...prev, arbOnly: !prev.arbOnly }));
+  }, []);
+
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
   }, []);
@@ -147,6 +152,7 @@ export function useFilters() {
     toggleLeague,
     setTimeFilter,
     setRequiredBookmaker,
+    toggleArbOnly,
     resetFilters,
   };
 }

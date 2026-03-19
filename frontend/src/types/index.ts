@@ -105,6 +105,7 @@ export interface FilterState {
   leagues: string[];
   timeFilter: TimeFilter;
   requiredBookmaker: string;
+  arbOnly: boolean;
 }
 
 // ============================================================
