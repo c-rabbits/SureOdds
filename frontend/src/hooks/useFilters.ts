@@ -102,9 +102,19 @@ export function useFilters() {
     });
   }, []);
 
-  const toggleLeague = useCallback((league: string) => {
+  const toggleLeague = useCallback((league: string | string[]) => {
     setFilters((prev) => {
       if (league === 'all') return { ...prev, leagues: [] };
+      // 배열이면 그룹 토글: 모두 포함 → 모두 제거, 아니면 모두 추가
+      if (Array.isArray(league)) {
+        const allIncluded = league.every((l) => prev.leagues.includes(l));
+        if (allIncluded) {
+          return { ...prev, leagues: prev.leagues.filter((l) => !league.includes(l)) };
+        } else {
+          const merged = Array.from(new Set([...prev.leagues, ...league]));
+          return { ...prev, leagues: merged };
+        }
+      }
       const leagues = prev.leagues.includes(league)
         ? prev.leagues.filter((l) => l !== league)
         : [...prev.leagues, league];

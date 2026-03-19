@@ -12,7 +12,7 @@ interface Props {
   onSetSort: (field: 'profit' | 'time') => void;
   onSetSourceFilter: (sf: SourceFilter) => void;
   onToggleBookmaker: (bookmaker: string) => void;
-  onToggleLeague: (league: string) => void;
+  onToggleLeague: (league: string | string[]) => void;
   onSetTimeFilter: (tf: TimeFilter) => void;
   onSetRequiredBookmaker: (bm: string) => void;
   availableBookmakers: string[];
@@ -304,14 +304,11 @@ export default function Toolbar({
               전체
             </button>
             {groupEntries.map(([krName, originals]) => {
-              const isActive = originals.some((l) => filters.leagues.includes(l));
+              const isActive = originals.every((l) => filters.leagues.includes(l));
               return (
                 <button
                   key={krName}
-                  onClick={() => {
-                    // 그룹 내 모든 원본 리그를 한번에 토글
-                    for (const l of originals) onToggleLeague(l);
-                  }}
+                  onClick={() => onToggleLeague(originals)}
                   className={`filter-pill ${isActive ? 'filter-pill-active' : 'filter-pill-inactive'}`}
                   title={originals.join(', ')}
                 >
