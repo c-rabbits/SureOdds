@@ -9,6 +9,42 @@
  */
 
 const supabase = require('../config/supabase');
+const { createServiceLogger } = require('../config/logger');
+
+const log = createServiceLogger('TeamMatcher');
+
+// 매칭 실패 기록 (관리자 확인용, 중복 방지)
+const unmatchedCache = new Set();
+
+/**
+ * Levenshtein distance 계산.
+ */
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/**
+ * 두 문자열의 유사도 (0~1). 1 = 동일.
+ */
+function similarity(a, b) {
+  if (!a || !b) return 0;
+  const al = a.toLowerCase(), bl = b.toLowerCase();
+  if (al === bl) return 1;
+  const maxLen = Math.max(al.length, bl.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshtein(al, bl) / maxLen;
+}
 
 /**
  * Korean → English team name mapping.
@@ -539,6 +575,17 @@ function findEnglishName(koreanName) {
     }
   }
 
+  // 매칭 실패 로그 (중복 방지)
+  if (!unmatchedCache.has(koreanName)) {
+    unmatchedCache.add(koreanName);
+    log.warn('Unmatched Korean team name', { koreanName });
+    // DB에 매칭 실패 기록 (fire-and-forget)
+    supabase.from('unmatched_teams').upsert(
+      { korean_name: koreanName, last_seen_at: new Date().toISOString() },
+      { onConflict: 'korean_name' }
+    ).catch(() => {});
+  }
+
   return null;
 }
 
@@ -554,32 +601,61 @@ async function findMatchingInternationalMatch(domesticMatch) {
 
   if (!homeEn || !awayEn) return null;
 
-  // Search by team names + start_time within 24 hours
+  // Search by team names + start_time within ±2 hours (기존 24h → 2h로 축소, 정확도 ↑)
   const startTime = new Date(domesticMatch.start_time);
-  const timeBefore = new Date(startTime.getTime() - 24 * 3600 * 1000).toISOString();
-  const timeAfter = new Date(startTime.getTime() + 24 * 3600 * 1000).toISOString();
+  const timeBefore = new Date(startTime.getTime() - 2 * 3600 * 1000).toISOString();
+  const timeAfter = new Date(startTime.getTime() + 2 * 3600 * 1000).toISOString();
 
   const { data: candidates } = await supabase
     .from('matches')
-    .select('id, external_id, home_team, away_team, start_time')
+    .select('id, external_id, home_team, away_team, start_time, sport, league')
     .not('external_id', 'like', 'betman_%')
     .gte('start_time', timeBefore)
     .lte('start_time', timeAfter);
 
   if (!candidates || candidates.length === 0) return null;
 
-  // Score each candidate by team name similarity
-  for (const candidate of candidates) {
+  // 1단계: 정확 매칭 (includes)
+  for (const c of candidates) {
     const homeMatch =
-      candidate.home_team.toLowerCase().includes(homeEn.toLowerCase()) ||
-      homeEn.toLowerCase().includes(candidate.home_team.toLowerCase());
+      c.home_team.toLowerCase().includes(homeEn.toLowerCase()) ||
+      homeEn.toLowerCase().includes(c.home_team.toLowerCase());
     const awayMatch =
-      candidate.away_team.toLowerCase().includes(awayEn.toLowerCase()) ||
-      awayEn.toLowerCase().includes(candidate.away_team.toLowerCase());
+      c.away_team.toLowerCase().includes(awayEn.toLowerCase()) ||
+      awayEn.toLowerCase().includes(c.away_team.toLowerCase());
 
     if (homeMatch && awayMatch) {
-      return candidate.id;
+      return c.id;
     }
+  }
+
+  // 2단계: Fuzzy matching (Levenshtein 유사도 70% 이상)
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const c of candidates) {
+    const homeSim = similarity(homeEn, c.home_team);
+    const awaySim = similarity(awayEn, c.away_team);
+    const avgSim = (homeSim + awaySim) / 2;
+
+    // 시간 근접도 보너스 (1시간 이내 +5%)
+    const timeDiff = Math.abs(startTime.getTime() - new Date(c.start_time).getTime());
+    const timeBonus = timeDiff < 3600000 ? 0.05 : 0;
+    const totalScore = avgSim + timeBonus;
+
+    if (totalScore > bestScore && avgSim >= 0.70) {
+      bestScore = totalScore;
+      bestMatch = c;
+    }
+  }
+
+  if (bestMatch) {
+    log.info('Fuzzy matched', {
+      domestic: `${domesticMatch.home_team} vs ${domesticMatch.away_team}`,
+      international: `${bestMatch.home_team} vs ${bestMatch.away_team}`,
+      score: bestScore.toFixed(2),
+    });
+    return bestMatch.id;
   }
 
   return null;
@@ -589,4 +665,6 @@ module.exports = {
   TEAM_NAME_MAP,
   findEnglishName,
   findMatchingInternationalMatch,
+  similarity,
+  levenshtein,
 };

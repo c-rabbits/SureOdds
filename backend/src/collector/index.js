@@ -155,26 +155,38 @@ async function saveToDatabase(matches, oddsRows) {
         .lte('start_time', maxTime);
 
       if (existingMatches && existingMatches.length > 0) {
-        // Build lookup: normalized "home|away|hour" → existing match
-        const existingLookup = {};
+        // Build lookup: normalized "home|away" → [existing matches]
+        const existingByTeams = {};
         for (const em of existingMatches) {
           const h = normalizeTeam(em.home_team);
           const a = normalizeTeam(em.away_team);
-          const t = new Date(em.start_time).toISOString().slice(0, 13); // YYYY-MM-DDTHH
-          const key = `${h}|${a}|${t}`;
-          if (!existingLookup[key]) existingLookup[key] = em;
+          const key = `${h}|${a}`;
+          if (!existingByTeams[key]) existingByTeams[key] = [];
+          existingByTeams[key].push(em);
         }
 
         for (const m of matches) {
           const h = normalizeTeam(m.home_team);
           const a = normalizeTeam(m.away_team);
-          const t = new Date(m.start_time).toISOString().slice(0, 13);
-          const key = `${h}|${a}|${t}`;
-          const existing = existingLookup[key];
+          const key = `${h}|${a}`;
+          const candidates = existingByTeams[key];
 
-          if (existing && existing.external_id !== m.external_id) {
-            // Same match from different source — link odds to existing match
-            linkedExtIds[m.external_id] = existing.id;
+          if (candidates) {
+            const mTime = new Date(m.start_time).getTime();
+            // ±2시간 이내에서 가장 가까운 시간의 매치를 찾음
+            let bestCandidate = null;
+            let bestDiff = Infinity;
+            for (const c of candidates) {
+              if (c.external_id === m.external_id) continue;
+              const diff = Math.abs(new Date(c.start_time).getTime() - mTime);
+              if (diff < 2 * 3600 * 1000 && diff < bestDiff) {
+                bestDiff = diff;
+                bestCandidate = c;
+              }
+            }
+            if (bestCandidate) {
+              linkedExtIds[m.external_id] = bestCandidate.id;
+            }
           }
         }
 
