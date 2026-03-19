@@ -69,9 +69,8 @@ export default function OddsMovementPage() {
         <p className="text-sm text-gray-500">배당이 크게 변동한 경기를 추적합니다</p>
       </div>
 
-      {/* 필터 바 */}
-      <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-0.5">
-        {/* 기간 필터 */}
+      {/* 필터 Row 1: 기간 + 정렬 */}
+      <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-0.5">
         {[6, 12, 24, 48].map((h) => (
           <button
             key={h}
@@ -88,30 +87,6 @@ export default function OddsMovementPage() {
 
         <div className="h-4 w-px bg-gray-700 shrink-0" />
 
-        {/* 종목 필터 */}
-        {[
-          { key: 'all', label: '전체' },
-          { key: 'soccer', label: '⚽' },
-          { key: 'basketball', label: '🏀' },
-          { key: 'baseball', label: '⚾' },
-          { key: 'hockey', label: '🏒' },
-        ].map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setSportFilter(key)}
-            className={`text-xs px-2 py-1 rounded-md transition-colors ${
-              sportFilter === key
-                ? 'bg-green-600/20 text-green-400 border border-green-500/30'
-                : 'text-gray-500 hover:text-gray-300 bg-gray-800/60'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-
-        <div className="h-4 w-px bg-gray-700 shrink-0" />
-
-        {/* 정렬 */}
         <button
           onClick={() => handleSort('change')}
           className={`text-xs px-2 py-1 rounded-md transition-colors ${
@@ -132,6 +107,25 @@ export default function OddsMovementPage() {
         >
           시간{sortField === 'time' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
         </button>
+      </div>
+
+      {/* 필터 Row 2: 종목 (아이콘+한글) */}
+      <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-0.5">
+        {[
+          { key: 'all', label: '전체' },
+          { key: 'soccer', label: '⚽ 축구' },
+          { key: 'basketball', label: '🏀 농구' },
+          { key: 'baseball', label: '⚾ 야구' },
+          { key: 'hockey', label: '🏒 하키' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setSportFilter(key)}
+            className={`filter-pill ${sportFilter === key ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* 결과 카운트 */}
