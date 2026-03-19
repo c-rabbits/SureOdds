@@ -105,6 +105,10 @@ app.listen(PORT, async () => {
   // Start daily digest scheduler (daily at 08:00)
   startDailyDigestScheduler();
 
+  // Preload team logos into memory cache
+  const { preloadLogos } = require('./services/teamLogoService');
+  preloadLogos();
+
   // Initialize Web Push
   webPushService.init();
 

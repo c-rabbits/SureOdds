@@ -201,7 +201,7 @@ async function sendTelegram(type, payload) {
 }
 
 /**
- * Web Push 발송.
+ * Web Push 발송 — 유저별 preference 체크.
  */
 async function sendPush(type, payload) {
   if (!isPushConfigured()) return { sent: 0, failed: 0 };
@@ -211,6 +211,46 @@ async function sendPush(type, payload) {
 
   if (type === 'session_expiry' && payload.userId) {
     return await sendPushToUser(payload.userId, pushPayload);
+  }
+
+  // 양방/밸류베팅: 유저별 push_enabled + threshold 체크
+  if (type === 'arbitrage' || type === 'value_bet') {
+    const profitPercent = type === 'arbitrage'
+      ? (payload.opportunity?.profit_percent ?? 0)
+      : ((payload.valueBets?.[0]?.edge ?? 0) * 100);
+
+    const { data: subs } = await supabase
+      .from('push_subscriptions')
+      .select('user_id, subscription')
+      .eq('is_active', true);
+
+    if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
+
+    // 유저 ID 목록으로 preference 일괄 조회
+    const userIds = [...new Set(subs.map(s => s.user_id))];
+    const { data: prefs } = await supabase
+      .from('alert_preferences')
+      .select('user_id, push_enabled, min_threshold')
+      .eq('alert_type', type)
+      .in('user_id', userIds);
+
+    const prefMap = {};
+    if (prefs) for (const p of prefs) prefMap[p.user_id] = p;
+
+    let sent = 0, failed = 0;
+    for (const sub of subs) {
+      const pref = prefMap[sub.user_id];
+      // push 비활성화 스킵
+      if (pref && pref.push_enabled === false) continue;
+      // threshold 체크
+      if (pref && pref.min_threshold > 0 && profitPercent < pref.min_threshold) continue;
+
+      try {
+        await sendPushToUser(sub.user_id, pushPayload);
+        sent++;
+      } catch { failed++; }
+    }
+    return { sent, failed };
   }
 
   return await sendPushToAll(pushPayload);

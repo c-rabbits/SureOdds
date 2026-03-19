@@ -175,4 +175,25 @@ async function fetchLogosInBackground(teams) {
   bgFetchRunning = false;
 }
 
-module.exports = { getTeamLogo, getTeamLogos };
+/**
+ * 서버 시작 시 DB에서 모든 로고를 인메모리 캐시로 프리로드.
+ */
+async function preloadLogos() {
+  try {
+    const { data } = await supabase
+      .from('team_stats')
+      .select('team_name, logo_url')
+      .not('logo_url', 'is', null);
+
+    if (data) {
+      for (const row of data) {
+        logoCache[row.team_name] = row.logo_url;
+      }
+      log.info(`Preloaded ${data.length} team logos into cache`);
+    }
+  } catch (err) {
+    log.warn('Logo preload failed (column may not exist)', { error: err.message });
+  }
+}
+
+module.exports = { getTeamLogo, getTeamLogos, preloadLogos };
