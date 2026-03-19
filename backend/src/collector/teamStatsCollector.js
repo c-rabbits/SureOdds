@@ -151,11 +151,29 @@ function startDailyScheduler() {
     return;
   }
 
-  // Run immediately on startup
-  log.info('Running initial team stats collection...');
-  collectTeamStats().catch((err) => {
-    log.error(`Initial collection failed: ${err.message}`);
-  });
+  // Run on startup only if not recently collected (within 12 hours)
+  (async () => {
+    try {
+      const { data } = await supabase
+        .from('team_stats')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const lastUpdate = data?.updated_at ? new Date(data.updated_at) : null;
+      const hoursSince = lastUpdate ? (Date.now() - lastUpdate.getTime()) / 3600000 : Infinity;
+
+      if (hoursSince > 12) {
+        log.info(`Last update ${hoursSince.toFixed(1)}h ago — running startup collection`);
+        await collectTeamStats();
+      } else {
+        log.info(`Last update ${hoursSince.toFixed(1)}h ago — skipping startup collection`);
+      }
+    } catch (err) {
+      log.error(`Startup check failed: ${err.message}`);
+    }
+  })();
 
   // Schedule daily at 06:00
   cron.schedule('0 6 * * *', () => {
