@@ -9,7 +9,9 @@ import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getSportEmoji, formatMatchTime, getBookmakerName, formatOdds, isDomesticBookmaker } from '@/lib/utils';
 import OddsChart from '@/components/ai/OddsChart';
 import ValueAnalysis from '@/components/ai/ValueAnalysis';
+import ScoreMatrix from '@/components/ai/ScoreMatrix';
 import TeamLogo from '@/components/TeamLogo';
+import { overUnderProbs, handicapCoverProb, bttsProb } from '@/lib/poissonUtils';
 
 // --- 팀 대결 비교 카드 ---
 
@@ -285,34 +287,181 @@ export default function MatchDetailPage() {
             </div>
           </div>
 
-          {/* 예상 골 + O/U */}
+          {/* 예상 스코어 */}
           {p.expected_home_goals != null && (
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="bg-gray-800/50 rounded-lg p-2.5">
-                <p className="text-xs text-gray-500 mb-0.5">예상 스코어</p>
-                <p className="text-lg font-bold text-white font-mono">
-                  {p.expected_home_goals} - {p.expected_away_goals}
-                </p>
-              </div>
-              {p.over_2_5_prob != null && (
-                <div className="bg-gray-800/50 rounded-lg p-2.5">
-                  <p className="text-xs text-gray-500 mb-0.5">오버/언더 2.5</p>
-                  <div className="flex items-center justify-center gap-3">
-                    <span className={`text-sm font-bold font-mono ${p.over_2_5_prob > 0.5 ? 'text-green-400' : 'text-gray-400'}`}>
-                      O {(p.over_2_5_prob * 100).toFixed(0)}%
-                    </span>
-                    <span className={`text-sm font-bold font-mono ${p.under_2_5_prob! > 0.5 ? 'text-green-400' : 'text-gray-400'}`}>
-                      U {(p.under_2_5_prob! * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              )}
+            <div className="bg-gray-800/50 rounded-lg p-2.5 text-center">
+              <p className="text-xs text-gray-500 mb-0.5">예상 스코어</p>
+              <p className="text-xl font-bold text-white font-mono">
+                {p.expected_home_goals} - {p.expected_away_goals}
+              </p>
             </div>
           )}
         </div>
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center text-gray-500 text-sm">
           예측 데이터가 아직 생성되지 않았습니다.
+        </div>
+      )}
+
+      {/* 스코어 매트릭스 (축구만) */}
+      {p?.expected_home_goals != null && match.sport.toLowerCase().includes('soccer') && (
+        <ScoreMatrix
+          homeLambda={parseFloat(String(p.expected_home_goals))}
+          awayLambda={parseFloat(String(p.expected_away_goals))}
+          homeTeam={getKoreanTeamName(match.home_team)}
+          awayTeam={getKoreanTeamName(match.away_team)}
+        />
+      )}
+
+      {/* 골 라인 분석 (축구만) */}
+      {p?.expected_home_goals != null && match.sport.toLowerCase().includes('soccer') && (() => {
+        const hL = parseFloat(String(p.expected_home_goals));
+        const aL = parseFloat(String(p.expected_away_goals));
+        const lines = [1.5, 2.5, 3.5];
+        const btts = bttsProb(hL, aL);
+
+        return (
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-cyan-400 mb-3">골 라인 분석</h3>
+            <div className="space-y-2.5">
+              {lines.map((line) => {
+                const { over, under } = overUnderProbs(hL, aL, line);
+                return (
+                  <div key={line}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-400">O/U {line}</span>
+                      <div className="flex gap-3">
+                        <span className={`font-mono font-bold ${over > 0.5 ? 'text-green-400' : 'text-gray-500'}`}>
+                          O {(over * 100).toFixed(0)}%
+                        </span>
+                        <span className={`font-mono font-bold ${under > 0.5 ? 'text-green-400' : 'text-gray-500'}`}>
+                          U {(under * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex h-2 rounded-full overflow-hidden bg-gray-800">
+                      <div className="bg-green-500/70 transition-all" style={{ width: `${over * 100}%` }} />
+                      <div className="bg-gray-600 transition-all" style={{ width: `${under * 100}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* BTTS */}
+              <div className="pt-2 border-t border-gray-800">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-400">양팀 모두 득점 (BTTS)</span>
+                  <div className="flex gap-3">
+                    <span className={`font-mono font-bold ${btts > 0.5 ? 'text-green-400' : 'text-gray-500'}`}>
+                      Yes {(btts * 100).toFixed(0)}%
+                    </span>
+                    <span className={`font-mono font-bold ${btts <= 0.5 ? 'text-green-400' : 'text-gray-500'}`}>
+                      No {((1 - btts) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="flex h-2 rounded-full overflow-hidden bg-gray-800">
+                  <div className="bg-amber-500/70 transition-all" style={{ width: `${btts * 100}%` }} />
+                  <div className="bg-gray-600 transition-all" style={{ width: `${(1 - btts) * 100}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 핸디캡 분석 (축구만) */}
+      {p?.expected_home_goals != null && match.sport.toLowerCase().includes('soccer') && (() => {
+        const hL = parseFloat(String(p.expected_home_goals));
+        const aL = parseFloat(String(p.expected_away_goals));
+        const handicaps = [-1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5];
+
+        return (
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-cyan-400 mb-3">핸디캡 분석</h3>
+            <div className="space-y-2">
+              {handicaps.map((hc) => {
+                const { home, away } = handicapCoverProb(hL, aL, hc);
+                return (
+                  <div key={hc} className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-400 w-16 shrink-0 font-mono text-right">
+                      {hc > 0 ? '+' : ''}{hc === 0 ? '0' : hc.toFixed(1)}
+                    </span>
+                    <div className="flex-1 flex h-2 rounded-full overflow-hidden bg-gray-800">
+                      <div className="bg-blue-500/70 transition-all" style={{ width: `${home * 100}%` }} />
+                      <div className="bg-red-500/70 transition-all" style={{ width: `${away * 100}%` }} />
+                    </div>
+                    <div className="flex gap-2 w-28 shrink-0">
+                      <span className={`font-mono ${home > 0.5 ? 'text-blue-400 font-bold' : 'text-gray-500'}`}>
+                        {(home * 100).toFixed(0)}%
+                      </span>
+                      <span className={`font-mono ${away > 0.5 ? 'text-red-400 font-bold' : 'text-gray-500'}`}>
+                        {(away * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="text-[10px] text-gray-600 text-center mt-1">
+                홈 기준 핸디캡 (- = 홈 불리, + = 홈 유리)
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 모델 비교 (하이브리드만) */}
+      {p?.model_type === 'poisson_v2_hybrid' && p.team_model_home_goals != null && p.market_model_home_goals != null && (
+        <div className="card p-4">
+          <h3 className="text-sm font-semibold text-cyan-400 mb-3">모델 비교</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-500 border-b border-gray-800">
+                  <th className="text-left py-1.5"></th>
+                  <th className="text-center py-1.5">팀 모델</th>
+                  <th className="text-center py-1.5">마켓 모델</th>
+                  <th className="text-center py-1.5 text-white">블렌드</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-gray-800/50">
+                  <td className="py-1.5 text-gray-400">홈 예상골 (λ)</td>
+                  <td className="py-1.5 text-center font-mono text-cyan-400">{p.team_model_home_goals}</td>
+                  <td className="py-1.5 text-center font-mono text-gray-300">{p.market_model_home_goals}</td>
+                  <td className="py-1.5 text-center font-mono text-white font-bold">{p.expected_home_goals}</td>
+                </tr>
+                <tr className="border-t border-gray-800/50">
+                  <td className="py-1.5 text-gray-400">원정 예상골 (λ)</td>
+                  <td className="py-1.5 text-center font-mono text-cyan-400">{p.team_model_away_goals}</td>
+                  <td className="py-1.5 text-center font-mono text-gray-300">{p.market_model_away_goals}</td>
+                  <td className="py-1.5 text-center font-mono text-white font-bold">{p.expected_away_goals}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          {p.model_agreement != null && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-gray-500">모델 일치도</span>
+                <span className={`font-bold ${
+                  p.model_agreement > 0.7 ? 'text-green-400' :
+                  p.model_agreement > 0.4 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {(p.model_agreement * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    p.model_agreement > 0.7 ? 'bg-green-500' :
+                    p.model_agreement > 0.4 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${p.model_agreement * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
