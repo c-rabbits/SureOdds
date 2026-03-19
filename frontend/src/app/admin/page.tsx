@@ -22,8 +22,9 @@ import {
 } from '@/lib/api';
 import { UserProfile, UserRole, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
 import UserDetailPanel from '@/components/admin/UserDetailPanel';
+import UnmatchedTeamsPanel from '@/components/admin/UnmatchedTeamsPanel';
 
-type AdminTab = 'users' | 'sites' | 'requests' | 'settings';
+type AdminTab = 'users' | 'sites' | 'requests' | 'teams' | 'settings';
 
 const ROLE_OPTIONS: { value: UserRole; label: string; color: string }[] = [
   { value: 'admin', label: '관리자', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
@@ -436,6 +437,7 @@ export default function AdminPage() {
     { key: 'users', label: '회원 관리', count: users.length },
     { key: 'sites', label: '사이트 관리', count: sites.length },
     { key: 'requests', label: '작업요청', count: requests.filter((r) => r.status === 'pending').length },
+    { key: 'teams', label: '팀매핑', count: 0 },
     { key: 'settings', label: '설정', count: 0 },
   ];
 
@@ -1051,6 +1053,11 @@ export default function AdminPage() {
           </div>
         </>
       )}
+
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* TAB: 팀매핑 */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {activeTab === 'teams' && <UnmatchedTeamsPanel />}
 
       {/* ═══════════════════════════════════════════════════════ */}
       {/* TAB: 설정 */}

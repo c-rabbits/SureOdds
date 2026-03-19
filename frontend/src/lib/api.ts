@@ -372,6 +372,23 @@ export async function getUserStats(id: string) {
 }
 
 // ============================================================
+// Unmatched Teams (미매칭 팀명)
+// ============================================================
+export async function getUnmatchedTeams(showResolved = false) {
+  const { data } = await api.get('/api/admin/unmatched-teams', { params: { resolved: showResolved } });
+  return data.data;
+}
+
+export async function updateUnmatchedTeam(id: string, payload: { english_name?: string | null; resolved?: boolean }) {
+  const { data } = await api.patch(`/api/admin/unmatched-teams/${id}`, payload);
+  return data.data;
+}
+
+export async function deleteUnmatchedTeam(id: string) {
+  await api.delete(`/api/admin/unmatched-teams/${id}`);
+}
+
+// ============================================================
 // Team Logos
 // ============================================================
 const logoCache: Record<string, string | null> = {};

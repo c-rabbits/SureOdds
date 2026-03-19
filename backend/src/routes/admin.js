@@ -502,6 +502,86 @@ router.delete('/available-sites/:id', async (req, res) => {
 });
 
 // ============================================================
+// 미매칭 팀명 관리 (unmatched_teams)
+// ============================================================
+
+// GET /api/admin/unmatched-teams - 미매칭 팀명 목록
+router.get('/unmatched-teams', async (req, res) => {
+  try {
+    const showResolved = req.query.resolved === 'true';
+    let query = supabase
+      .from('unmatched_teams')
+      .select('*')
+      .order('last_seen_at', { ascending: false });
+
+    if (!showResolved) {
+      query = query.eq('resolved', false);
+    }
+
+    const { data, error } = await query.limit(200);
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    log.error('Get unmatched teams error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PATCH /api/admin/unmatched-teams/:id - 영어명 매핑 + resolved 처리
+router.patch('/unmatched-teams/:id', async (req, res) => {
+  try {
+    const { english_name, resolved } = req.body;
+    const updates = {};
+    if (english_name !== undefined) updates.english_name = english_name;
+    if (resolved !== undefined) updates.resolved = resolved;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, error: '수정할 항목이 없습니다.' });
+    }
+
+    const { data, error } = await supabase
+      .from('unmatched_teams')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // resolved=true + english_name 입력 시 → teamMatcher에 런타임 추가
+    if (data.resolved && data.english_name) {
+      try {
+        const { TEAM_NAME_MAP } = require('../services/teamMatcher');
+        TEAM_NAME_MAP[data.korean_name] = data.english_name;
+        log.info(`Dynamic team mapping added: ${data.korean_name} → ${data.english_name}`);
+      } catch { /* ignore */ }
+    }
+
+    res.json({ success: true, data });
+  } catch (err) {
+    log.error('Update unmatched team error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/admin/unmatched-teams/:id - 삭제
+router.delete('/unmatched-teams/:id', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('unmatched_teams')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    log.error('Delete unmatched team error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
 // 앱 설정 (app_settings 테이블)
 // ============================================================
 
