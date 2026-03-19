@@ -17,6 +17,7 @@ import {
   isDomesticBookmaker,
 } from '@/lib/utils';
 import { getKoreanTeamName } from '@/lib/teamNames';
+import TeamLogo from '@/components/TeamLogo';
 
 interface Props {
   match: MatchWithOdds;
@@ -226,8 +227,10 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-lg shrink-0">{getSportEmoji(match.sport)}</span>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-white truncate" title={`${match.home_team} vs ${match.away_team}`}>
+              <h3 className="text-sm font-semibold text-white truncate flex items-center gap-1" title={`${match.home_team} vs ${match.away_team}`}>
+                <TeamLogo teamName={match.home_team} size={18} />
                 {getKoreanTeamName(match.home_team)} <span className="text-gray-500">vs</span> {getKoreanTeamName(match.away_team)}
+                <TeamLogo teamName={match.away_team} size={18} />
               </h3>
               <p className="text-xs text-gray-500 truncate">
                 {getKoreanLeagueName(match.league)} &bull; {formatMatchTime(match.start_time)}

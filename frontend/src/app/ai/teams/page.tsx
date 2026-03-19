@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { getTeamStats, getLeagues, type TeamStats, type LeagueInfo } from '@/lib/aiApi';
 import { getKoreanTeamName } from '@/lib/teamNames';
 import { getKoreanLeagueName } from '@/lib/leagueNames';
+import TeamLogo from '@/components/TeamLogo';
 
 // Form letter colors
 function formColor(ch: string) {
@@ -191,6 +192,7 @@ export default function TeamsPage() {
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span className="text-sm text-gray-500 font-mono w-5 shrink-0">{idx + 1}</span>
+                <TeamLogo teamName={team.team_name} size={22} />
                 <div className="min-w-0">
                   <span className="text-sm font-medium text-white truncate block">
                     {getKoreanTeamName(team.team_name)}

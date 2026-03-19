@@ -7,6 +7,7 @@ import { getOddsMovement } from '@/lib/aiApi';
 import { getKoreanTeamName } from '@/lib/teamNames';
 import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getSportEmoji, getBookmakerShort, formatShortTime } from '@/lib/utils';
+import TeamLogo from '@/components/TeamLogo';
 
 type SortField = 'change' | 'time';
 type SortDir = 'asc' | 'desc';
@@ -145,10 +146,12 @@ export default function OddsMovementPage() {
                 {/* 중단: 팀명 + 변동률 */}
                 <div className="flex items-center justify-between gap-3 px-4 pb-1.5">
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm text-white font-medium block truncate">
+                    <span className="text-sm text-white font-medium flex items-center gap-1.5 truncate">
+                      <TeamLogo teamName={m.home_team} size={18} />
                       {getKoreanTeamName(m.home_team)}
                     </span>
-                    <span className="text-sm text-gray-400 block truncate">
+                    <span className="text-sm text-gray-400 flex items-center gap-1.5 truncate">
+                      <TeamLogo teamName={m.away_team} size={18} />
                       {getKoreanTeamName(m.away_team)}
                     </span>
                   </div>

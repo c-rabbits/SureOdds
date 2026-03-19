@@ -6,6 +6,7 @@ import { getAiPredictions, getValueBets } from '@/lib/aiApi';
 import PredictionCard from '@/components/ai/PredictionCard';
 import { getKoreanTeamName } from '@/lib/teamNames';
 import { getSportEmoji, getBookmakerShort } from '@/lib/utils';
+import TeamLogo from '@/components/TeamLogo';
 
 const SPORT_FILTERS = [
   { key: 'all', label: '전체' },
@@ -135,9 +136,11 @@ export default function AiOverviewPage() {
               <div key={vb.match_id} className="flex items-center justify-between gap-2 text-sm px-3 py-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <span className="shrink-0">{getSportEmoji(vb.sport)}</span>
+                  <TeamLogo teamName={vb.home_team} size={18} />
                   <span className="text-white truncate">
                     {getKoreanTeamName(vb.home_team)} vs {getKoreanTeamName(vb.away_team)}
                   </span>
+                  <TeamLogo teamName={vb.away_team} size={18} />
                 </div>
                 <div className="flex items-center gap-2 shrink-0 text-right">
                   {vb.value_bets.slice(0, 1).map((bet, i) => (
