@@ -204,6 +204,8 @@ export default function HomePage() {
         onSetTimeFilter={setTimeFilter}
         onSetRequiredBookmaker={setRequiredBookmaker}
         onToggleArbOnly={toggleArbOnly}
+        hiddenCount={hiddenKeys.size}
+        onClearHidden={() => { setHiddenKeys(new Set()); try { localStorage.removeItem('sureodds-hidden'); } catch {} }}
         availableLeagues={availableLeagues}
         availableBookmakers={availableBookmakers}
         matchCount={uniqueMatches}

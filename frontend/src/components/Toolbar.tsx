@@ -16,6 +16,8 @@ interface Props {
   onSetTimeFilter: (tf: TimeFilter) => void;
   onSetRequiredBookmaker: (bm: string) => void;
   onToggleArbOnly: () => void;
+  hiddenCount: number;
+  onClearHidden: () => void;
   availableBookmakers: string[];
   availableLeagues: string[];
   matchCount: number;
@@ -56,6 +58,8 @@ export default function Toolbar({
   onSetTimeFilter,
   onSetRequiredBookmaker,
   onToggleArbOnly,
+  hiddenCount,
+  onClearHidden,
   availableBookmakers,
   availableLeagues,
   matchCount,
@@ -199,6 +203,16 @@ export default function Toolbar({
       >
         양방만
       </button>
+
+      {/* 숨김 해제 */}
+      {hiddenCount > 0 && (
+        <button
+          onClick={onClearHidden}
+          className="filter-pill text-gray-400 hover:text-white border-gray-600 hover:border-gray-400 transition-colors"
+        >
+          숨김 {hiddenCount}건 ↩
+        </button>
+      )}
 
       <div className="h-4 w-px bg-gray-700 shrink-0" />
 
