@@ -22,6 +22,7 @@ const pushRouter = require('./routes/push');
 const notificationsRouter = require('./routes/notifications');
 const logosRouter = require('./routes/logos');
 const webPushService = require('./services/webPushService');
+const { errorHandler, registerProcessHandlers, notifyAdmin } = require('./services/errorNotifier');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -80,18 +81,15 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  log.error(`Unhandled error: ${err.message}`, {
-    stack: err.stack,
-    method: req.method,
-    url: req.originalUrl,
-  });
-  res.status(500).json({ error: 'Internal server error' });
-});
+// 글로벌 에러 핸들러 + 관리자 텔레그램 알림
+app.use(errorHandler);
+
+// process 레벨 에러 캐처 (uncaughtException, unhandledRejection)
+registerProcessHandlers();
 
 app.listen(PORT, async () => {
   log.info(`SureOdds API running on port ${PORT}`);
+  notifyAdmin('info', '서버 시작됨', { context: `Port ${PORT}` });
 
   // Start Odds-API.io independent scheduler (every 20 min)
   startOddsApiIoScheduler();

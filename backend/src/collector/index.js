@@ -436,6 +436,7 @@ async function collectTheOddsApi(sports, markets) {
     return { matches: savedMatches, creditsUsed };
   } catch (err) {
     log.error('[TheOddsAPI] Collection error', { error: err.message });
+    try { require('../services/errorNotifier').notifyAdmin('error', 'TheOddsAPI 수집 실패', { error: err.message }); } catch {}
     return { matches: [], creditsUsed: 0 };
   }
 }
@@ -774,6 +775,7 @@ async function collect(sports, markets) {
     return lastCollectionResult;
   } catch (err) {
     log.error('Collection error', { error: err.message, stack: err.stack });
+    try { require('../services/errorNotifier').notifyAdmin('error', '수집 사이클 실패', { error: err.message }); } catch {}
     lastCollectionResult = {
       success: false,
       timestamp: new Date().toISOString(),
