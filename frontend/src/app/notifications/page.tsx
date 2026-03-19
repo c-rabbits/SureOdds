@@ -87,22 +87,24 @@ export default function NotificationsPage() {
             {unreadCount > 0 ? `${unreadCount}개 미읽음` : '모든 알림을 확인했습니다'}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={handleMarkAllRead}
-            className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1"
-          >
-            모두 읽음
-          </button>
-        )}
-        {notifications.length > 0 && (
-          <button
-            onClick={handleDeleteAll}
-            className="text-xs text-red-400 hover:text-red-300 px-2 py-1"
-          >
-            전체 삭제
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1"
+            >
+              모두 읽음
+            </button>
+          )}
+          {notifications.length > 0 && (
+            <button
+              onClick={handleDeleteAll}
+              className="text-xs text-red-400 hover:text-red-300 px-2 py-1"
+            >
+              전체 삭제
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 필터 탭 */}
