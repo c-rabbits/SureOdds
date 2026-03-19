@@ -18,6 +18,16 @@ import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getKoreanTeamName } from '@/lib/teamNames';
 import TeamLogo from '@/components/TeamLogo';
 
+function OddsChangeIndicator({ change }: { change?: number | null }) {
+  if (!change) return null;
+  const isUp = change > 0;
+  return (
+    <span className={`text-[9px] ml-0.5 ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+      {isUp ? '▲' : '▼'}
+    </span>
+  );
+}
+
 interface Props {
   rows: TableRow[];
   filters: FilterState;
@@ -239,8 +249,9 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
               {/* 배당 상세 */}
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800">
                 <div className="flex flex-col items-center">
-                  <span className={`text-sm font-mono ${row.isArbitrage ? 'text-green-400' : 'text-gray-300'}`}>
+                  <span className={`text-sm font-mono ${row.isArbitrage ? 'text-green-400' : 'text-gray-300'} inline-flex items-center`}>
                     {row.bestOutcome1 ? formatOdds(row.bestOutcome1.odds) : '-'}
+                    <OddsChangeIndicator change={row.oddsChange1} />
                   </span>
                   <span className="text-[11px] text-gray-500">
                     {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} /> : ''}
@@ -249,16 +260,18 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
 
                 {(row.marketType === 'h2h' && row.bestDraw) && (
                   <div className="flex flex-col items-center">
-                    <span className="text-sm font-mono text-gray-400">
+                    <span className="text-sm font-mono text-gray-400 inline-flex items-center">
                       {formatOdds(row.bestDraw.odds)}
+                      <OddsChangeIndicator change={row.oddsChangeDraw} />
                     </span>
                     <span className="text-[11px] text-gray-500">무</span>
                   </div>
                 )}
 
                 <div className="flex flex-col items-center">
-                  <span className={`text-sm font-mono ${row.isArbitrage ? 'text-green-400' : 'text-gray-300'}`}>
+                  <span className={`text-sm font-mono ${row.isArbitrage ? 'text-green-400' : 'text-gray-300'} inline-flex items-center`}>
                     {row.bestOutcome2 ? formatOdds(row.bestOutcome2.odds) : '-'}
+                    <OddsChangeIndicator change={row.oddsChange2} />
                   </span>
                   <span className="text-[11px] text-gray-500">
                     {row.bestOutcome2 ? <BookmakerBadge bookmaker={row.bestOutcome2.bookmaker} /> : ''}
@@ -287,6 +300,8 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
             <th className="w-[48px]">북메이커</th>
             <th className="text-center w-[70px]">양방계수</th>
             <th className="text-center w-[70px]">수익률</th>
+            <th className="text-center w-[50px]">수명</th>
+            <th className="w-6"></th>
           </tr>
         </thead>
         <tbody>
@@ -319,8 +334,9 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                 </td>
                 <td className="odds-cell">
                   {row.bestOutcome1 ? (
-                    <span className={row.isArbitrage ? 'odds-best' : ''}>
+                    <span className={`${row.isArbitrage ? 'odds-best' : ''} inline-flex items-center`}>
                       {formatOdds(row.bestOutcome1.odds)}
+                      <OddsChangeIndicator change={row.oddsChange1} />
                     </span>
                   ) : '-'}
                 </td>
@@ -328,12 +344,18 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                   {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} /> : ''}
                 </td>
                 <td className="odds-cell text-gray-400">
-                  {row.bestDraw ? formatOdds(row.bestDraw.odds) : row.marketType === 'h2h' ? '-' : ''}
+                  {row.bestDraw ? (
+                    <span className="inline-flex items-center">
+                      {formatOdds(row.bestDraw.odds)}
+                      <OddsChangeIndicator change={row.oddsChangeDraw} />
+                    </span>
+                  ) : row.marketType === 'h2h' ? '-' : ''}
                 </td>
                 <td className="odds-cell">
                   {row.bestOutcome2 ? (
-                    <span className={row.isArbitrage ? 'odds-best' : ''}>
+                    <span className={`${row.isArbitrage ? 'odds-best' : ''} inline-flex items-center`}>
                       {formatOdds(row.bestOutcome2.odds)}
+                      <OddsChangeIndicator change={row.oddsChange2} />
                     </span>
                   ) : '-'}
                 </td>
@@ -354,6 +376,20 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                       {row.profitPercent.toFixed(2)}%
                     </span>
                   ) : '-'}
+                </td>
+                <td className="text-center text-[10px] text-gray-500">
+                  {row.isArbitrage && row.detectedAt ? timeAgo(row.detectedAt) : ''}
+                </td>
+                <td className="text-center">
+                  {row.isArbitrage && onHideRow && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onHideRow(getRowKey(row)); }}
+                      className="text-[10px] text-gray-600 hover:text-red-400 transition-colors"
+                      title="숨기기"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </td>
               </tr>
             );

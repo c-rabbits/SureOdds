@@ -41,8 +41,31 @@ export default function HomePage() {
 
   const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker, toggleLeague, setTimeFilter, setRequiredBookmaker } = useFilters();
 
-  // Flatten matches to table rows
-  const rows = useMemo(() => flattenMatchesToRows(matches), [matches]);
+  // 이전 배당 캐시 (배당 변동 표시용)
+  const prevOddsRef = useRef<Map<string, { o1: number | null; o2: number | null; draw: number | null }>>(new Map());
+
+  // Flatten matches to table rows + 배당 변동 계산
+  const rows = useMemo(() => {
+    const baseRows = flattenMatchesToRows(matches);
+    const prevMap = prevOddsRef.current;
+    const newMap = new Map<string, { o1: number | null; o2: number | null; draw: number | null }>();
+
+    for (const row of baseRows) {
+      const key = `${row.matchId}|${row.marketType}|${row.handicapPoint}`;
+      const cur = { o1: row.bestOutcome1?.odds ?? null, o2: row.bestOutcome2?.odds ?? null, draw: row.bestDraw?.odds ?? null };
+      newMap.set(key, cur);
+
+      const prev = prevMap.get(key);
+      if (prev) {
+        row.oddsChange1 = cur.o1 !== null && prev.o1 !== null && cur.o1 !== prev.o1 ? cur.o1 - prev.o1 : null;
+        row.oddsChange2 = cur.o2 !== null && prev.o2 !== null && cur.o2 !== prev.o2 ? cur.o2 - prev.o2 : null;
+        row.oddsChangeDraw = cur.draw !== null && prev.draw !== null && cur.draw !== prev.draw ? cur.draw - prev.draw : null;
+      }
+    }
+
+    prevOddsRef.current = newMap;
+    return baseRows;
+  }, [matches]);
 
   // Stats
   const arbCount = useMemo(() => rows.filter((r) => r.isArbitrage).length, [rows]);

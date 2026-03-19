@@ -217,4 +217,8 @@ export interface TableRow {
   isCrossSource: boolean; // true if best odds come from different source types
   detectedAt: string | null; // ISO timestamp when arb was first detected
   matchData: MatchWithOdds;
+  // 배당 변동 (프론트 캐시 기반)
+  oddsChange1?: number | null;
+  oddsChange2?: number | null;
+  oddsChangeDraw?: number | null;
 }
