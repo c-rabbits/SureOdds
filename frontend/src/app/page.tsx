@@ -150,9 +150,9 @@ export default function HomePage() {
     }
   }, [searchParams, rows]);
 
-  // Auto-refresh every 60s
+  // Auto-refresh every 30s
   useEffect(() => {
-    const timer = setInterval(loadData, 60000);
+    const timer = setInterval(loadData, 30000);
     return () => clearInterval(timer);
   }, [loadData]);
 
