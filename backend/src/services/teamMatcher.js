@@ -661,10 +661,42 @@ async function findMatchingInternationalMatch(domesticMatch) {
   return null;
 }
 
+/**
+ * 서버 시작 시 DB에서 resolved 매핑을 TEAM_NAME_MAP에 로드.
+ */
+async function loadMappingsFromDB() {
+  try {
+    const { data, error } = await supabase
+      .from('unmatched_teams')
+      .select('korean_name, english_name')
+      .eq('resolved', true)
+      .not('english_name', 'is', null);
+
+    if (error || !data) return;
+
+    let count = 0;
+    for (const row of data) {
+      if (row.korean_name && row.english_name && !TEAM_NAME_MAP[row.korean_name]) {
+        TEAM_NAME_MAP[row.korean_name] = row.english_name;
+        count++;
+      }
+    }
+    if (count > 0) {
+      log.info(`Loaded ${count} team mappings from DB (total: ${Object.keys(TEAM_NAME_MAP).length})`);
+    }
+  } catch (err) {
+    log.error('Failed to load team mappings from DB', { error: err.message });
+  }
+}
+
+// 모듈 로드 시 자동 실행
+loadMappingsFromDB();
+
 module.exports = {
   TEAM_NAME_MAP,
   findEnglishName,
   findMatchingInternationalMatch,
+  loadMappingsFromDB,
   similarity,
   levenshtein,
 };
