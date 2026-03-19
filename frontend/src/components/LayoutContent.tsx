@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 
 // 인증 불필요 경로
-const publicPaths = ['/login'];
+const publicPaths = ['/login', '/landing', '/terms', '/privacy'];
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -17,8 +17,11 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   // 비공개 페이지에서 미인증 시 로그인 리다이렉트
   useEffect(() => {
     if (!loading && !user && !isPublicPage && !maintenance) {
-      const redirectTo = pathname !== '/' ? `?redirectTo=${pathname}` : '';
-      router.replace(`/login${redirectTo}`);
+      if (pathname === '/') {
+        router.replace('/landing');
+      } else {
+        router.replace(`/login?redirectTo=${pathname}`);
+      }
     }
   }, [user, loading, isPublicPage, pathname, router, maintenance]);
 
