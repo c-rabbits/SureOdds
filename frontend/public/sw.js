@@ -16,8 +16,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body || '',
-    icon: data.icon || '/icon-192.png',
-    badge: '/icon-72.png',
+    icon: data.icon || '/icons/icon-192.svg',
+    badge: '/icons/icon-72.svg',
     tag: data.tag || 'sureodds',
     data: {
       url: data.url || '/',

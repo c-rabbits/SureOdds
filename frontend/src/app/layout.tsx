@@ -16,13 +16,23 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'SureOdds - Sports Arbitrage Detection',
-  description: 'Real-time multi-market sports odds comparison and arbitrage detection',
+  title: 'SureOdds - 스포츠 양방 탐지',
+  description: '실시간 멀티마켓 스포츠 배당 비교 + AI 예측',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'SureOdds',
+  },
+  icons: {
+    icon: '/icons/icon-192.svg',
+    apple: '/icons/icon-192.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="ko" className="dark">
       <body className={`${inter.className} h-dvh bg-gray-950 flex flex-col overflow-hidden`}>
         <ToastProvider>
           <ToastConnector />

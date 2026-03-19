@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="5.76" fill="#0f172a"/>
+  <text x="50%" y="48%" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-weight="900" font-size="13.44" fill="#10b981">S</text>
+  <text x="50%" y="78%" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-weight="700" font-size="4.8" fill="#6ee7b7" letter-spacing="0.64">ODDS</text>
+  <circle cx="24.96" cy="7.04" r="1.92" fill="#fbbf24"/>
+</svg>
