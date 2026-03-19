@@ -215,5 +215,6 @@ export interface TableRow {
   profitPercent: number | null;
   isArbitrage: boolean;
   isCrossSource: boolean; // true if best odds come from different source types
+  detectedAt: string | null; // ISO timestamp when arb was first detected
   matchData: MatchWithOdds;
 }

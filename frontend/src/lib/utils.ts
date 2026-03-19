@@ -297,10 +297,10 @@ export function flattenMatchesToRows(matches: MatchWithOdds[]): TableRow[] {
       groups[key].push(odd);
     }
 
-    const arbMap: Record<string, { profitPercent: number; arbFactor: number }> = {};
+    const arbMap: Record<string, { profitPercent: number; arbFactor: number; detectedAt: string }> = {};
     for (const arb of match.arbitrage_opportunities || []) {
       const key = `${arb.market_type}|${arb.handicap_point ?? 'null'}`;
-      arbMap[key] = { profitPercent: Number(arb.profit_percent), arbFactor: Number(arb.arb_factor) };
+      arbMap[key] = { profitPercent: Number(arb.profit_percent), arbFactor: Number(arb.arb_factor), detectedAt: arb.detected_at };
     }
 
     // Betman Proto closes betting ~2 hours before match start.
@@ -364,6 +364,7 @@ export function flattenMatchesToRows(matches: MatchWithOdds[]): TableRow[] {
         profitPercent,
         isArbitrage,
         isCrossSource,
+        detectedAt: arb?.detectedAt ?? null,
         matchData: match,
       });
     }

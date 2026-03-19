@@ -23,6 +23,21 @@ export default function HomePage() {
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const autoSelectedRef = useRef(false);
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('sureodds-hidden');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const handleHideRow = useCallback((key: string) => {
+    setHiddenKeys((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      try { localStorage.setItem('sureodds-hidden', JSON.stringify(Array.from(next))); } catch {}
+      return next;
+    });
+  }, []);
 
   const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker, toggleLeague, setTimeFilter, setRequiredBookmaker } = useFilters();
 
@@ -186,6 +201,8 @@ export default function HomePage() {
           filters={filters}
           selectedRowKey={selectedRowKey}
           onSelectRow={handleSelectRow}
+          hiddenKeys={hiddenKeys}
+          onHideRow={handleHideRow}
         />
       </div>
 

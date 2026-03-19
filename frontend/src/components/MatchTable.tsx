@@ -12,6 +12,7 @@ import {
   getProfitColorClass,
   getSportCategory,
   isDomesticBookmaker,
+  timeAgo,
 } from '@/lib/utils';
 import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getKoreanTeamName } from '@/lib/teamNames';
@@ -22,6 +23,8 @@ interface Props {
   filters: FilterState;
   selectedRowKey: string | null;
   onSelectRow: (row: TableRow) => void;
+  hiddenKeys?: Set<string>;
+  onHideRow?: (key: string) => void;
 }
 
 function getRowKey(row: TableRow): string {
@@ -54,7 +57,7 @@ function MarketBadge({ marketType, handicapPoint }: { marketType: MarketType; ha
   );
 }
 
-export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow }: Props) {
+export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow, hiddenKeys, onHideRow }: Props) {
   const filteredRows = useMemo(() => {
     let result = rows;
 
@@ -123,6 +126,14 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
 
     if (filters.minProfit > 0) {
       result = result.filter((r) => r.isArbitrage && (r.profitPercent ?? 0) >= filters.minProfit);
+    }
+
+    // 숨긴 양방 제외
+    if (hiddenKeys && hiddenKeys.size > 0) {
+      result = result.filter((r) => {
+        const key = `${r.matchId}|${r.marketType}|${r.handicapPoint}`;
+        return !hiddenKeys.has(key);
+      });
     }
 
     result = [...result].sort((a, b) => {
@@ -199,14 +210,30 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
                   <MarketBadge marketType={row.marketType} handicapPoint={row.handicapPoint} />
                 </div>
 
-                {row.isArbitrage && row.profitPercent !== null ? (
-                  <span className={`text-sm font-bold ${getProfitColorClass(row.profitPercent)} inline-flex items-center gap-0.5`}>
-                    {row.isCrossSource && <span className="text-[9px]">&#x1F500;</span>}
-                    +{row.profitPercent.toFixed(2)}%
-                  </span>
-                ) : row.profitPercent !== null ? (
-                  <span className="text-[11px] text-gray-600">{row.profitPercent.toFixed(2)}%</span>
-                ) : null}
+                <div className="flex items-center gap-1.5">
+                  {row.isArbitrage && row.profitPercent !== null ? (
+                    <span className={`text-sm font-bold ${getProfitColorClass(row.profitPercent)} inline-flex items-center gap-0.5`}>
+                      {row.isCrossSource && <span className="text-[9px]">&#x1F500;</span>}
+                      +{row.profitPercent.toFixed(2)}%
+                    </span>
+                  ) : row.profitPercent !== null ? (
+                    <span className="text-[11px] text-gray-600">{row.profitPercent.toFixed(2)}%</span>
+                  ) : null}
+                  {row.isArbitrage && row.detectedAt && (
+                    <span className="text-[9px] text-gray-500" title={new Date(row.detectedAt).toLocaleString()}>
+                      {timeAgo(row.detectedAt)}
+                    </span>
+                  )}
+                  {row.isArbitrage && onHideRow && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onHideRow(`${row.matchId}|${row.marketType}|${row.handicapPoint}`); }}
+                      className="text-[9px] text-gray-600 hover:text-gray-400 ml-0.5"
+                      title="숨기기"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* 배당 상세 */}
