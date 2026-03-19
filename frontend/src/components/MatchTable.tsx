@@ -237,7 +237,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                   {row.isArbitrage && onHideRow && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onHideRow(`${row.matchId}|${row.marketType}|${row.handicapPoint}`); }}
-                      className="text-[9px] text-gray-600 hover:text-gray-400 ml-0.5"
+                      className="text-xs text-gray-400 hover:text-red-400 ml-1 transition-colors"
                       title="숨기기"
                     >
                       ✕
@@ -384,7 +384,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                   {row.isArbitrage && onHideRow && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onHideRow(getRowKey(row)); }}
-                      className="text-[10px] text-gray-600 hover:text-red-400 transition-colors"
+                      className="text-xs text-gray-400 hover:text-red-400 transition-colors"
                       title="숨기기"
                     >
                       ✕
