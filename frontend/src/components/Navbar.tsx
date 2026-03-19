@@ -62,9 +62,6 @@ export default function Navbar() {
 
         {/* 우측: 사용자 정보 + 로그아웃 */}
         <div className="flex items-center gap-1.5 sm:gap-3">
-          <span className="text-[10px] text-gray-600 hidden md:inline">
-            v2.0 &bull; 멀티마켓 양방탐지
-          </span>
 
           {user && (
             <>
