@@ -168,7 +168,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
     }
 
     return result;
-  }, [rows, filters]);
+  }, [rows, filters, hiddenKeys]);
 
   if (filteredRows.length === 0) {
     return (
