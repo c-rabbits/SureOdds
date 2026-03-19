@@ -465,7 +465,14 @@ export default function ProfilePage() {
         로그아웃
       </button>
 
-      <p className="text-center text-xs text-gray-700 mt-4">SureOdds v2.0</p>
+      {/* 이용약관 / 개인정보처리방침 */}
+      <div className="flex items-center justify-center gap-3 mt-6">
+        <a href="/terms" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">이용약관</a>
+        <span className="text-gray-800">|</span>
+        <a href="/privacy" className="text-xs text-gray-600 hover:text-gray-400 transition-colors">개인정보처리방침</a>
+      </div>
+
+      <p className="text-center text-xs text-gray-700 mt-2">SureOdds v2.0</p>
     </div>
   );
 }

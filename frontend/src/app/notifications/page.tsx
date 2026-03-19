@@ -3,7 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AppNotification, NotificationType } from '@/types/notification';
-import { getNotifications, markAsRead, markAllAsRead } from '@/lib/notificationApi';
+import { getNotifications, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } from '@/lib/notificationApi';
+import { getKoreanTeamName } from '@/lib/teamNames';
+
+/** 알림 body의 영어 팀명을 한글로 변환 */
+function localizeBody(body: string): string {
+  // "TeamA vs TeamB" 패턴 매칭
+  return body.replace(/^(.+?)\s+vs\s+(.+)$/i, (_m, a, b) => {
+    return `${getKoreanTeamName(a.trim())} vs ${getKoreanTeamName(b.trim())}`;
+  });
+}
 
 const TYPE_FILTERS: { label: string; value: NotificationType | 'all' }[] = [
   { label: '전체', value: 'all' },
@@ -55,6 +64,17 @@ export default function NotificationsPage() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }
 
+  async function handleDeleteOne(id: string) {
+    await deleteNotification(id);
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }
+
+  async function handleDeleteAll() {
+    if (!confirm('모든 알림을 삭제하시겠습니까?')) return;
+    await deleteAllNotifications();
+    setNotifications([]);
+  }
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
@@ -73,6 +93,14 @@ export default function NotificationsPage() {
             className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1"
           >
             모두 읽음
+          </button>
+        )}
+        {notifications.length > 0 && (
+          <button
+            onClick={handleDeleteAll}
+            className="text-xs text-red-400 hover:text-red-300 px-2 py-1"
+          >
+            전체 삭제
           </button>
         )}
       </div>
@@ -137,9 +165,18 @@ export default function NotificationsPage() {
                     </span>
                   </div>
                   <p className={`text-xs mt-0.5 truncate ${notif.read ? 'text-gray-600' : 'text-gray-400'}`}>
-                    {notif.body}
+                    {localizeBody(notif.body)}
                   </p>
                 </div>
+
+                {/* 개별 삭제 */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeleteOne(notif.id); }}
+                  className="shrink-0 p-1 text-gray-600 hover:text-red-400 transition-colors"
+                  title="삭제"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
               </div>
             </button>
           ))}

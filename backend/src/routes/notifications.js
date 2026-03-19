@@ -157,4 +157,39 @@ router.put('/preferences', async (req, res) => {
   }
 });
 
+// DELETE /api/notifications/:id — 개별 알림 삭제
+router.delete('/:id', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    log.error('Error in DELETE /notifications/:id', { error: err.message });
+    res.status(500).json({ success: false, error: '삭제에 실패했습니다.' });
+  }
+});
+
+// DELETE /api/notifications — 전체 알림 삭제 (본인 것만)
+router.delete('/', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    log.error('Error in DELETE /notifications (all)', { error: err.message });
+    res.status(500).json({ success: false, error: '삭제에 실패했습니다.' });
+  }
+});
+
 module.exports = router;

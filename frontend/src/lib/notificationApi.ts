@@ -53,3 +53,13 @@ export async function updateAlertPreferences(preferences: AlertPreference[]): Pr
   const headers = await authHeaders();
   await axios.put(`${API_URL}/api/notifications/preferences`, { preferences }, { headers });
 }
+
+export async function deleteNotification(id: string): Promise<void> {
+  const headers = await authHeaders();
+  await axios.delete(`${API_URL}/api/notifications/${id}`, { headers });
+}
+
+export async function deleteAllNotifications(): Promise<void> {
+  const headers = await authHeaders();
+  await axios.delete(`${API_URL}/api/notifications`, { headers });
+}

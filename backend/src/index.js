@@ -109,6 +109,20 @@ app.listen(PORT, async () => {
   const { preloadLogos } = require('./services/teamLogoService');
   preloadLogos();
 
+  // 7일 이상 된 알림 자동 삭제 (매 6시간)
+  async function cleanupOldNotifications() {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error, count } = await require('./config/supabase')
+        .from('notifications')
+        .delete()
+        .lt('created_at', sevenDaysAgo);
+      if (!error && count > 0) log.info(`Cleaned up ${count} old notifications`);
+    } catch { /* ignore */ }
+  }
+  cleanupOldNotifications(); // 서버 시작 시 1회
+  setInterval(cleanupOldNotifications, 6 * 60 * 60 * 1000); // 6시간마다
+
   // Initialize Web Push
   webPushService.init();
 
