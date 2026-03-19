@@ -18,6 +18,7 @@ export default function OddsMovementPage() {
   const [hours, setHours] = useState(24);
   const [sortField, setSortField] = useState<SortField>('change');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [sportFilter, setSportFilter] = useState('all');
 
   useEffect(() => {
     async function load() {
@@ -44,7 +45,10 @@ export default function OddsMovementPage() {
   }
 
   const sorted = useMemo(() => {
-    const list = [...movements];
+    let list = [...movements];
+    if (sportFilter !== 'all') {
+      list = list.filter((m) => m.sport?.toLowerCase().includes(sportFilter));
+    }
     list.sort((a, b) => {
       let cmp = 0;
       if (sortField === 'change') {
@@ -55,7 +59,7 @@ export default function OddsMovementPage() {
       return sortDir === 'desc' ? -cmp : cmp;
     });
     return list;
-  }, [movements, sortField, sortDir]);
+  }, [movements, sortField, sortDir, sportFilter]);
 
   return (
     <div className="p-4 pb-8 max-w-4xl mx-auto">
@@ -79,6 +83,29 @@ export default function OddsMovementPage() {
             }`}
           >
             {h}h
+          </button>
+        ))}
+
+        <div className="h-4 w-px bg-gray-700 shrink-0" />
+
+        {/* 종목 필터 */}
+        {[
+          { key: 'all', label: '전체' },
+          { key: 'soccer', label: '⚽' },
+          { key: 'basketball', label: '🏀' },
+          { key: 'baseball', label: '⚾' },
+          { key: 'hockey', label: '🏒' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setSportFilter(key)}
+            className={`text-xs px-2 py-1 rounded-md transition-colors ${
+              sportFilter === key
+                ? 'bg-green-600/20 text-green-400 border border-green-500/30'
+                : 'text-gray-500 hover:text-gray-300 bg-gray-800/60'
+            }`}
+          >
+            {label}
           </button>
         ))}
 
