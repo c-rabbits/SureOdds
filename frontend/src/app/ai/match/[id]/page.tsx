@@ -374,7 +374,7 @@ export default function MatchDetailPage() {
       {p?.expected_home_goals != null && match.sport.toLowerCase().includes('soccer') && (() => {
         const hL = parseFloat(String(p.expected_home_goals));
         const aL = parseFloat(String(p.expected_away_goals));
-        const handicaps = [-1.5, -1.0, -0.5, 0, 0.5, 1.0, 1.5];
+        const handicaps = [-1.5, -0.5, +0.5, +1.5];
 
         return (
           <div className="card p-4">
