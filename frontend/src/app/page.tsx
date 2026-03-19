@@ -24,7 +24,7 @@ export default function HomePage() {
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const autoSelectedRef = useRef(false);
 
-  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker } = useFilters();
+  const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker, toggleLeague, setTimeFilter, setRequiredBookmaker } = useFilters();
 
   // Flatten matches to table rows
   const rows = useMemo(() => flattenMatchesToRows(matches), [matches]);
@@ -57,6 +57,14 @@ export default function HomePage() {
       }
     }
     return Array.from(set);
+  }, [matches]);
+
+  const availableLeagues = useMemo(() => {
+    const set = new Set<string>();
+    for (const match of matches) {
+      if (match.league) set.add(match.league);
+    }
+    return Array.from(set).sort();
   }, [matches]);
 
   // Load data
@@ -154,6 +162,10 @@ export default function HomePage() {
         onSetSort={(field) => setSort(field)}
         onSetSourceFilter={setSourceFilter}
         onToggleBookmaker={toggleBookmaker}
+        onToggleLeague={toggleLeague}
+        onSetTimeFilter={setTimeFilter}
+        onSetRequiredBookmaker={setRequiredBookmaker}
+        availableLeagues={availableLeagues}
         availableBookmakers={availableBookmakers}
         matchCount={uniqueMatches}
         arbCount={arbCount}

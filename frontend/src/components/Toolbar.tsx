@@ -1,7 +1,8 @@
 'use client';
 
-import { FilterState, MarketType, QuotaInfo, SourceFilter } from '@/types';
+import { FilterState, MarketType, QuotaInfo, SourceFilter, TimeFilter } from '@/types';
 import { SPORT_CATEGORIES, getMarketLabel, BOOKMAKER_CONFIG } from '@/lib/utils';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 
 interface Props {
   filters: FilterState;
@@ -11,7 +12,11 @@ interface Props {
   onSetSort: (field: 'profit' | 'time') => void;
   onSetSourceFilter: (sf: SourceFilter) => void;
   onToggleBookmaker: (bookmaker: string) => void;
+  onToggleLeague: (league: string) => void;
+  onSetTimeFilter: (tf: TimeFilter) => void;
+  onSetRequiredBookmaker: (bm: string) => void;
   availableBookmakers: string[];
+  availableLeagues: string[];
   matchCount: number;
   arbCount: number;
   topProfit: number;
@@ -46,7 +51,11 @@ export default function Toolbar({
   onSetSort,
   onSetSourceFilter,
   onToggleBookmaker,
+  onToggleLeague,
+  onSetTimeFilter,
+  onSetRequiredBookmaker,
   availableBookmakers,
+  availableLeagues,
   matchCount,
   arbCount,
   topProfit,
@@ -198,6 +207,44 @@ export default function Toolbar({
         </button>
       </div>
 
+      <div className="h-4 w-px bg-gray-700 shrink-0" />
+
+      {/* 시간 필터 */}
+      <div className="flex items-center gap-1 shrink-0">
+        <span className="text-gray-500">시간:</span>
+        {([['all', '전체'], ['1h', '1시간'], ['3h', '3시간'], ['today', '오늘']] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => onSetTimeFilter(key as TimeFilter)}
+            className={`filter-pill ${filters.timeFilter === key ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="h-4 w-px bg-gray-700 shrink-0" />
+
+      {/* 필수 북메이커 */}
+      <div className="flex items-center gap-1 shrink-0">
+        <span className="text-gray-500">필수:</span>
+        <button
+          onClick={() => onSetRequiredBookmaker('')}
+          className={`filter-pill ${!filters.requiredBookmaker ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+        >
+          없음
+        </button>
+        {visibleBookmakers.map((bm) => (
+          <button
+            key={bm.key}
+            onClick={() => onSetRequiredBookmaker(filters.requiredBookmaker === bm.key ? '' : bm.key)}
+            className={`filter-pill ${filters.requiredBookmaker === bm.key ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+          >
+            {bm.short}
+          </button>
+        ))}
+      </div>
+
       {/* 스페이서 */}
       <div className="flex-1 min-w-[8px]" />
 
@@ -235,6 +282,29 @@ export default function Toolbar({
         </div>
       </div>
       </div>
+
+      {/* Row 3: 리그 필터 */}
+      {availableLeagues.length > 0 && (
+        <div className="px-3 py-1.5 flex items-center gap-1 overflow-x-auto whitespace-nowrap border-t border-gray-800/50">
+          <span className="text-gray-500 shrink-0">리그:</span>
+          <button
+            onClick={() => onToggleLeague('all')}
+            className={`filter-pill ${filters.leagues.length === 0 ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+          >
+            전체
+          </button>
+          {availableLeagues.map((league) => (
+            <button
+              key={league}
+              onClick={() => onToggleLeague(league)}
+              className={`filter-pill ${filters.leagues.includes(league) ? 'filter-pill-active' : 'filter-pill-inactive'}`}
+              title={league}
+            >
+              {getKoreanLeagueName(league)}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

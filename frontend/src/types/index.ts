@@ -92,6 +92,7 @@ export type SortField = 'profit' | 'time' | 'sport' | 'league';
 export type SortDirection = 'asc' | 'desc';
 
 export type SourceFilter = 'all' | 'international' | 'domestic' | 'cross';
+export type TimeFilter = 'all' | '1h' | '3h' | 'today';
 
 export interface FilterState {
   sports: string[];
@@ -101,6 +102,9 @@ export interface FilterState {
   sortBy: SortField;
   sortDir: SortDirection;
   sourceFilter: SourceFilter;
+  leagues: string[];
+  timeFilter: TimeFilter;
+  requiredBookmaker: string;
 }
 
 // ============================================================

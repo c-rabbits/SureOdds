@@ -94,6 +94,33 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow 
       });
     }
 
+    // 리그 필터
+    if (filters.leagues && filters.leagues.length > 0) {
+      result = result.filter((r) => filters.leagues.includes(r.league));
+    }
+
+    // 시간 필터
+    if (filters.timeFilter && filters.timeFilter !== 'all') {
+      const now = Date.now();
+      const cutoffs: Record<string, number> = {
+        '1h': now + 60 * 60 * 1000,
+        '3h': now + 3 * 60 * 60 * 1000,
+        'today': new Date().setHours(23, 59, 59, 999),
+      };
+      const cutoff = cutoffs[filters.timeFilter];
+      if (cutoff) {
+        result = result.filter((r) => new Date(r.startTime).getTime() <= cutoff);
+      }
+    }
+
+    // 필수 북메이커
+    if (filters.requiredBookmaker) {
+      result = result.filter((r) => {
+        const bookmakers = [r.bestOutcome1?.bookmaker, r.bestOutcome2?.bookmaker, r.bestDraw?.bookmaker].filter(Boolean);
+        return bookmakers.includes(filters.requiredBookmaker);
+      });
+    }
+
     if (filters.minProfit > 0) {
       result = result.filter((r) => r.isArbitrage && (r.profitPercent ?? 0) >= filters.minProfit);
     }

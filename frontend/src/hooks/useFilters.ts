@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { FilterState, MarketType, SortField, SortDirection, SourceFilter } from '@/types';
+import { FilterState, MarketType, SortField, SortDirection, SourceFilter, TimeFilter } from '@/types';
 
 const STORAGE_KEY = 'sureodds-filters';
 
@@ -13,6 +13,9 @@ const DEFAULT_FILTERS: FilterState = {
   sortBy: 'profit',
   sortDir: 'desc',
   sourceFilter: 'all',
+  leagues: [],
+  timeFilter: 'all',
+  requiredBookmaker: '',
 };
 
 export function useFilters() {
@@ -99,6 +102,24 @@ export function useFilters() {
     });
   }, []);
 
+  const toggleLeague = useCallback((league: string) => {
+    setFilters((prev) => {
+      if (league === 'all') return { ...prev, leagues: [] };
+      const leagues = prev.leagues.includes(league)
+        ? prev.leagues.filter((l) => l !== league)
+        : [...prev.leagues, league];
+      return { ...prev, leagues };
+    });
+  }, []);
+
+  const setTimeFilter = useCallback((timeFilter: TimeFilter) => {
+    setFilters((prev) => ({ ...prev, timeFilter }));
+  }, []);
+
+  const setRequiredBookmaker = useCallback((requiredBookmaker: string) => {
+    setFilters((prev) => ({ ...prev, requiredBookmaker }));
+  }, []);
+
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
   }, []);
@@ -113,6 +134,9 @@ export function useFilters() {
     setSort,
     setSourceFilter,
     toggleBookmaker,
+    toggleLeague,
+    setTimeFilter,
+    setRequiredBookmaker,
     resetFilters,
   };
 }
