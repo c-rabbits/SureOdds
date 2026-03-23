@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, getWithSWR } from './api';
 import type {
   MatchWithPrediction,
   MatchPredictionDetail,
@@ -17,13 +17,19 @@ export async function getAiPredictions(params?: {
   date?: string;
   limit?: number;
 }): Promise<MatchWithPrediction[]> {
-  const { data } = await api.get('/api/ai/predictions', { params });
-  return data.data;
+  const key = `ai-predictions:${JSON.stringify(params || {})}`;
+  return getWithSWR(key, async () => {
+    const { data } = await api.get('/api/ai/predictions', { params });
+    return data.data;
+  }, 60_000, 300_000);
 }
 
 export async function getAiPrediction(matchId: string): Promise<MatchPredictionDetail> {
-  const { data } = await api.get(`/api/ai/predictions/${matchId}`);
-  return data.data;
+  const key = `ai-prediction:${matchId}`;
+  return getWithSWR(key, async () => {
+    const { data } = await api.get(`/api/ai/predictions/${matchId}`);
+    return data.data;
+  }, 60_000, 300_000);
 }
 
 // ============================================================
@@ -33,8 +39,11 @@ export async function getOddsHistory(
   matchId: string,
   params?: { bookmaker?: string; market_type?: string }
 ): Promise<OddsHistoryPoint[]> {
-  const { data } = await api.get(`/api/ai/odds-history/${matchId}`, { params });
-  return data.data;
+  const key = `odds-history:${matchId}:${JSON.stringify(params || {})}`;
+  return getWithSWR(key, async () => {
+    const { data } = await api.get(`/api/ai/odds-history/${matchId}`, { params });
+    return data.data;
+  }, 30_000, 120_000);
 }
 
 export async function getOddsMovement(params?: {
@@ -42,8 +51,11 @@ export async function getOddsMovement(params?: {
   sport?: string;
   limit?: number;
 }): Promise<OddsMovementItem[]> {
-  const { data } = await api.get('/api/ai/odds-movement', { params });
-  return data.data;
+  const key = `odds-movement:${JSON.stringify(params || {})}`;
+  return getWithSWR(key, async () => {
+    const { data } = await api.get('/api/ai/odds-movement', { params });
+    return data.data;
+  }, 30_000, 120_000);
 }
 
 // ============================================================
@@ -52,8 +64,11 @@ export async function getOddsMovement(params?: {
 export async function getValueBets(params?: {
   limit?: number;
 }): Promise<ValueBetMatch[]> {
-  const { data } = await api.get('/api/ai/value-bets', { params });
-  return data.data;
+  const key = `value-bets:${JSON.stringify(params || {})}`;
+  return getWithSWR(key, async () => {
+    const { data } = await api.get('/api/ai/value-bets', { params });
+    return data.data;
+  }, 60_000, 300_000);
 }
 
 // ============================================================
@@ -89,13 +104,18 @@ export async function getTeamStats(params?: {
   order?: string;
   limit?: number;
 }): Promise<TeamStats[]> {
-  const { data } = await api.get('/api/ai/team-stats', { params });
-  return data.data;
+  const key = `team-stats:${JSON.stringify(params || {})}`;
+  return getWithSWR(key, async () => {
+    const { data } = await api.get('/api/ai/team-stats', { params });
+    return data.data;
+  }, 300_000, 600_000);
 }
 
 export async function getLeagues(): Promise<LeagueInfo[]> {
-  const { data } = await api.get('/api/ai/leagues');
-  return data.data;
+  return getWithSWR('leagues', async () => {
+    const { data } = await api.get('/api/ai/leagues');
+    return data.data;
+  }, 3_600_000);
 }
 
 // ============================================================
@@ -107,6 +127,9 @@ export async function getAccuracyStats(params?: {
   league?: string;
   limit?: number;
 }): Promise<{ records: AccuracyRecord[]; summary: AccuracySummary | null }> {
-  const { data } = await api.get('/api/ai/accuracy', { params });
-  return { records: data.records, summary: data.summary };
+  const key = `accuracy:${JSON.stringify(params || {})}`;
+  return getWithSWR(key, async () => {
+    const { data } = await api.get('/api/ai/accuracy', { params });
+    return { records: data.records, summary: data.summary };
+  }, 300_000, 600_000);
 }

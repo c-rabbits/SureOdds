@@ -21,8 +21,14 @@ import {
   updateAdminSetting,
 } from '@/lib/api';
 import { UserProfile, UserRole, SiteRegistration, SiteRequest, AvailableSite } from '@/types';
-import UserDetailPanel from '@/components/admin/UserDetailPanel';
-import UnmatchedTeamsPanel from '@/components/admin/UnmatchedTeamsPanel';
+import dynamic from 'next/dynamic';
+
+const UserDetailPanel = dynamic(() => import('@/components/admin/UserDetailPanel'), {
+  loading: () => <div className="h-96 bg-gray-800/50 rounded-lg animate-pulse" />,
+});
+const UnmatchedTeamsPanel = dynamic(() => import('@/components/admin/UnmatchedTeamsPanel'), {
+  loading: () => <div className="h-64 bg-gray-800/50 rounded-lg animate-pulse" />,
+});
 
 type AdminTab = 'users' | 'sites' | 'requests' | 'teams' | 'settings';
 

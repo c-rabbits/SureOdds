@@ -7,9 +7,18 @@ import { getAiPrediction, getOddsHistory } from '@/lib/aiApi';
 import { getKoreanTeamName } from '@/lib/teamNames';
 import { getKoreanLeagueName } from '@/lib/leagueNames';
 import { getSportEmoji, formatMatchTime, getBookmakerName, formatOdds, isDomesticBookmaker } from '@/lib/utils';
-import OddsChart from '@/components/ai/OddsChart';
-import ValueAnalysis from '@/components/ai/ValueAnalysis';
-import ScoreMatrix from '@/components/ai/ScoreMatrix';
+import dynamic from 'next/dynamic';
+
+const OddsChart = dynamic(() => import('@/components/ai/OddsChart'), {
+  loading: () => <div className="h-64 bg-gray-800/50 rounded-lg animate-pulse" />,
+  ssr: false,
+});
+const ValueAnalysis = dynamic(() => import('@/components/ai/ValueAnalysis'), {
+  loading: () => <div className="h-48 bg-gray-800/50 rounded-lg animate-pulse" />,
+});
+const ScoreMatrix = dynamic(() => import('@/components/ai/ScoreMatrix'), {
+  loading: () => <div className="h-48 bg-gray-800/50 rounded-lg animate-pulse" />,
+});
 import TeamLogo from '@/components/TeamLogo';
 import { overUnderProbs, handicapCoverProb, bttsProb } from '@/lib/poissonUtils';
 

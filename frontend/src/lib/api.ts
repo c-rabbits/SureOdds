@@ -32,6 +32,36 @@ export function invalidateCache(prefix?: string) {
   });
 }
 
+/**
+ * Stale-While-Revalidate 패턴.
+ * - fresh (TTL 내): 캐시 즉시 반환
+ * - stale (TTL 지남, staleMs 내): 캐시 즉시 반환 + 백그라운드 갱신
+ * - expired: 새로 fetch
+ */
+export async function getWithSWR<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttlMs: number,
+  staleMs: number = ttlMs * 4,
+): Promise<T> {
+  const entry = cache.get(key);
+  const now = Date.now();
+
+  // Fresh: 즉시 반환
+  if (entry && entry.expires > now) return entry.data as T;
+
+  // Stale but usable: 즉시 반환 + 백그라운드 갱신
+  if (entry && (entry.expires + staleMs) > now) {
+    fetcher().then((data) => setCache(key, data, ttlMs)).catch(() => {});
+    return entry.data as T;
+  }
+
+  // Expired 또는 없음: 새로 fetch
+  const data = await fetcher();
+  setCache(key, data, ttlMs);
+  return data;
+}
+
 // ============================================================
 // 네트워크 장애 시 자동 재시도 (최대 2회, 지수 백오프)
 // ============================================================
