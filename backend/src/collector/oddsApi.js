@@ -215,4 +215,58 @@ function getMockOdds(sport) {
   });
 }
 
-module.exports = { fetchAllOdds, fetchOdds, getQuotaInfo, SPORTS, EXTRA_SPORTS, MARKETS, BOOKMAKERS, DEFAULT_SPORTS };
+/**
+ * Fetch completed match scores from TheOddsAPI /scores endpoint.
+ * @param {string} sport - e.g. 'soccer_epl'
+ * @param {number} daysFrom - how many days back to look (max 3)
+ * @returns {Array} completed match scores
+ */
+async function fetchScores(sport, daysFrom = 3) {
+  if (!API_KEY) {
+    log.warn('ODDS_API_KEY not set, cannot fetch scores');
+    return [];
+  }
+
+  try {
+    const response = await http.get(`${BASE_URL}/sports/${sport}/scores`, {
+      params: {
+        apiKey: API_KEY,
+        daysFrom,
+      },
+    });
+
+    const remaining = response.headers['x-requests-remaining'];
+    if (remaining !== undefined) {
+      lastQuotaInfo = {
+        ...lastQuotaInfo,
+        remaining: parseInt(remaining, 10),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    return (response.data || []).filter((m) => m.completed);
+  } catch (err) {
+    log.error(`Failed to fetch scores for ${sport}`, { error: err.message });
+    return [];
+  }
+}
+
+/**
+ * Fetch scores for all configured sports (soccer leagues only for prediction accuracy).
+ * Uses 1 API request per sport.
+ */
+async function fetchAllScores(daysFrom = 3) {
+  const soccerSports = SPORTS.filter((s) => s.startsWith('soccer_'));
+  const results = [];
+
+  for (const sport of soccerSports) {
+    const scores = await fetchScores(sport, daysFrom);
+    results.push(...scores.map((m) => ({ ...m, sport_key: sport })));
+    await new Promise((r) => setTimeout(r, 300));
+  }
+
+  log.info(`Fetched ${results.length} completed scores across ${soccerSports.length} soccer leagues`);
+  return results;
+}
+
+module.exports = { fetchAllOdds, fetchOdds, fetchScores, fetchAllScores, getQuotaInfo, SPORTS, EXTRA_SPORTS, MARKETS, BOOKMAKERS, DEFAULT_SPORTS };

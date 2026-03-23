@@ -10,13 +10,14 @@ const cron = require('node-cron');
 const { createServiceLogger } = require('../config/logger');
 const supabase = require('../config/supabase');
 const { isConfigured, fetchAllLeagueStandings, fetchAllLeagueFixtures, getQuotaInfo } = require('./apiFootball');
+const { fetchAllScores } = require('./oddsApi');
 const {
   transformStandingsToTeamStats,
   calculateLeagueRatings,
   calculateEloFromStandings,
   cleanForDb,
 } = require('./teamStatsTransformer');
-const { updateMatchScores, getUnprocessedCompletedMatches } = require('../services/matchResultService');
+const { updateMatchScores, updateMatchScoresFromOddsApi, getUnprocessedCompletedMatches } = require('../services/matchResultService');
 const { processMatchResults, recalculateForm } = require('../services/eloCalculator');
 const { processCompletedPredictions } = require('../services/predictionAccuracyService');
 
@@ -43,7 +44,10 @@ async function collectTeamStats() {
   }
 
   try {
-    const season = process.env.API_FOOTBALL_SEASON || '2024';
+    // European football season runs Aug–May. If month >= Aug, season = this year; else last year.
+    const now = new Date();
+    const autoSeason = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    const season = process.env.API_FOOTBALL_SEASON || String(autoSeason);
 
     // 1. Fetch standings from API-Football (5 requests)
     const allStandings = await fetchAllLeagueStandings(parseInt(season));
@@ -88,16 +92,27 @@ async function collectTeamStats() {
       timestamp: new Date().toISOString(),
     };
 
-    // 5. Fetch fixture results and update match scores (5 more requests)
+    // 5. Fetch match scores — primary: TheOddsAPI, fallback: API-Football
     let fixturesResult = { updated: 0 };
     let eloResult = { processed: 0 };
     let formResult = { updated: 0 };
     let accuracyResult = { processed: 0 };
 
     try {
-      log.info('--- Fetching fixture results ---');
-      const allFixtures = await fetchAllLeagueFixtures(parseInt(season), 7);
-      fixturesResult = await updateMatchScores(allFixtures);
+      // 5a. TheOddsAPI scores (free, current season, reliable)
+      log.info('--- Fetching scores from TheOddsAPI ---');
+      const completedScores = await fetchAllScores(3);
+      fixturesResult = await updateMatchScoresFromOddsApi(completedScores);
+
+      // 5b. API-Football fixtures as fallback (may fail on free plan for current season)
+      try {
+        log.info('--- Fetching fixture results from API-Football (fallback) ---');
+        const allFixtures = await fetchAllLeagueFixtures(parseInt(season), 7);
+        const apiFbResult = await updateMatchScores(allFixtures);
+        fixturesResult.updated += apiFbResult.updated;
+      } catch (apiFbErr) {
+        log.warn(`API-Football fixture fetch failed (non-fatal): ${apiFbErr.message}`);
+      }
 
       // 6. Process unprocessed completed matches for ELO update
       log.info('--- Processing ELO updates ---');

@@ -158,6 +158,84 @@ async function updateMatchScores(allFixtures) {
 }
 
 /**
+ * Update match scores using TheOddsAPI /scores data.
+ * Matches by external_id (TheOddsAPI event id) or by team names + date.
+ */
+async function updateMatchScoresFromOddsApi(completedScores) {
+  let updated = 0;
+  let notFound = 0;
+  let alreadyDone = 0;
+
+  for (const score of completedScores) {
+    // Parse scores: [{ name: "TeamA", score: "2" }, { name: "TeamB", score: "1" }]
+    if (!score.scores || score.scores.length < 2) continue;
+
+    const homeScoreObj = score.scores.find((s) => s.name === score.home_team);
+    const awayScoreObj = score.scores.find((s) => s.name === score.away_team);
+    if (!homeScoreObj || !awayScoreObj) continue;
+
+    const homeScore = parseInt(homeScoreObj.score);
+    const awayScore = parseInt(awayScoreObj.score);
+    if (isNaN(homeScore) || isNaN(awayScore)) continue;
+
+    // 1. Try matching by external_id first (most reliable)
+    let match = null;
+    const { data: byExternalId } = await supabase
+      .from('matches')
+      .select('id, home_score, status')
+      .eq('external_id', score.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (byExternalId) {
+      match = byExternalId;
+    } else {
+      // 2. Fallback: match by team names + date
+      const matchDate = new Date(score.commence_time);
+      const dayStart = new Date(matchDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(matchDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const { data: byTeams } = await supabase
+        .from('matches')
+        .select('id, home_team, away_team, home_score, status')
+        .gte('start_time', dayStart.toISOString())
+        .lte('start_time', dayEnd.toISOString());
+
+      const ht = score.home_team.toLowerCase();
+      const at = score.away_team.toLowerCase();
+      match = (byTeams || []).find((m) => {
+        const h = m.home_team.toLowerCase();
+        const a = m.away_team.toLowerCase();
+        return (h === ht || h.includes(ht) || ht.includes(h)) &&
+               (a === at || a.includes(at) || at.includes(a));
+      });
+    }
+
+    if (!match) {
+      notFound++;
+      continue;
+    }
+
+    if (match.home_score != null && match.status === 'completed') {
+      alreadyDone++;
+      continue;
+    }
+
+    const { error: updateErr } = await supabase
+      .from('matches')
+      .update({ home_score: homeScore, away_score: awayScore, status: 'completed' })
+      .eq('id', match.id);
+
+    if (!updateErr) updated++;
+  }
+
+  log.info(`OddsAPI scores: updated=${updated}, notFound=${notFound}, alreadyDone=${alreadyDone}`);
+  return { updated, notFound, alreadyDone };
+}
+
+/**
  * Get recently completed matches from our DB (for ELO processing).
  * Returns matches that have scores but haven't been ELO-processed yet.
  */
@@ -190,6 +268,7 @@ async function getUnprocessedCompletedMatches(sport) {
 
 module.exports = {
   updateMatchScores,
+  updateMatchScoresFromOddsApi,
   getUnprocessedCompletedMatches,
   parseFixture,
 };

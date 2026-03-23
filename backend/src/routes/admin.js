@@ -634,4 +634,22 @@ router.patch('/settings', async (req, res) => {
   }
 });
 
+// ============================================================
+// POST /api/admin/collect-stats - 수동 팀 통계 수집 트리거
+// ============================================================
+router.post('/collect-stats', async (req, res) => {
+  try {
+    const { collectTeamStats } = require('../collector/teamStatsCollector');
+    log.info(`Manual team stats collection triggered by ${req.user.id}`);
+
+    // 비동기로 실행 (응답은 바로 반환)
+    const result = await collectTeamStats();
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    log.error('Manual collection error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
