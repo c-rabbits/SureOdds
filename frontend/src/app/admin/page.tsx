@@ -29,8 +29,11 @@ const UserDetailPanel = dynamic(() => import('@/components/admin/UserDetailPanel
 const UnmatchedTeamsPanel = dynamic(() => import('@/components/admin/UnmatchedTeamsPanel'), {
   loading: () => <div className="h-64 bg-gray-800/50 rounded-lg animate-pulse" />,
 });
+const AiAnalysisPanel = dynamic(() => import('@/components/admin/AiAnalysisPanel'), {
+  loading: () => <div className="h-64 bg-gray-800/50 rounded-lg animate-pulse" />,
+});
 
-type AdminTab = 'users' | 'sites' | 'requests' | 'teams' | 'settings';
+type AdminTab = 'users' | 'sites' | 'requests' | 'teams' | 'ai-analysis' | 'settings';
 
 const ROLE_OPTIONS: { value: UserRole; label: string; color: string }[] = [
   { value: 'admin', label: '관리자', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
@@ -444,6 +447,7 @@ export default function AdminPage() {
     { key: 'sites', label: '사이트 관리', count: sites.length },
     { key: 'requests', label: '작업요청', count: requests.filter((r) => r.status === 'pending').length },
     { key: 'teams', label: '팀매핑', count: 0 },
+    { key: 'ai-analysis', label: 'AI확률업', count: 0 },
     { key: 'settings', label: '설정', count: 0 },
   ];
 
@@ -1064,6 +1068,11 @@ export default function AdminPage() {
       {/* TAB: 팀매핑 */}
       {/* ═══════════════════════════════════════════════════════ */}
       {activeTab === 'teams' && <UnmatchedTeamsPanel />}
+
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* TAB: AI확률업 */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {activeTab === 'ai-analysis' && <AiAnalysisPanel />}
 
       {/* ═══════════════════════════════════════════════════════ */}
       {/* TAB: 설정 */}

@@ -10,6 +10,7 @@
     "seed:admin": "node scripts/seedAdmin.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@supabase/supabase-js": "^2.39.0",
     "axios": "^1.6.5",
     "axios-retry": "^4.5.0",

@@ -634,5 +634,34 @@ export async function updateAdminSetting(key: string, value: unknown): Promise<v
   await api.patch('/api/admin/settings', { key, value });
 }
 
+// ============================================================
+// AI 분석 (관리자용)
+// ============================================================
+
+export async function getAiAnalysisMatches() {
+  const { data } = await api.get('/api/admin/ai-analysis/matches');
+  return data.data;
+}
+
+export async function generateAiAnalysis(matchId: string, forceRefresh = false) {
+  const { data } = await api.post(`/api/admin/ai-analysis/generate/${matchId}`, { forceRefresh });
+  return data.data;
+}
+
+export async function generateTopAiAnalyses(count = 3) {
+  const { data } = await api.post('/api/admin/ai-analysis/generate-top', { count });
+  return data.data;
+}
+
+export async function getAiAnalysisReport(matchId: string) {
+  const { data } = await api.get(`/api/admin/ai-analysis/report/${matchId}`);
+  return data.data;
+}
+
+export async function getAiAnalysisReports() {
+  const { data } = await api.get('/api/admin/ai-analysis/reports');
+  return data.data;
+}
+
 // axios 인스턴스 export (aiApi.ts에서 재사용)
 export { api };

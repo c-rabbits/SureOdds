@@ -652,4 +652,120 @@ router.post('/collect-stats', async (req, res) => {
   }
 });
 
+// ============================================================
+// AI 분석 보고서 (Claude API)
+// ============================================================
+
+// GET /api/admin/ai-analysis/matches - 분석 가능한 경기 목록
+router.get('/ai-analysis/matches', async (req, res) => {
+  try {
+    const { getAnalyzableMatches } = require('../services/aiAnalysisService');
+    const matches = await getAnalyzableMatches();
+    res.json({ success: true, data: matches });
+  } catch (err) {
+    log.error('AI analysis matches error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/ai-analysis/generate/:matchId - 단건 분석 생성
+router.post('/ai-analysis/generate/:matchId', async (req, res) => {
+  try {
+    const { generateAnalysis } = require('../services/aiAnalysisService');
+    const { forceRefresh } = req.body || {};
+    const report = await generateAnalysis(req.params.matchId, !!forceRefresh);
+    res.json({ success: true, data: report });
+  } catch (err) {
+    log.error('AI analysis generate error', { error: err.message, matchId: req.params.matchId });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/ai-analysis/generate-top - 확률 높은 TOP N 경기 자동 분석
+router.post('/ai-analysis/generate-top', async (req, res) => {
+  try {
+    const { getAnalyzableMatches, generateAnalysis } = require('../services/aiAnalysisService');
+    const topN = Math.min(req.body?.count || 3, 10); // 기본 3개, 최대 10개
+
+    const matches = await getAnalyzableMatches();
+
+    // 예측이 있는 경기만 필터 → confidence + value_bets 기준 정렬
+    const ranked = matches
+      .filter(m => m.has_prediction && m.prediction)
+      .map(m => {
+        const p = m.prediction;
+        // 스코어: 신뢰도 + 밸류베팅 엣지 + 승패확률 편중도
+        const maxProb = Math.max(p.home_win_prob || 0, p.away_win_prob || 0);
+        const valueBetEdge = p.value_bets ? Math.max(...p.value_bets.map(v => v.edge || 0)) : 0;
+        const score = (p.confidence || 0) * 0.4 + maxProb * 0.3 + valueBetEdge * 0.3;
+        return { ...m, _score: score };
+      })
+      .sort((a, b) => b._score - a._score)
+      .slice(0, topN);
+
+    if (ranked.length === 0) {
+      return res.json({ success: true, data: [], message: '분석 가능한 경기가 없습니다' });
+    }
+
+    // 순차적으로 분석 (API rate limit 고려)
+    const results = [];
+    for (const m of ranked) {
+      try {
+        const report = await generateAnalysis(m.id);
+        results.push({ matchId: m.id, home_team: m.home_team, away_team: m.away_team, success: true, report });
+      } catch (err) {
+        results.push({ matchId: m.id, home_team: m.home_team, away_team: m.away_team, success: false, error: err.message });
+      }
+    }
+
+    res.json({ success: true, data: results });
+  } catch (err) {
+    log.error('AI analysis generate-top error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/ai-analysis/report/:matchId - 저장된 분석 보고서 조회
+router.get('/ai-analysis/report/:matchId', async (req, res) => {
+  try {
+    const { getCachedAnalysis } = require('../services/aiAnalysisService');
+    // 시간 제한 없이 조회
+    const { data, error } = await supabase
+      .from('ai_analysis_reports')
+      .select('*')
+      .eq('match_id', req.params.matchId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return res.json({ success: true, data: null });
+    }
+    res.json({ success: true, data: data[0].report_data });
+  } catch (err) {
+    log.error('AI analysis report error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/ai-analysis/reports - 전체 분석 보고서 목록
+router.get('/ai-analysis/reports', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('ai_analysis_reports')
+      .select(`
+        id, match_id, model_used, created_at,
+        matches (id, sport, league, home_team, away_team, start_time)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    res.json({ success: true, data: data || [] });
+  } catch (err) {
+    log.error('AI analysis reports list error', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
