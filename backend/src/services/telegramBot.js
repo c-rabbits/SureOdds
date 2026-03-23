@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { createServiceLogger } = require('../config/logger');
+const { getKoreanTeamName, getKoreanLeagueName } = require('../utils/koreanNames');
 require('dotenv').config();
 
 const log = createServiceLogger('Telegram');
@@ -43,11 +44,15 @@ function buildAlertMessage(opportunity, match) {
     oddsText = `A (${opportunity.bookmaker_a}): ${opportunity.odds_a}\nB (${opportunity.bookmaker_b}): ${opportunity.odds_b}`;
   }
 
+  const leagueKr = getKoreanLeagueName(match.league);
+  const homeKr = getKoreanTeamName(match.home_team);
+  const awayKr = getKoreanTeamName(match.away_team);
+
   return `
 ⚡ *양방 기회 발견!*
 
-🏆 *${match.league}*
-⚽ ${match.home_team} vs ${match.away_team}
+🏆 *${leagueKr}*
+⚽ ${homeKr} vs ${awayKr}
 🕐 ${new Date(match.start_time).toLocaleString('ko-KR')}
 
 📊 마켓: ${marketLabel}
@@ -211,11 +216,15 @@ function buildValueBetMessage(valueBets, match, confidence) {
   const outcomeLabel = topBet.outcome === 'home_win' ? '홈승' :
     topBet.outcome === 'away_win' ? '원정승' : '무승부';
 
+  const leagueKr = getKoreanLeagueName(match.league);
+  const homeKr = getKoreanTeamName(match.home_team);
+  const awayKr = getKoreanTeamName(match.away_team);
+
   let lines = [
     `🎯 *밸류 베팅 발견!*`,
     ``,
-    `🏆 *${match.league}*`,
-    `⚽ ${match.home_team} vs ${match.away_team}`,
+    `🏆 *${leagueKr}*`,
+    `⚽ ${homeKr} vs ${awayKr}`,
     `🕐 ${new Date(match.start_time).toLocaleString('ko-KR')}`,
     ``,
   ];
@@ -265,7 +274,9 @@ function buildDailyDigestMessage(summary) {
     summary.topValueBets.forEach((vb, i) => {
       const ol = vb.outcome === 'home_win' ? '홈승' :
         vb.outcome === 'away_win' ? '원정승' : '무';
-      lines.push(`${i + 1}. ${vb.home_team} vs ${vb.away_team} | ${ol} +${(vb.edge * 100).toFixed(1)}%`);
+      const h = getKoreanTeamName(vb.home_team);
+      const a = getKoreanTeamName(vb.away_team);
+      lines.push(`${i + 1}. ${h} vs ${a} | ${ol} +${(vb.edge * 100).toFixed(1)}%`);
     });
   }
 

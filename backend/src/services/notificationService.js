@@ -16,6 +16,7 @@ const {
   buildDailyDigestMessage,
 } = require('./telegramBot');
 const { isConfigured: isPushConfigured, sendPushToAll, sendPushToUser } = require('./webPushService');
+const { getKoreanTeamName } = require('../utils/koreanNames');
 
 const log = createServiceLogger('Notification');
 
@@ -26,9 +27,11 @@ function buildPushPayload(type, payload) {
   switch (type) {
     case 'arbitrage': {
       const { opportunity, match } = payload;
+      const homeKr = getKoreanTeamName(match.home_team);
+      const awayKr = getKoreanTeamName(match.away_team);
       return {
         title: `⚡ 양방 +${opportunity.profit_percent.toFixed(1)}%`,
-        body: `${match.home_team} vs ${match.away_team}`,
+        body: `${homeKr} vs ${awayKr}`,
         icon: '/icon-192.png',
         url: `/?match=${match.id}`,
         tag: `arb-${match.id}`,
@@ -37,9 +40,11 @@ function buildPushPayload(type, payload) {
     case 'value_bet': {
       const { valueBets, match } = payload;
       const topEdge = valueBets[0]?.edge || 0;
+      const homeKr = getKoreanTeamName(match.home_team);
+      const awayKr = getKoreanTeamName(match.away_team);
       return {
         title: `🎯 밸류베팅 +${(topEdge * 100).toFixed(1)}%`,
-        body: `${match.home_team} vs ${match.away_team}`,
+        body: `${homeKr} vs ${awayKr}`,
         icon: '/icon-192.png',
         url: `/ai/match/${match.id}`,
         tag: `vb-${match.id}`,
