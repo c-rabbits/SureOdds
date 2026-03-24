@@ -475,6 +475,7 @@ async function getAnalyzableMatches() {
       id, sport, league, home_team, away_team, start_time,
       ai_predictions (id, home_win_prob, draw_prob, away_win_prob, confidence, value_bets, computed_at)
     `)
+    .ilike('sport', '%soccer%')
     .gte('start_time', now.toISOString())
     .lte('start_time', twoDaysLater.toISOString())
     .order('start_time');

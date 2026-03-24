@@ -159,7 +159,7 @@ export default function AiAnalysisPanel() {
       const report = await generateAiAnalysis(match.id, forceRefresh);
       setSelectedReport(report);
       setSelectedMatch(match);
-      loadMatches(); // 목록 새로고침
+      await loadMatches(); // 목록 새로고침 (보기 버튼 표시)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '분석 생성 실패';
       alert(msg);
@@ -173,15 +173,24 @@ export default function AiAnalysisPanel() {
     setGenerating('top');
     try {
       const results = await generateTopAiAnalyses(topCount);
-      if (results && results.length > 0) {
-        const first = results.find((r: { success: boolean }) => r.success);
-        if (first) {
-          setSelectedReport(first.report);
-          setSelectedMatch(matches.find(m => m.id === first.matchId) || null);
-        }
+      const successResults = (results || []).filter((r: { success: boolean }) => r.success);
+      const failResults = (results || []).filter((r: { success: boolean }) => !r.success);
+
+      // 목록 먼저 새로고침 (보기 버튼 표시를 위해)
+      await loadMatches();
+
+      if (successResults.length > 0) {
+        // 첫 번째 성공 결과 자동 표시
+        const first = successResults[0];
+        setSelectedReport(first.report);
+        // loadMatches 후 최신 matches에서 찾기
+        setSelectedMatch({ id: first.matchId, home_team: first.home_team, away_team: first.away_team } as AnalyzableMatch);
       }
-      loadMatches();
-      alert(`${results?.length || 0}개 경기 분석 완료`);
+
+      const msg = failResults.length > 0
+        ? `${successResults.length}개 성공, ${failResults.length}개 실패`
+        : `${successResults.length}개 경기 분석 완료`;
+      alert(msg);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '분석 생성 실패';
       alert(msg);
