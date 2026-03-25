@@ -35,15 +35,17 @@ interface Props {
   onSelectRow: (row: TableRow) => void;
   hiddenKeys?: Set<string>;
   onHideRow?: (key: string) => void;
+  userBookmakers?: Set<string>;
 }
 
 function getRowKey(row: TableRow): string {
   return `${row.matchId}|${row.marketType}|${row.handicapPoint ?? 'null'}`;
 }
 
-function BookmakerBadge({ bookmaker }: { bookmaker: string }) {
+function BookmakerBadge({ bookmaker, isUserSite }: { bookmaker: string; isUserSite?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-0.5">
+    <span className={`inline-flex items-center gap-0.5 ${isUserSite ? 'text-green-400 font-bold' : ''}`}>
+      {isUserSite && <span className="text-[8px]" title="내 사이트">★</span>}
       {isDomesticBookmaker(bookmaker) && <span className="text-[9px]" title="국내">&#x1F1F0;&#x1F1F7;</span>}
       {getBookmakerShort(bookmaker)}
     </span>
@@ -67,7 +69,7 @@ function MarketBadge({ marketType, handicapPoint }: { marketType: MarketType; ha
   );
 }
 
-export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow, hiddenKeys, onHideRow }: Props) {
+export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow, hiddenKeys, onHideRow, userBookmakers }: Props) {
   const filteredRows = useMemo(() => {
     let result = rows;
 
@@ -259,7 +261,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                     <OddsChangeIndicator change={row.oddsChange1} />
                   </span>
                   <span className="text-[11px] text-gray-500">
-                    {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} /> : ''}
+                    {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} isUserSite={userBookmakers?.has(row.bestOutcome1.bookmaker)} /> : ''}
                   </span>
                 </div>
 
@@ -279,7 +281,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                     <OddsChangeIndicator change={row.oddsChange2} />
                   </span>
                   <span className="text-[11px] text-gray-500">
-                    {row.bestOutcome2 ? <BookmakerBadge bookmaker={row.bestOutcome2.bookmaker} /> : ''}
+                    {row.bestOutcome2 ? <BookmakerBadge bookmaker={row.bestOutcome2.bookmaker} isUserSite={userBookmakers?.has(row.bestOutcome2.bookmaker)} /> : ''}
                   </span>
                 </div>
               </div>
@@ -352,7 +354,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                   ) : '-'}
                 </td>
                 <td className="text-gray-500">
-                  {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} /> : ''}
+                  {row.bestOutcome1 ? <BookmakerBadge bookmaker={row.bestOutcome1.bookmaker} isUserSite={userBookmakers?.has(row.bestOutcome1.bookmaker)} /> : ''}
                 </td>
                 <td className="odds-cell text-gray-400">
                   {row.bestDraw ? (
@@ -371,7 +373,7 @@ export default function MatchTable({ rows, filters, selectedRowKey, onSelectRow,
                   ) : '-'}
                 </td>
                 <td className="text-gray-500">
-                  {row.bestOutcome2 ? <BookmakerBadge bookmaker={row.bestOutcome2.bookmaker} /> : ''}
+                  {row.bestOutcome2 ? <BookmakerBadge bookmaker={row.bestOutcome2.bookmaker} isUserSite={userBookmakers?.has(row.bestOutcome2.bookmaker)} /> : ''}
                 </td>
                 <td className="odds-cell text-gray-400 font-mono">
                   {row.arbFactor !== null ? row.arbFactor.toFixed(4) : '-'}

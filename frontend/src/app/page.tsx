@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MatchWithOdds, TableRow, QuotaInfo } from '@/types';
-import { getMatchesWithOdds, getArbitrage, triggerCollection, getApiQuota, invalidateCache } from '@/lib/api';
+import { getMatchesWithOdds, getArbitrage, triggerCollection, getApiQuota, invalidateCache, getSiteRegistrations } from '@/lib/api';
 import { flattenMatchesToRows } from '@/lib/utils';
 import { getAlertService } from '@/lib/alertService';
 import { useFilters } from '@/hooks/useFilters';
@@ -38,6 +38,9 @@ export default function HomePage() {
       return next;
     });
   }, []);
+
+  // 사용자 등록 사이트 → bookmaker key Set
+  const [userBookmakers, setUserBookmakers] = useState<Set<string>>(new Set());
 
   const { filters, toggleSport, toggleMarketType, setMinProfit, setSort, setSourceFilter, toggleBookmaker, toggleLeague, setTimeFilter, setRequiredBookmaker, toggleArbOnly } = useFilters();
 
@@ -108,14 +111,40 @@ export default function HomePage() {
   // Load data
   const loadData = useCallback(async () => {
     try {
-      const [matchData, quotaData] = await Promise.all([
+      const [matchData, quotaData, sitesData] = await Promise.all([
         getMatchesWithOdds({ limit: 500 }),
         getApiQuota().catch(() => null),
+        getSiteRegistrations().catch(() => []),
       ]);
 
       setMatches(matchData || []);
       if (quotaData) setQuota(quotaData);
       setLastUpdated(new Date());
+
+      // 사용자 등록 사이트 → bookmaker 키 매핑
+      if (sitesData && sitesData.length > 0) {
+        const SITE_TO_BOOKMAKER: Record<string, string> = {
+          betman: 'betman_proto', '베트맨': 'betman_proto', 'betman.co.kr': 'betman_proto',
+          stake: 'stake', 'stake.com': 'stake',
+          pinnacle: 'pinnacle', '피나클': 'pinnacle', 'pinnacle.com': 'pinnacle',
+          sbobet: 'sbobet', '스보벳': 'sbobet',
+          maxbet: 'dafabet', '맥스벳': 'dafabet', dafabet: 'dafabet',
+        };
+        const keys = new Set<string>();
+        for (const s of sitesData) {
+          const name = (s.site_name || '').toLowerCase().trim();
+          const url = (s.site_url || '').toLowerCase();
+          // 이름 매칭
+          if (SITE_TO_BOOKMAKER[name]) keys.add(SITE_TO_BOOKMAKER[name]);
+          // URL 매칭
+          else if (url.includes('betman')) keys.add('betman_proto');
+          else if (url.includes('stake')) keys.add('stake');
+          else if (url.includes('pinnacle')) keys.add('pinnacle');
+          else if (url.includes('sbobet')) keys.add('sbobet');
+          else if (url.includes('maxbet') || url.includes('dafabet')) keys.add('dafabet');
+        }
+        setUserBookmakers(keys);
+      }
 
       // Check for new arbitrage alerts
       const arbOpps = (matchData || []).flatMap((m) => m.arbitrage_opportunities || []);
@@ -229,6 +258,7 @@ export default function HomePage() {
           onSelectRow={handleSelectRow}
           hiddenKeys={hiddenKeys}
           onHideRow={handleHideRow}
+          userBookmakers={userBookmakers}
         />
       </div>
 
@@ -239,6 +269,7 @@ export default function HomePage() {
           initialMarketType={selectedRow.marketType}
           initialHandicapPoint={selectedRow.handicapPoint}
           onClose={() => setSelectedRow(null)}
+          userBookmakers={userBookmakers}
         />
       )}
 

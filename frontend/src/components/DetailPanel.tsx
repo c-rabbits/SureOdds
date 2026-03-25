@@ -24,6 +24,7 @@ interface Props {
   initialMarketType?: MarketType;
   initialHandicapPoint?: number | null;
   onClose: () => void;
+  userBookmakers?: Set<string>;
 }
 
 // 환율 캐시 (세션 동안 유지)
@@ -45,7 +46,7 @@ async function fetchExchangeRate(): Promise<number> {
   }
 }
 
-export default function DetailPanel({ match, initialMarketType, initialHandicapPoint, onClose }: Props) {
+export default function DetailPanel({ match, initialMarketType, initialHandicapPoint, onClose, userBookmakers }: Props) {
   const [activeMarket, setActiveMarket] = useState<MarketType>(initialMarketType || 'h2h');
   const [activePoint, setActivePoint] = useState<number | null>(initialHandicapPoint ?? null);
   const [visible, setVisible] = useState(false);
@@ -300,12 +301,16 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
                   </tr>
                 </thead>
                 <tbody>
-                  {activeOdds.map((o) => (
-                    <tr key={o.id} className="border-t border-gray-800/50">
-                      <td className="py-1.5 text-gray-300 font-medium">
-                        <span className="flex items-center gap-1.5">
+                  {activeOdds.map((o) => {
+                    const isUserSite = userBookmakers?.has(o.bookmaker);
+                    return (
+                    <tr key={o.id} className={`border-t ${isUserSite ? 'border-green-700/50 bg-green-900/10' : 'border-gray-800/50'}`}>
+                      <td className="py-1.5 font-medium">
+                        <span className={`flex items-center gap-1.5 ${isUserSite ? 'text-green-300' : 'text-gray-300'}`}>
+                          {isUserSite && <span className="text-[9px] text-green-400" title="내 사이트">★</span>}
                           {isDomesticBookmaker(o.bookmaker) && <span className="text-[10px]">&#x1F1F0;&#x1F1F7;</span>}
                           {getBookmakerName(o.bookmaker) || o.bookmaker_title}
+                          {isUserSite && <span className="text-[9px] px-1 py-0.5 bg-green-800/50 text-green-300 rounded ml-1">내 사이트</span>}
                         </span>
                       </td>
                       <td className="py-1.5 text-center font-mono">
@@ -329,7 +334,8 @@ export default function DetailPanel({ match, initialMarketType, initialHandicapP
                         {new Date(o.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             )}
