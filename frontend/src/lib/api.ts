@@ -644,12 +644,12 @@ export async function getAiAnalysisMatches() {
 }
 
 export async function generateAiAnalysis(matchId: string, forceRefresh = false) {
-  const { data } = await api.post(`/api/admin/ai-analysis/generate/${matchId}`, { forceRefresh });
+  const { data } = await api.post(`/api/admin/ai-analysis/generate/${matchId}`, { forceRefresh }, { timeout: 120000 });
   return data.data;
 }
 
 export async function generateTopAiAnalyses(count = 3) {
-  const { data } = await api.post('/api/admin/ai-analysis/generate-top', { count });
+  const { data } = await api.post('/api/admin/ai-analysis/generate-top', { count }, { timeout: 300000 });
   return data.data;
 }
 
