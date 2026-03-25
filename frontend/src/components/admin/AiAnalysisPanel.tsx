@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getAiAnalysisMatches,
   generateAiAnalysis,
@@ -103,7 +103,6 @@ interface AnalysisReport {
 
 // ─── 한글 매핑 ───
 
-// sport key → 한글 (TheOddsAPI sport key용)
 const SPORT_KEY_KO: Record<string, string> = {
   'soccer_epl': '프리미어리그', 'soccer_spain_la_liga': '라리가',
   'soccer_germany_bundesliga': '분데스리가', 'soccer_italy_serie_a': '세리에A',
@@ -142,7 +141,7 @@ function Stars({ count }: { count: number }) {
 export default function AiAnalysisPanel() {
   const [matches, setMatches] = useState<AnalyzableMatch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState<string | null>(null); // matchId or 'top'
+  const [generating, setGenerating] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<AnalysisReport | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<AnalyzableMatch | null>(null);
   const [topCount, setTopCount] = useState(3);
@@ -161,14 +160,13 @@ export default function AiAnalysisPanel() {
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
-  // 단건 분석
   const handleGenerate = async (match: AnalyzableMatch, forceRefresh = false) => {
     setGenerating(match.id);
     try {
       const report = await generateAiAnalysis(match.id, forceRefresh);
       setSelectedReport(report);
       setSelectedMatch(match);
-      await loadMatches(); // 목록 새로고침 (보기 버튼 표시)
+      await loadMatches();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '분석 생성 실패';
       alert(msg);
@@ -177,25 +175,18 @@ export default function AiAnalysisPanel() {
     }
   };
 
-  // TOP N 분석
   const handleGenerateTop = async () => {
     setGenerating('top');
     try {
       const results = await generateTopAiAnalyses(topCount);
       const successResults = (results || []).filter((r: { success: boolean }) => r.success);
       const failResults = (results || []).filter((r: { success: boolean }) => !r.success);
-
-      // 목록 먼저 새로고침 (보기 버튼 표시를 위해)
       await loadMatches();
-
       if (successResults.length > 0) {
-        // 첫 번째 성공 결과 자동 표시
         const first = successResults[0];
         setSelectedReport(first.report);
-        // loadMatches 후 최신 matches에서 찾기
         setSelectedMatch({ id: first.matchId, home_team: first.home_team, away_team: first.away_team } as AnalyzableMatch);
       }
-
       const msg = failResults.length > 0
         ? `${successResults.length}개 성공, ${failResults.length}개 실패`
         : `${successResults.length}개 경기 분석 완료`;
@@ -208,7 +199,6 @@ export default function AiAnalysisPanel() {
     }
   };
 
-  // 보고서 조회
   const handleViewReport = async (match: AnalyzableMatch) => {
     try {
       const report = await getAiAnalysisReport(match.id);
@@ -244,19 +234,13 @@ export default function AiAnalysisPanel() {
           <button
             onClick={handleGenerateTop}
             disabled={generating === 'top'}
-            className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
           >
-            {generating === 'top' ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin">&#9696;</span> 분석 중...
-              </span>
-            ) : (
-              `TOP ${topCount} 자동 분석`
-            )}
+            {generating === 'top' ? '분석 중...' : `TOP ${topCount} 자동 분석`}
           </button>
           <button
             onClick={loadMatches}
-            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap"
           >
             새로고침
           </button>
@@ -275,47 +259,50 @@ export default function AiAnalysisPanel() {
         ) : (
           <div className="divide-y divide-gray-700/50">
             {matches.map(m => (
-              <div key={m.id} className="p-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700/50">
-                      {leagueKo(m.league || m.sport)}
+              <div key={m.id} className="p-4 hover:bg-gray-700/30 transition-colors">
+                {/* 상단: 리그 + 시간 + 분석 완료 뱃지 */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700/50 whitespace-nowrap">
+                    {leagueKo(m.league || m.sport)}
+                  </span>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">{formatTime(m.start_time)}</span>
+                  {m.has_analysis && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-green-900/50 text-green-300 border border-green-700/50 whitespace-nowrap">
+                      분석완료
                     </span>
-                    <span className="text-xs text-gray-400">{formatTime(m.start_time)}</span>
-                    {m.has_analysis && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-green-900/50 text-green-300 border border-green-700/50">
-                        분석 완료
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-white font-medium">
-                    {teamKo(m.home_team)} vs {teamKo(m.away_team)}
-                  </div>
-                  {m.prediction && (
-                    <div className="text-xs text-gray-400 mt-1 flex gap-3">
+                  )}
+                </div>
+                {/* 팀명 */}
+                <div className="text-white font-medium mb-2">
+                  {teamKo(m.home_team)} vs {teamKo(m.away_team)}
+                </div>
+                {/* 확률 + 버튼 한 줄 */}
+                <div className="flex items-center justify-between">
+                  {m.prediction ? (
+                    <div className="text-xs text-gray-400 flex gap-2 flex-wrap">
                       <span>홈 {(m.prediction.home_win_prob * 100).toFixed(0)}%</span>
                       <span>무 {(m.prediction.draw_prob * 100).toFixed(0)}%</span>
                       <span>원정 {(m.prediction.away_win_prob * 100).toFixed(0)}%</span>
                       <span className="text-yellow-400">신뢰도 {(m.prediction.confidence * 100).toFixed(0)}%</span>
                     </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {m.has_analysis && (
+                  ) : <div />}
+                  <div className="flex gap-2 shrink-0 ml-3">
+                    {m.has_analysis && (
+                      <button
+                        onClick={() => handleViewReport(m)}
+                        className="text-sm px-4 py-1.5 rounded-lg bg-blue-600/30 text-blue-300 hover:bg-blue-600/50 transition-colors whitespace-nowrap"
+                      >
+                        보기
+                      </button>
+                    )}
                     <button
-                      onClick={() => handleViewReport(m)}
-                      className="text-sm px-3 py-1.5 rounded-lg bg-blue-600/30 text-blue-300 hover:bg-blue-600/50 transition-colors"
+                      onClick={() => handleGenerate(m, m.has_analysis)}
+                      disabled={generating === m.id}
+                      className="text-sm px-4 py-1.5 rounded-lg bg-purple-600/30 text-purple-300 hover:bg-purple-600/50 disabled:bg-gray-600/30 disabled:text-gray-500 transition-colors whitespace-nowrap"
                     >
-                      보기
+                      {generating === m.id ? '분석 중...' : m.has_analysis ? '재분석' : '분석'}
                     </button>
-                  )}
-                  <button
-                    onClick={() => handleGenerate(m, m.has_analysis)}
-                    disabled={generating === m.id}
-                    className="text-sm px-3 py-1.5 rounded-lg bg-purple-600/30 text-purple-300 hover:bg-purple-600/50 disabled:bg-gray-600/30 disabled:text-gray-500 transition-colors"
-                  >
-                    {generating === m.id ? '분석 중...' : m.has_analysis ? '재분석' : '분석'}
-                  </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -323,9 +310,9 @@ export default function AiAnalysisPanel() {
         )}
       </div>
 
-      {/* ─── 분석 보고서 상세 ─── */}
+      {/* ─── 분석 보고서 팝업 (풀스크린 모달) ─── */}
       {selectedReport && selectedMatch && (
-        <AnalysisReportView
+        <ReportModal
           report={selectedReport}
           match={selectedMatch}
           onClose={() => { setSelectedReport(null); setSelectedMatch(null); }}
@@ -335,262 +322,319 @@ export default function AiAnalysisPanel() {
   );
 }
 
-// ─── 보고서 상세 뷰 ───
+// ─── 풀스크린 모달 ───
 
-function AnalysisReportView({ report, match, onClose }: {
+function ReportModal({ report, match, onClose }: {
   report: AnalysisReport;
   match: AnalyzableMatch;
   onClose: () => void;
 }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // ESC로 닫기
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handler);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  // PDF 다운로드
+  const handleDownloadPdf = async () => {
+    if (!contentRef.current) return;
+    try {
+      // 동적 import html2canvas + jspdf
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      const element = contentRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#111827',
+        logging: false,
+        windowWidth: 800,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20; // 10mm margin each side
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 10;
+
+      // 첫 페이지
+      pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+      heightLeft -= (pdfHeight - 20);
+
+      // 추가 페이지
+      while (heightLeft > 0) {
+        position = -(pdfHeight - 20) * (Math.ceil((imgHeight - heightLeft) / (pdfHeight - 20))) + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+        heightLeft -= (pdfHeight - 20);
+      }
+
+      const fileName = `분석_${teamKo(match.home_team)}_vs_${teamKo(match.away_team)}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error('PDF generation failed', err);
+      alert('PDF 생성에 필요한 라이브러리를 설치해주세요: npm install html2canvas jspdf');
+    }
+  };
+
   const raw = report._raw;
   const pred = raw?.prediction as Record<string, number> | undefined;
 
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-600 overflow-hidden">
-      {/* 헤더 */}
-      <div className="bg-gradient-to-r from-purple-900/60 to-blue-900/60 p-5 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          <div>
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center overflow-y-auto">
+      <div className="w-full max-w-3xl my-4 mx-4">
+        {/* 헤더 (고정) */}
+        <div className="bg-gradient-to-r from-purple-900 to-blue-900 rounded-t-xl p-4 flex items-center justify-between sticky top-0 z-10">
+          <div className="min-w-0">
             <div className="text-xs text-gray-300 mb-1">{leagueKo(match.league || match.sport)} · {formatTime(match.start_time)}</div>
-            <h2 className="text-xl font-bold text-white">{teamKo(match.home_team)} vs {teamKo(match.away_team)}</h2>
+            <h2 className="text-lg font-bold text-white truncate">{teamKo(match.home_team)} vs {teamKo(match.away_team)}</h2>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">×</button>
-        </div>
-      </div>
-
-      <div className="p-5 space-y-6">
-        {/* 경기 요약 */}
-        <section>
-          <h3 className="text-sm font-semibold text-purple-400 mb-2 uppercase tracking-wider">경기 개요</h3>
-          <p className="text-gray-300 leading-relaxed">{report.match_summary}</p>
-        </section>
-
-        {/* 핵심 지표 카드 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: `${teamKo(match.home_team)} 최근 폼`, value: report.key_metrics?.home_form_label, color: 'blue' },
-            { label: `${teamKo(match.away_team)} 최근 폼`, value: report.key_metrics?.away_form_label, color: 'red' },
-            { label: 'H2H 트렌드', value: report.key_metrics?.h2h_trend, color: 'yellow' },
-            { label: 'H2H 평균 골', value: report.key_metrics?.avg_goals, color: 'green' },
-          ].map((item, i) => (
-            <div key={i} className={`bg-${item.color}-900/20 border border-${item.color}-700/30 rounded-lg p-3 text-center`}>
-              <div className="text-xs text-gray-400 mb-1">{item.label}</div>
-              <div className="text-white font-bold text-sm">{item.value || '-'}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* 승무패 확률 바 */}
-        {pred && (
-          <section>
-            <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">종합 승리 확률</h3>
-            <div className="flex h-10 rounded-lg overflow-hidden text-sm font-bold">
-              <div className="bg-blue-600 flex items-center justify-center text-white"
-                style={{ width: `${(pred.home_win_prob || 0) * 100}%` }}>
-                {((pred.home_win_prob || 0) * 100).toFixed(0)}%
-              </div>
-              <div className="bg-gray-500 flex items-center justify-center text-white"
-                style={{ width: `${(pred.draw_prob || 0) * 100}%` }}>
-                {((pred.draw_prob || 0) * 100).toFixed(0)}%
-              </div>
-              <div className="bg-red-600 flex items-center justify-center text-white"
-                style={{ width: `${(pred.away_win_prob || 0) * 100}%` }}>
-                {((pred.away_win_prob || 0) * 100).toFixed(0)}%
-              </div>
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>{teamKo(match.home_team)} 승</span>
-              <span>무승부</span>
-              <span>{teamKo(match.away_team)} 승</span>
-            </div>
-          </section>
-        )}
-
-        {/* 팀 분석 (좌우) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <TeamAnalysisCard
-            team={teamKo(match.home_team)}
-            analysis={report.home_team_analysis}
-            color="blue"
-            side="홈"
-          />
-          <TeamAnalysisCard
-            team={teamKo(match.away_team)}
-            analysis={report.away_team_analysis}
-            color="red"
-            side="원정"
-          />
-        </div>
-
-        {/* H2H 분석 */}
-        {report.h2h_analysis && report.h2h_analysis !== '직접 대결 기록 없음' && (
-          <section>
-            <h3 className="text-sm font-semibold text-purple-400 mb-2 uppercase tracking-wider">H2H 직접 대결 분석</h3>
-            <p className="text-gray-300 leading-relaxed bg-gray-800/50 rounded-lg p-4">{report.h2h_analysis}</p>
-          </section>
-        )}
-
-        {/* 확률 분석 */}
-        <section>
-          <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">확률 분석</h3>
-          <div className="space-y-3">
-            <div className="bg-gray-800/50 rounded-lg p-4">
-              <div className="text-xs text-gray-400 mb-1">모델 신뢰도</div>
-              <p className="text-gray-200 text-sm">{report.probability_analysis?.model_confidence}</p>
-            </div>
-            <div className="bg-gray-800/50 rounded-lg p-4">
-              <div className="text-xs text-gray-400 mb-1">시장 vs AI 모델</div>
-              <p className="text-gray-200 text-sm">{report.probability_analysis?.market_vs_model}</p>
-            </div>
-            {report.probability_analysis?.value_assessment && (
-              <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
-                <div className="text-xs text-yellow-400 mb-1">밸류 평가</div>
-                <p className="text-gray-200 text-sm">{report.probability_analysis?.value_assessment}</p>
-              </div>
-            )}
+          <div className="flex items-center gap-2 shrink-0 ml-3">
+            <button
+              onClick={handleDownloadPdf}
+              className="text-sm px-3 py-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors whitespace-nowrap"
+              title="PDF 다운로드"
+            >
+              PDF
+            </button>
+            <button onClick={onClose} className="text-gray-300 hover:text-white text-2xl leading-none px-1">×</button>
           </div>
-        </section>
+        </div>
 
-        {/* O/U, BTTS, 핸디캡 데이터 */}
-        {raw && (
+        {/* 본문 (PDF 캡쳐 대상) */}
+        <div ref={contentRef} className="bg-gray-900 rounded-b-xl p-5 space-y-6">
+          {/* 경기 요약 */}
           <section>
-            <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">상세 마켓 데이터</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* O/U */}
-              {raw.overUnder && (
-                <div className="bg-gray-800/50 rounded-lg p-4">
-                  <div className="text-xs text-gray-400 mb-2 font-semibold">오버/언더</div>
-                  {Object.entries(raw.overUnder).filter(([k]) => k.startsWith('over')).map(([k, v]) => {
-                    const line = k.replace('over_', '');
-                    const under = raw.overUnder![`under_${line}`];
-                    return (
-                      <div key={k} className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-300">O/U {line}</span>
-                        <span className="text-green-400">{((v as number) * 100).toFixed(0)}%</span>
-                        <span className="text-red-400">{((under as number) * 100).toFixed(0)}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {/* BTTS */}
-              {raw.btts && (
-                <div className="bg-gray-800/50 rounded-lg p-4">
-                  <div className="text-xs text-gray-400 mb-2 font-semibold">양팀득점 (BTTS)</div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">YES</span>
-                    <span className="text-green-400 font-bold">{(raw.btts.yes * 100).toFixed(0)}%</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-1">
-                    <span className="text-gray-300">NO</span>
-                    <span className="text-red-400 font-bold">{(raw.btts.no * 100).toFixed(0)}%</span>
-                  </div>
-                </div>
-              )}
-              {/* 핸디캡 */}
-              {raw.handicaps && (
-                <div className="bg-gray-800/50 rounded-lg p-4">
-                  <div className="text-xs text-gray-400 mb-2 font-semibold">핸디캡</div>
-                  {Object.entries(raw.handicaps).filter(([k]) => k.startsWith('home')).map(([k, v]) => {
-                    const line = k.replace('home_', '');
-                    return (
-                      <div key={k} className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-300">홈 {line}</span>
-                        <span className="text-blue-400">{((v as number) * 100).toFixed(0)}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <h3 className="text-sm font-semibold text-purple-400 mb-2 uppercase tracking-wider">경기 개요</h3>
+            <p className="text-gray-300 leading-relaxed text-sm">{report.match_summary}</p>
           </section>
-        )}
 
-        {/* 마켓 분석 추천 */}
-        <section>
-          <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">핸디캡 & 마켓 분석</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {report.market_analysis && Object.entries(report.market_analysis).map(([key, pick]) => (
-              <div key={key} className="bg-gray-800/50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-400 font-semibold">
-                    {key === 'handicap_pick' ? '핸디캡' : key === 'over_under_pick' ? '오버/언더' : 'BTTS'}
-                  </span>
-                  <Stars count={(pick as MarketPick).confidence_stars} />
-                </div>
-                <div className="text-white font-bold mb-1">{(pick as MarketPick).pick}</div>
-                <p className="text-xs text-gray-300">{(pick as MarketPick).reasoning}</p>
+          {/* 핵심 지표 카드 */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: `${teamKo(match.home_team)} 폼`, value: report.key_metrics?.home_form_label, bg: 'bg-blue-900/20', border: 'border-blue-700/30' },
+              { label: `${teamKo(match.away_team)} 폼`, value: report.key_metrics?.away_form_label, bg: 'bg-red-900/20', border: 'border-red-700/30' },
+              { label: 'H2H 트렌드', value: report.key_metrics?.h2h_trend, bg: 'bg-yellow-900/20', border: 'border-yellow-700/30' },
+              { label: 'H2H 평균 골', value: report.key_metrics?.avg_goals, bg: 'bg-green-900/20', border: 'border-green-700/30' },
+            ].map((item, i) => (
+              <div key={i} className={`${item.bg} border ${item.border} rounded-lg p-3 text-center`}>
+                <div className="text-xs text-gray-400 mb-1">{item.label}</div>
+                <div className="text-white font-bold text-sm">{item.value || '-'}</div>
               </div>
             ))}
           </div>
-        </section>
 
-        {/* 베팅 픽 요약 */}
-        <section>
-          <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">베팅 픽 최종 요약</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {report.betting_picks && (
-              <>
-                <PickCard pick={report.betting_picks.main_pick} type="main" />
-                <PickCard pick={report.betting_picks.secondary_pick} type="secondary" />
-                <PickCard pick={report.betting_picks.alternative_pick} type="alternative" />
-              </>
-            )}
-          </div>
-        </section>
-
-        {/* 예상 스코어 */}
-        <section>
-          <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">예상 스코어</h3>
-          <div className="bg-gray-800/50 rounded-lg p-5 text-center">
-            <div className="flex items-center justify-center gap-6 mb-3">
-              <div>
-                <div className="text-sm text-gray-400 mb-1">{teamKo(match.home_team)}</div>
-                <div className="text-4xl font-bold text-white">{report.predicted_score?.home ?? '-'}</div>
+          {/* 승무패 확률 바 */}
+          {pred && (
+            <section>
+              <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">종합 승리 확률</h3>
+              <div className="flex h-10 rounded-lg overflow-hidden text-sm font-bold">
+                <div className="bg-blue-600 flex items-center justify-center text-white"
+                  style={{ width: `${(pred.home_win_prob || 0) * 100}%` }}>
+                  {((pred.home_win_prob || 0) * 100).toFixed(0)}%
+                </div>
+                <div className="bg-gray-500 flex items-center justify-center text-white"
+                  style={{ width: `${(pred.draw_prob || 0) * 100}%` }}>
+                  {((pred.draw_prob || 0) * 100).toFixed(0)}%
+                </div>
+                <div className="bg-red-600 flex items-center justify-center text-white"
+                  style={{ width: `${(pred.away_win_prob || 0) * 100}%` }}>
+                  {((pred.away_win_prob || 0) * 100).toFixed(0)}%
+                </div>
               </div>
-              <div className="text-2xl text-gray-500">-</div>
-              <div>
-                <div className="text-sm text-gray-400 mb-1">{teamKo(match.away_team)}</div>
-                <div className="text-4xl font-bold text-white">{report.predicted_score?.away ?? '-'}</div>
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>{teamKo(match.home_team)} 승</span>
+                <span>무승부</span>
+                <span>{teamKo(match.away_team)} 승</span>
               </div>
-            </div>
-            <p className="text-xs text-gray-400">{report.predicted_score?.reasoning}</p>
-          </div>
-        </section>
+            </section>
+          )}
 
-        {/* 예상 스코어 TOP 5 */}
-        {raw?.scoreMatrix && raw.scoreMatrix.length > 0 && (
+          {/* 팀 분석 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TeamAnalysisCard team={teamKo(match.home_team)} analysis={report.home_team_analysis} color="blue" side="홈" />
+            <TeamAnalysisCard team={teamKo(match.away_team)} analysis={report.away_team_analysis} color="red" side="원정" />
+          </div>
+
+          {/* H2H 분석 */}
+          {report.h2h_analysis && report.h2h_analysis !== '직접 대결 기록 없음' && (
+            <section>
+              <h3 className="text-sm font-semibold text-purple-400 mb-2 uppercase tracking-wider">H2H 직접 대결 분석</h3>
+              <p className="text-gray-300 leading-relaxed bg-gray-800/50 rounded-lg p-4 text-sm">{report.h2h_analysis}</p>
+            </section>
+          )}
+
+          {/* 확률 분석 */}
           <section>
-            <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">스코어 확률 TOP 5</h3>
-            <div className="flex gap-2 flex-wrap">
-              {raw.scoreMatrix.slice(0, 5).map((s, i) => (
-                <div key={i} className={`px-4 py-2 rounded-lg text-center ${i === 0 ? 'bg-purple-600/30 border border-purple-500/50' : 'bg-gray-800/50 border border-gray-700'}`}>
-                  <div className="text-white font-bold">{s.home}-{s.away}</div>
-                  <div className="text-xs text-gray-400">{(s.prob * 100).toFixed(1)}%</div>
+            <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">확률 분석</h3>
+            <div className="space-y-3">
+              <div className="bg-gray-800/50 rounded-lg p-4">
+                <div className="text-xs text-gray-400 mb-1">모델 신뢰도</div>
+                <p className="text-gray-200 text-sm">{report.probability_analysis?.model_confidence}</p>
+              </div>
+              <div className="bg-gray-800/50 rounded-lg p-4">
+                <div className="text-xs text-gray-400 mb-1">시장 vs AI 모델</div>
+                <p className="text-gray-200 text-sm">{report.probability_analysis?.market_vs_model}</p>
+              </div>
+              {report.probability_analysis?.value_assessment && (
+                <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4">
+                  <div className="text-xs text-yellow-400 mb-1">밸류 평가</div>
+                  <p className="text-gray-200 text-sm">{report.probability_analysis?.value_assessment}</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* O/U, BTTS, 핸디캡 데이터 */}
+          {raw && (
+            <section>
+              <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">상세 마켓 데이터</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {raw.overUnder && (
+                  <div className="bg-gray-800/50 rounded-lg p-4">
+                    <div className="text-xs text-gray-400 mb-2 font-semibold">오버/언더</div>
+                    {Object.entries(raw.overUnder).filter(([k]) => k.startsWith('over')).map(([k, v]) => {
+                      const line = k.replace('over_', '');
+                      const under = raw.overUnder![`under_${line}`];
+                      return (
+                        <div key={k} className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-300">O/U {line}</span>
+                          <span className="text-green-400">{((v as number) * 100).toFixed(0)}%</span>
+                          <span className="text-red-400">{((under as number) * 100).toFixed(0)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {raw.btts && (
+                  <div className="bg-gray-800/50 rounded-lg p-4">
+                    <div className="text-xs text-gray-400 mb-2 font-semibold">양팀득점 (BTTS)</div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-300">YES</span>
+                      <span className="text-green-400 font-bold">{(raw.btts.yes * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-1">
+                      <span className="text-gray-300">NO</span>
+                      <span className="text-red-400 font-bold">{(raw.btts.no * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                )}
+                {raw.handicaps && (
+                  <div className="bg-gray-800/50 rounded-lg p-4">
+                    <div className="text-xs text-gray-400 mb-2 font-semibold">핸디캡</div>
+                    {Object.entries(raw.handicaps).filter(([k]) => k.startsWith('home')).map(([k, v]) => {
+                      const line = k.replace('home_', '');
+                      return (
+                        <div key={k} className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-300">홈 {line}</span>
+                          <span className="text-blue-400">{((v as number) * 100).toFixed(0)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* 마켓 분석 추천 */}
+          <section>
+            <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">핸디캡 & 마켓 분석</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {report.market_analysis && Object.entries(report.market_analysis).map(([key, pick]) => (
+                <div key={key} className="bg-gray-800/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-400 font-semibold">
+                      {key === 'handicap_pick' ? '핸디캡' : key === 'over_under_pick' ? '오버/언더' : 'BTTS'}
+                    </span>
+                    <Stars count={(pick as MarketPick).confidence_stars} />
+                  </div>
+                  <div className="text-white font-bold mb-1">{(pick as MarketPick).pick}</div>
+                  <p className="text-xs text-gray-300">{(pick as MarketPick).reasoning}</p>
                 </div>
               ))}
             </div>
           </section>
-        )}
 
-        {/* 주의사항 */}
-        {report.risk_warning && (
-          <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-4">
-            <div className="text-xs text-red-400 font-semibold mb-1">주의사항 & 변수</div>
-            <p className="text-sm text-gray-300">{report.risk_warning}</p>
+          {/* 베팅 픽 요약 */}
+          <section>
+            <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">베팅 픽 최종 요약</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {report.betting_picks && (
+                <>
+                  <PickCard pick={report.betting_picks.main_pick} type="main" />
+                  <PickCard pick={report.betting_picks.secondary_pick} type="secondary" />
+                  <PickCard pick={report.betting_picks.alternative_pick} type="alternative" />
+                </>
+              )}
+            </div>
+          </section>
+
+          {/* 예상 스코어 */}
+          <section>
+            <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">예상 스코어</h3>
+            <div className="bg-gray-800/50 rounded-lg p-5 text-center">
+              <div className="flex items-center justify-center gap-6 mb-3">
+                <div>
+                  <div className="text-sm text-gray-400 mb-1">{teamKo(match.home_team)}</div>
+                  <div className="text-4xl font-bold text-white">{report.predicted_score?.home ?? '-'}</div>
+                </div>
+                <div className="text-2xl text-gray-500">-</div>
+                <div>
+                  <div className="text-sm text-gray-400 mb-1">{teamKo(match.away_team)}</div>
+                  <div className="text-4xl font-bold text-white">{report.predicted_score?.away ?? '-'}</div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">{report.predicted_score?.reasoning}</p>
+            </div>
+          </section>
+
+          {/* 스코어 확률 TOP 5 */}
+          {raw?.scoreMatrix && raw.scoreMatrix.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">스코어 확률 TOP 5</h3>
+              <div className="flex gap-2 flex-wrap">
+                {raw.scoreMatrix.slice(0, 5).map((s, i) => (
+                  <div key={i} className={`px-4 py-2 rounded-lg text-center ${i === 0 ? 'bg-purple-600/30 border border-purple-500/50' : 'bg-gray-800/50 border border-gray-700'}`}>
+                    <div className="text-white font-bold">{s.home}-{s.away}</div>
+                    <div className="text-xs text-gray-400">{(s.prob * 100).toFixed(1)}%</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 주의사항 */}
+          {report.risk_warning && (
+            <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-4">
+              <div className="text-xs text-red-400 font-semibold mb-1">주의사항 & 변수</div>
+              <p className="text-sm text-gray-300">{report.risk_warning}</p>
+            </div>
+          )}
+
+          {/* 전체 신뢰도 */}
+          <div className="bg-gray-800/50 rounded-lg p-4 text-center">
+            <div className="text-xs text-gray-400 mb-1">전체 분석 신뢰도</div>
+            <p className="text-white font-medium">{report.overall_confidence}</p>
           </div>
-        )}
 
-        {/* 전체 신뢰도 */}
-        <div className="bg-gray-800/50 rounded-lg p-4 text-center">
-          <div className="text-xs text-gray-400 mb-1">전체 분석 신뢰도</div>
-          <p className="text-white font-medium">{report.overall_confidence}</p>
+          {/* 면책 */}
+          <p className="text-xs text-gray-500 text-center">
+            AI 분석은 통계 기반 참고 서비스이며, 결과를 보장하지 않습니다.
+          </p>
         </div>
-
-        {/* 면책 */}
-        <p className="text-xs text-gray-500 text-center">
-          AI 분석은 통계 기반 참고 서비스이며, 결과를 보장하지 않습니다.
-        </p>
       </div>
     </div>
   );
