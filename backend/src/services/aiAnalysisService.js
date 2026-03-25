@@ -491,18 +491,28 @@ async function getAnalyzableMatches() {
 
   const reportMap = new Map((existingReports || []).map(r => [r.match_id, r.created_at]));
 
-  return matches.map(m => ({
-    id: m.id,
-    sport: m.sport,
-    league: m.league,
-    home_team: m.home_team,
-    away_team: m.away_team,
-    start_time: m.start_time,
-    has_prediction: m.ai_predictions && m.ai_predictions.length > 0,
-    prediction: m.ai_predictions?.[0] || null,
-    has_analysis: reportMap.has(m.id),
-    analysis_at: reportMap.get(m.id) || null,
-  }));
+  return matches.map(m => {
+    const p = m.ai_predictions?.[0] || null;
+    let analysisScore = 0;
+    if (p) {
+      const maxProb = Math.max(p.home_win_prob || 0, p.away_win_prob || 0);
+      const valueBetEdge = p.value_bets ? Math.max(...p.value_bets.map(v => v.edge || 0)) : 0;
+      analysisScore = Math.round(((p.confidence || 0) * 0.4 + maxProb * 0.3 + valueBetEdge * 0.3) * 100);
+    }
+    return {
+      id: m.id,
+      sport: m.sport,
+      league: m.league,
+      home_team: m.home_team,
+      away_team: m.away_team,
+      start_time: m.start_time,
+      has_prediction: !!p,
+      prediction: p,
+      has_analysis: reportMap.has(m.id),
+      analysis_at: reportMap.get(m.id) || null,
+      analysis_score: analysisScore,
+    };
+  }).sort((a, b) => b.analysis_score - a.analysis_score);
 }
 
 function round(n) {

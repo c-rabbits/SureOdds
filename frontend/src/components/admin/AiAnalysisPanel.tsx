@@ -29,6 +29,7 @@ interface AnalyzableMatch {
   } | null;
   has_analysis: boolean;
   analysis_at: string | null;
+  analysis_score: number;
 }
 
 interface BettingPick {
@@ -218,9 +219,18 @@ export default function AiAnalysisPanel() {
       {/* ─── 상단: TOP N 자동 분석 ─── */}
       <div className="bg-gradient-to-r from-purple-900/40 to-blue-900/40 rounded-xl p-5 border border-purple-500/30">
         <h3 className="text-lg font-bold text-white mb-3">AI 심층 분석 (Claude API)</h3>
-        <p className="text-sm text-gray-300 mb-4">
+        <p className="text-sm text-gray-300 mb-3">
           확률 높은 픽을 자동 선별하여 Claude AI가 전문 분석 보고서를 생성합니다.
         </p>
+        {/* 선별 기준 표 */}
+        <div className="bg-black/20 rounded-lg p-3 mb-4 text-xs">
+          <div className="text-gray-400 font-semibold mb-2">선별 점수 = confidence × 0.4 + maxProb × 0.3 + valueBetEdge × 0.3</div>
+          <div className="grid grid-cols-3 gap-2 text-gray-300">
+            <div><span className="text-purple-300 font-semibold">신뢰도</span> 40% — 모델 일치도 + 북메이커 수</div>
+            <div><span className="text-blue-300 font-semibold">편중도</span> 30% — 승/패 중 높은 확률</div>
+            <div><span className="text-yellow-300 font-semibold">밸류엣지</span> 30% — AI확률 - 시장확률 차이</div>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <select
             value={topCount}
@@ -263,8 +273,15 @@ export default function AiAnalysisPanel() {
           <div className="divide-y divide-gray-700/50">
             {matches.map(m => (
               <div key={m.id} className="p-4 hover:bg-gray-700/30 transition-colors">
-                {/* 상단: 리그 + 시간 + 분석 완료 뱃지 */}
-                <div className="flex items-center gap-2 mb-2">
+                {/* 상단: 점수 + 리그 + 시간 + 분석 완료 뱃지 */}
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className={`text-xs px-2 py-0.5 rounded font-bold whitespace-nowrap ${
+                    m.analysis_score >= 40 ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                    m.analysis_score >= 25 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+                    'bg-gray-700/50 text-gray-400 border border-gray-600'
+                  }`}>
+                    {m.analysis_score}점
+                  </span>
                   <span className="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700/50 whitespace-nowrap">
                     {leagueKo(m.league || m.sport)}
                   </span>
