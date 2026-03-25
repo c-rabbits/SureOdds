@@ -663,5 +663,29 @@ export async function getAiAnalysisReports() {
   return data.data;
 }
 
+// ============================================================
+// 수집기 모니터링 (관리자용) — 추가 함수
+// ============================================================
+
+export async function getCollectorQuota() {
+  const { data } = await api.get('/api/collector/quota');
+  return data.data;
+}
+
+export async function getTeamStatsStatus() {
+  const { data } = await api.get('/api/collector/team-stats-status');
+  return data.data;
+}
+
+export async function triggerOddsApiIo() {
+  const { data } = await api.post('/api/collector/trigger-oddsapiio', {}, { timeout: 60000 });
+  return data.data;
+}
+
+export async function triggerTeamStats() {
+  const { data } = await api.post('/api/collector/trigger-team-stats', {}, { timeout: 120000 });
+  return data.data;
+}
+
 // axios 인스턴스 export (aiApi.ts에서 재사용)
 export { api };

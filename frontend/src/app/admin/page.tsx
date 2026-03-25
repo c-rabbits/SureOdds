@@ -32,6 +32,9 @@ const UnmatchedTeamsPanel = dynamic(() => import('@/components/admin/UnmatchedTe
 const AiAnalysisPanel = dynamic(() => import('@/components/admin/AiAnalysisPanel'), {
   loading: () => <div className="h-64 bg-gray-800/50 rounded-lg animate-pulse" />,
 });
+const ApiMonitorPanel = dynamic(() => import('@/components/admin/ApiMonitorPanel'), {
+  loading: () => <div className="h-64 bg-gray-800/50 rounded-lg animate-pulse" />,
+});
 
 type AdminTab = 'users' | 'sites' | 'requests' | 'teams' | 'ai-analysis' | 'settings';
 
@@ -70,6 +73,7 @@ export default function AdminPage() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
+  const [sitesSubTab, setSitesSubTab] = useState<'list' | 'monitor'>('list');
 
   // ─── 회원 관리 ───
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -681,6 +685,27 @@ export default function AdminPage() {
       {/* ═══════════════════════════════════════════════════════ */}
       {activeTab === 'sites' && (
         <>
+          {/* 서브 탭: 사이트 목록 / API 모니터링 */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setSitesSubTab('list')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${sitesSubTab === 'list' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+            >
+              사이트 목록
+            </button>
+            <button
+              onClick={() => setSitesSubTab('monitor')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${sitesSubTab === 'monitor' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+            >
+              API 모니터링
+            </button>
+          </div>
+
+          {/* API 모니터링 서브 탭 */}
+          {sitesSubTab === 'monitor' && <ApiMonitorPanel />}
+
+          {/* 사이트 목록 서브 탭 */}
+          {sitesSubTab === 'list' && (<>
           {/* ── 마스터 사이트 목록 관리 ── */}
           <div className="card p-4 mb-4">
             <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
@@ -940,6 +965,7 @@ export default function AdminPage() {
               </>
             );
           })()}
+          </>)}
         </>
       )}
 
