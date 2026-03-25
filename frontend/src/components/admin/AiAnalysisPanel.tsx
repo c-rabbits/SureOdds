@@ -6,6 +6,7 @@ import {
   generateAiAnalysis,
   generateTopAiAnalyses,
   getAiAnalysisReport,
+  getAiAnalysisReports,
 } from '@/lib/api';
 import { getKoreanTeamName } from '@/lib/teamNames';
 import { getKoreanLeagueName } from '@/lib/leagueNames';
@@ -139,7 +140,16 @@ function Stars({ count }: { count: number }) {
 
 // ─── 메인 컴포넌트 ───
 
+interface HistoryItem {
+  id: string;
+  match_id: string;
+  model_used: string;
+  created_at: string;
+  matches: { id: string; sport: string; league: string; home_team: string; away_team: string; start_time: string };
+}
+
 export default function AiAnalysisPanel() {
+  const [subTab, setSubTab] = useState<'analyze' | 'history'>('analyze');
   const [matches, setMatches] = useState<AnalyzableMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
@@ -147,6 +157,9 @@ export default function AiAnalysisPanel() {
   const [selectedMatch, setSelectedMatch] = useState<AnalyzableMatch | null>(null);
   const [topCount, setTopCount] = useState(3);
   const [sortBy, setSortBy] = useState<'score' | 'date'>('score');
+  // 이력
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const loadMatches = useCallback(async () => {
     try {
@@ -161,6 +174,22 @@ export default function AiAnalysisPanel() {
   }, []);
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      setHistoryLoading(true);
+      const data = await getAiAnalysisReports();
+      setHistory(data || []);
+    } catch (err) {
+      console.error('Failed to load history', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (subTab === 'history') loadHistory();
+  }, [subTab, loadHistory]);
 
   const handleGenerate = async (match: AnalyzableMatch, forceRefresh = false) => {
     setGenerating(match.id);
@@ -201,6 +230,25 @@ export default function AiAnalysisPanel() {
     }
   };
 
+  const handleViewHistoryReport = async (item: HistoryItem) => {
+    try {
+      const report = await getAiAnalysisReport(item.match_id);
+      if (report) {
+        setSelectedReport(report);
+        setSelectedMatch({
+          id: item.match_id,
+          sport: item.matches.sport,
+          league: item.matches.league,
+          home_team: item.matches.home_team,
+          away_team: item.matches.away_team,
+          start_time: item.matches.start_time,
+        } as AnalyzableMatch);
+      }
+    } catch {
+      alert('보고서 조회 실패');
+    }
+  };
+
   const handleViewReport = async (match: AnalyzableMatch) => {
     try {
       const report = await getAiAnalysisReport(match.id);
@@ -217,6 +265,24 @@ export default function AiAnalysisPanel() {
 
   return (
     <div className="space-y-6">
+      {/* ─── 서브 탭 ─── */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSubTab('analyze')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${subTab === 'analyze' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+        >
+          경기 분석
+        </button>
+        <button
+          onClick={() => setSubTab('history')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${subTab === 'history' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+        >
+          분석 이력 {history.length > 0 && <span className="ml-1 text-xs opacity-70">({history.length})</span>}
+        </button>
+      </div>
+
+      {/* ─── 경기 분석 탭 ─── */}
+      {subTab === 'analyze' && (<>
       {/* ─── 상단: TOP N 자동 분석 ─── */}
       <div className="bg-gradient-to-r from-purple-900/40 to-blue-900/40 rounded-xl p-5 border border-purple-500/30">
         <h3 className="text-lg font-bold text-white mb-3">AI 심층 분석 (Claude API)</h3>
@@ -345,6 +411,60 @@ export default function AiAnalysisPanel() {
           </div>
         )}
       </div>
+
+      </>)}
+
+      {/* ─── 분석 이력 탭 ─── */}
+      {subTab === 'history' && (
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700">
+          <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+            <h4 className="text-white font-medium">분석 이력</h4>
+            <button
+              onClick={loadHistory}
+              className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition-colors shrink-0"
+              title="새로고침"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
+          {historyLoading ? (
+            <div className="p-8 text-center text-gray-400">로딩 중...</div>
+          ) : history.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">분석 이력이 없습니다</div>
+          ) : (
+            <div className="divide-y divide-gray-700/50">
+              {history.map(item => (
+                <div key={item.id} className="p-4 hover:bg-gray-700/30 transition-colors">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700/50 whitespace-nowrap">
+                      {leagueKo(item.matches?.league || item.matches?.sport || '')}
+                    </span>
+                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                      경기 {item.matches?.start_time ? formatTime(item.matches.start_time) : '-'}
+                    </span>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                      분석일 {new Date(item.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-white font-medium">
+                      {item.matches ? `${teamKo(item.matches.home_team)} vs ${teamKo(item.matches.away_team)}` : '경기 정보 없음'}
+                    </div>
+                    <button
+                      onClick={() => handleViewHistoryReport(item)}
+                      className="text-sm px-4 py-1.5 rounded-lg bg-blue-600/30 text-blue-300 hover:bg-blue-600/50 transition-colors whitespace-nowrap shrink-0 ml-3"
+                    >
+                      보기
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ─── 분석 보고서 팝업 (풀스크린 모달) ─── */}
       {selectedReport && selectedMatch && (
