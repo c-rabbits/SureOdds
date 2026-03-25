@@ -7,6 +7,8 @@ import {
   generateTopAiAnalyses,
   getAiAnalysisReport,
 } from '@/lib/api';
+import { getKoreanTeamName } from '@/lib/teamNames';
+import { getKoreanLeagueName } from '@/lib/leagueNames';
 
 // ─── 타입 ───
 
@@ -101,15 +103,22 @@ interface AnalysisReport {
 
 // ─── 한글 매핑 ───
 
-const LEAGUE_KO: Record<string, string> = {
+// sport key → 한글 (TheOddsAPI sport key용)
+const SPORT_KEY_KO: Record<string, string> = {
   'soccer_epl': '프리미어리그', 'soccer_spain_la_liga': '라리가',
   'soccer_germany_bundesliga': '분데스리가', 'soccer_italy_serie_a': '세리에A',
   'soccer_france_ligue_one': '리그1', 'soccer_japan_j_league': 'J리그',
   'soccer_korea_kleague1': 'K리그1', 'soccer_uefa_champs_league': 'UCL',
+  'soccer_uefa_europa_league': '유로파', 'soccer_usa_mls': 'MLS',
+  'soccer_int_friendly_games': '국제친선',
 };
 
-function leagueKo(key: string) {
-  return LEAGUE_KO[key] || key;
+function leagueKo(sportOrLeague: string) {
+  return SPORT_KEY_KO[sportOrLeague] || getKoreanLeagueName(sportOrLeague);
+}
+
+function teamKo(name: string) {
+  return getKoreanTeamName(name);
 }
 
 function formatTime(iso: string) {
@@ -270,7 +279,7 @@ export default function AiAnalysisPanel() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700/50">
-                      {leagueKo(m.sport)}
+                      {leagueKo(m.league || m.sport)}
                     </span>
                     <span className="text-xs text-gray-400">{formatTime(m.start_time)}</span>
                     {m.has_analysis && (
@@ -280,7 +289,7 @@ export default function AiAnalysisPanel() {
                     )}
                   </div>
                   <div className="text-white font-medium">
-                    {m.home_team} vs {m.away_team}
+                    {teamKo(m.home_team)} vs {teamKo(m.away_team)}
                   </div>
                   {m.prediction && (
                     <div className="text-xs text-gray-400 mt-1 flex gap-3">
@@ -342,8 +351,8 @@ function AnalysisReportView({ report, match, onClose }: {
       <div className="bg-gradient-to-r from-purple-900/60 to-blue-900/60 p-5 border-b border-gray-700">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs text-gray-300 mb-1">{leagueKo(match.sport)} · {formatTime(match.start_time)}</div>
-            <h2 className="text-xl font-bold text-white">{match.home_team} vs {match.away_team}</h2>
+            <div className="text-xs text-gray-300 mb-1">{leagueKo(match.league || match.sport)} · {formatTime(match.start_time)}</div>
+            <h2 className="text-xl font-bold text-white">{teamKo(match.home_team)} vs {teamKo(match.away_team)}</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">×</button>
         </div>
@@ -359,8 +368,8 @@ function AnalysisReportView({ report, match, onClose }: {
         {/* 핵심 지표 카드 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: `${match.home_team.split(' ').pop()} 최근 폼`, value: report.key_metrics?.home_form_label, color: 'blue' },
-            { label: `${match.away_team.split(' ').pop()} 최근 폼`, value: report.key_metrics?.away_form_label, color: 'red' },
+            { label: `${teamKo(match.home_team)} 최근 폼`, value: report.key_metrics?.home_form_label, color: 'blue' },
+            { label: `${teamKo(match.away_team)} 최근 폼`, value: report.key_metrics?.away_form_label, color: 'red' },
             { label: 'H2H 트렌드', value: report.key_metrics?.h2h_trend, color: 'yellow' },
             { label: 'H2H 평균 골', value: report.key_metrics?.avg_goals, color: 'green' },
           ].map((item, i) => (
@@ -390,9 +399,9 @@ function AnalysisReportView({ report, match, onClose }: {
               </div>
             </div>
             <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>{match.home_team} 승</span>
+              <span>{teamKo(match.home_team)} 승</span>
               <span>무승부</span>
-              <span>{match.away_team} 승</span>
+              <span>{teamKo(match.away_team)} 승</span>
             </div>
           </section>
         )}
@@ -400,13 +409,13 @@ function AnalysisReportView({ report, match, onClose }: {
         {/* 팀 분석 (좌우) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <TeamAnalysisCard
-            team={match.home_team}
+            team={teamKo(match.home_team)}
             analysis={report.home_team_analysis}
             color="blue"
             side="홈"
           />
           <TeamAnalysisCard
-            team={match.away_team}
+            team={teamKo(match.away_team)}
             analysis={report.away_team_analysis}
             color="red"
             side="원정"
@@ -536,12 +545,12 @@ function AnalysisReportView({ report, match, onClose }: {
           <div className="bg-gray-800/50 rounded-lg p-5 text-center">
             <div className="flex items-center justify-center gap-6 mb-3">
               <div>
-                <div className="text-sm text-gray-400 mb-1">{match.home_team}</div>
+                <div className="text-sm text-gray-400 mb-1">{teamKo(match.home_team)}</div>
                 <div className="text-4xl font-bold text-white">{report.predicted_score?.home ?? '-'}</div>
               </div>
               <div className="text-2xl text-gray-500">-</div>
               <div>
-                <div className="text-sm text-gray-400 mb-1">{match.away_team}</div>
+                <div className="text-sm text-gray-400 mb-1">{teamKo(match.away_team)}</div>
                 <div className="text-4xl font-bold text-white">{report.predicted_score?.away ?? '-'}</div>
               </div>
             </div>
