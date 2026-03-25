@@ -467,7 +467,7 @@ export default function DomesticPage() {
               <div className="flex items-center gap-3 text-xs text-gray-400">
                 <span className="text-green-400">&#x2714; 크로스</span>
                 <span className="text-purple-400">&#x2714; 핸디캡</span>
-                <span className="text-orange-400">&#x2714; O/U</span>
+                <span className="text-orange-400">&#x2714; 오버/언더</span>
               </div>
               <div className="flex items-center gap-2">
                 {editingSiteId && (
@@ -504,7 +504,7 @@ export default function DomesticPage() {
                     <th className="text-left py-2 px-2">유형</th>
                     <th className="text-center py-2 px-2">1X2</th>
                     <th className="text-center py-2 px-2">핸디</th>
-                    <th className="text-center py-2 px-2">O/U</th>
+                    <th className="text-center py-2 px-2">오버/언더</th>
                     <th className="text-center py-2 px-2">기능</th>
                   </tr>
                 </thead>
