@@ -146,6 +146,7 @@ export default function AiAnalysisPanel() {
   const [selectedReport, setSelectedReport] = useState<AnalysisReport | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<AnalyzableMatch | null>(null);
   const [topCount, setTopCount] = useState(3);
+  const [sortBy, setSortBy] = useState<'score' | 'date'>('score');
 
   const loadMatches = useCallback(async () => {
     try {
@@ -262,8 +263,22 @@ export default function AiAnalysisPanel() {
 
       {/* ─── 경기 목록 ─── */}
       <div className="bg-gray-800/50 rounded-xl border border-gray-700">
-        <div className="p-4 border-b border-gray-700">
+        <div className="p-4 border-b border-gray-700 flex items-center justify-between">
           <h4 className="text-white font-medium">분석 가능 경기 ({matches.length})</h4>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setSortBy('score')}
+              className={`text-xs px-3 py-1 rounded-lg transition-colors ${sortBy === 'score' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+            >
+              점수순
+            </button>
+            <button
+              onClick={() => setSortBy('date')}
+              className={`text-xs px-3 py-1 rounded-lg transition-colors ${sortBy === 'date' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+            >
+              날짜순
+            </button>
+          </div>
         </div>
         {loading ? (
           <div className="p-8 text-center text-gray-400">로딩 중...</div>
@@ -271,7 +286,10 @@ export default function AiAnalysisPanel() {
           <div className="p-8 text-center text-gray-400">예측 가능한 경기가 없습니다</div>
         ) : (
           <div className="divide-y divide-gray-700/50">
-            {matches.map(m => (
+            {[...matches].sort((a, b) =>
+              sortBy === 'score' ? b.analysis_score - a.analysis_score
+                : new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+            ).map(m => (
               <div key={m.id} className="p-4 hover:bg-gray-700/30 transition-colors">
                 {/* 상단: 점수 + 리그 + 시간 + 분석 완료 뱃지 */}
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
