@@ -224,13 +224,11 @@ export default function AiAnalysisPanel() {
           확률 높은 픽을 자동 선별하여 Claude AI가 전문 분석 보고서를 생성합니다.
         </p>
         {/* 선별 기준 표 */}
-        <div className="bg-black/20 rounded-lg p-3 mb-4 text-xs">
-          <div className="text-gray-400 font-semibold mb-2">선별 점수 = confidence × 0.4 + maxProb × 0.3 + valueBetEdge × 0.3</div>
-          <div className="grid grid-cols-3 gap-2 text-gray-300">
-            <div><span className="text-purple-300 font-semibold">신뢰도</span> 40% — 모델 일치도 + 북메이커 수</div>
-            <div><span className="text-blue-300 font-semibold">편중도</span> 30% — 승/패 중 높은 확률</div>
-            <div><span className="text-yellow-300 font-semibold">밸류엣지</span> 30% — AI확률 - 시장확률 차이</div>
-          </div>
+        <div className="bg-black/20 rounded-lg p-3 mb-4 text-xs space-y-1">
+          <div className="text-gray-400 font-semibold">선별 점수 = confidence × 0.4 + maxProb × 0.3 + valueBetEdge × 0.3</div>
+          <div className="text-gray-300"><span className="text-purple-300 font-semibold">신뢰도</span> 40% — 모델 일치도 + 북메이커 수</div>
+          <div className="text-gray-300"><span className="text-blue-300 font-semibold">편중도</span> 30% — 승/패 중 높은 확률</div>
+          <div className="text-gray-300"><span className="text-yellow-300 font-semibold">밸류엣지</span> 30% — AI확률 - 시장확률 차이</div>
         </div>
         <div className="flex items-center gap-3">
           <select
